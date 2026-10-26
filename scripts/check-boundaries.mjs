@@ -1,4 +1,4 @@
-import { access, readdir, readFile, realpath } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -131,14 +131,9 @@ export const checkBoundaries = async (root = repository) => {
     violations.push("This foundation has no runtime dependencies");
   if (manifest.workspaces !== undefined)
     violations.push("A standalone project must not declare npm workspaces");
-  for (const name of ["apps", "packages"]) {
-    try {
-      await access(path.join(root, name));
+  for (const name of await readdir(root))
+    if (["apps", "packages"].includes(name))
       violations.push("Retired source scaffold: " + name);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-  }
   const configPath = path.join(root, "tsconfig.json");
   const config = ts.readConfigFile(configPath, ts.sys.readFile);
   if (config.error)
