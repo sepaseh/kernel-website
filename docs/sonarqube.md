@@ -19,7 +19,7 @@ The workflow validates the declared snapshot, installs the locked toolchain and
 runs both real coverage commands before scanning. The
 [properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
 `coverage/governance/lcov.info` from that same checkout/revision. They cover
-foundation helpers and governance scripts, not Next.js UI, HTTP routes, browser
+published helpers, local catalogs and governance scripts, not Next.js UI, HTTP routes, browser
 journeys or deployment. Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
 
@@ -52,12 +52,12 @@ and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-so
 Request an initial review or re-review only after **every required
 non-CodeRabbit check passes for the exact current PR head**. Use the approved
 phase-specific set in [branch protection](branch-protection.md). The non-runnable
-foundation requires `check`, `SonarQube Cloud analysis` and the actual
+publication requires `check`, `SonarQube Cloud analysis` and the actual
 `SonarCloud Code Analysis` quality gate before a request. Exclude only
 CodeRabbit's own check and approval from this preflight to avoid a circular
 dependency.
 
-Under the explicitly approved foundation policy, app `build`, `e2e` and
+Under the non-runnable publication policy, app `build`, `e2e` and
 `visual` jobs are not currently required. Before any runnable-app merge,
 introduce those real jobs, observe them pass, add them to required checks and
 expand the full canonical application gate. Do not emit placeholder jobs,

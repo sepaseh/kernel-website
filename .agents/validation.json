@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "foundation",
+  "phase": "localization",
   "applicationReady": false,
   "checks": [
     {
@@ -8,63 +8,63 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["localization"]
     }
   ],
   "profiles": {

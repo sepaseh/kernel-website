@@ -1,12 +1,14 @@
-# Foundation phase
+# Localization phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This phase contains twelve source files: six contract modules, form helpers and
-tests, API-origin validation, locale codes and the public-settings language
-loader/tests. `applicationReady:false` is enforced by the
-[exact inventory](../.github/bootstrap-policy.json). No Next.js app, catalog
-rendering, browser journey, deployment or runtime dependency is included.
+This phase contains twenty-five source files: wire contracts, form helpers,
+API-origin validation, the API-authoritative settings-language loader, ten flat
+107-key catalogs, their erased key type and explicit lazy-loader registry, plus
+three source test files. `applicationReady:false` is enforced by the
+[exact inventory](../.github/bootstrap-policy.json). Read [localization](localization.md)
+for catalog ownership and language policy. No Next.js app, actual ICU rendering,
+browser journey, deployment or runtime dependency is included.
 
 After `npm ci`, run `npm run validate -- full`. The
 [manifest](../.agents/validation.json) defines nine required checks: snapshot,
@@ -40,8 +42,7 @@ checks maintained local links. It allows ordinary root `node_modules` and
 list, not the total inventory.
 
 [CI](../.github/workflows/ci.yml) runs the full phase and an unprivileged
-read-only PR-size check. The initial empty main has no trusted PR guard yet.
-After a reviewed merge, the [target guard](../.github/workflows/pr-policy.yml)
+read-only PR-size check. The [target guard](../.github/workflows/pr-policy.yml)
 uses only the immutable `github.workflow_sha` checkout with read-only permissions.
 Never execute PR-head or unreviewed base code in that privileged event.
 The size guard rejects metadata above 100 files before retrieval. An eligible PR
@@ -52,12 +53,12 @@ Use native CodeRabbit/Sonar/CI and one approving review with resolved
 conversations. CodeRabbit automatic review is disabled; request a manual review
 only after the [strict preflight](sonarqube.md#before-requesting-coderabbit) passes
 for the current head. All required non-CodeRabbit checks and zero OPEN/unresolved
-Sonar issues of every severity are mandatory under the approved foundation
+Sonar issues of every severity are mandatory under the approved non-runnable
 check set. Recheck after head changes, respect quotas and avoid duplicate
 in-flight requests. See [Contributing](../CONTRIBUTING.md),
 [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
 
-Under the explicitly approved non-runnable foundation policy, app build/e2e/visual
+Under the non-runnable publication policy, app build/e2e/visual
 jobs are not required. The four native contexts are listed in
 [branch protection](branch-protection.md); the closed inventory and
 applicationReady:false remain unchanged. No fake jobs or skipped required checks
@@ -69,6 +70,6 @@ branch protection.
 
 The complete website application has fifteen required checks. Their actual
 source and fixtures must arrive through focused publication PRs before this
-non-runnable foundation can become a runnable application. Once introduced, the
+non-runnable publication can become a runnable application. Once introduced, the
 entire application gate runs on every PR regardless of changed paths; the
 100-file PR cap is independent of test scope.

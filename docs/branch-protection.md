@@ -2,20 +2,20 @@
 
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
-The approved **foundation** phase remains non-runnable with
+The approved **foundation** and **localization** phases remain non-runnable with
 `applicationReady:false` and its closed source inventory. Its required native
 check set is:
 
-| Required foundation check  | Expected GitHub App         |
-| -------------------------- | --------------------------- |
-| `check`                    | GitHub Actions, App `15368` |
-| `SonarQube Cloud analysis` | GitHub Actions, App `15368` |
-| `SonarCloud Code Analysis` | SonarCloud, App `12526`     |
-| `CodeRabbit`               | CodeRabbit, App `347564`    |
+| Required published-phase check | Expected GitHub App         |
+| ------------------------------ | --------------------------- |
+| `check`                        | GitHub Actions, App `15368` |
+| `SonarQube Cloud analysis`     | GitHub Actions, App `15368` |
+| `SonarCloud Code Analysis`     | SonarCloud, App `12526`     |
+| `CodeRabbit`                   | CodeRabbit, App `347564`    |
 
-The real foundation job validates the published scope; the scanner job and the
+The real check job validates the published scope; the scanner job and the
 provider quality gate are distinct requirements. App `build`, `e2e` and
-`visual` jobs are outside this explicitly approved foundation policy. No fake
+`visual` jobs are outside this non-runnable publication policy. No fake
 job, skipped check or claim of application readiness substitutes for them.
 
 Keep all other protections: one approving review, resolved conversations,

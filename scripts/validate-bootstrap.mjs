@@ -49,12 +49,42 @@ const foundationSource = new Set([
   "src/shared/settings/language.ts",
   "src/shared/settings/language.test.ts",
 ]);
-const isFoundationSource = (file) => foundationSource.has(file);
+const localizationFiles = [
+  "docs/localization.md",
+  "docs/localization.fa.md",
+  "src/i18n/catalogs.ts",
+  "src/i18n/catalog-data/integrity.test.ts",
+  "src/i18n/catalog-data/website-types.ts",
+  "src/i18n/catalog-data/locales/ar.ts",
+  "src/i18n/catalog-data/locales/de.ts",
+  "src/i18n/catalog-data/locales/en.ts",
+  "src/i18n/catalog-data/locales/es.ts",
+  "src/i18n/catalog-data/locales/fa.ts",
+  "src/i18n/catalog-data/locales/fr.ts",
+  "src/i18n/catalog-data/locales/it.ts",
+  "src/i18n/catalog-data/locales/pt.ts",
+  "src/i18n/catalog-data/locales/ru.ts",
+  "src/i18n/catalog-data/locales/tr.ts",
+];
+const localizationSource = new Set(
+  localizationFiles.filter((file) => file.startsWith("src/")),
+);
+const isPublishedSource = (file, phase) =>
+  foundationSource.has(file) ||
+  (phase === "localization" && localizationSource.has(file));
+const publicationScopes = {
+  governance:
+    "Published governance files only; website runtime is not published or validated.",
+  foundation:
+    "Published wire contracts, input helpers and settings-language loading only; Next.js UI, routes, browser behavior and deployment are not published or validated.",
+  localization:
+    "Published contracts, input helpers, API-authoritative settings-language loading and complete local catalogs; Next.js UI, rendering, browser behavior and deployment are not published or validated.",
+};
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
-    !["governance", "foundation"].includes(policy.phase) ||
+    !Object.hasOwn(publicationScopes, policy.phase) ||
     policy.applicationReady !== false ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
@@ -74,7 +104,8 @@ export const validateBootstrapPolicy = (policy) => {
       ) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
-        (policy.phase !== "foundation" || !isFoundationSource(file))) ||
+        (policy.phase === "governance" ||
+          !isPublishedSource(file, policy.phase))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
       /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
@@ -88,9 +119,10 @@ export const validateBootstrapPolicy = (policy) => {
   }
   const requiredFiles = [
     ...coreFiles,
-    ...(policy.phase === "foundation"
-      ? foundationFiles
-      : [".github/workflows/bootstrap.yml"]),
+    ...(policy.phase === "governance"
+      ? [".github/workflows/bootstrap.yml"]
+      : foundationFiles),
+    ...(policy.phase === "localization" ? localizationFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
@@ -127,7 +159,7 @@ export const inspectBootstrap = async (root) => {
         const relative = directory ? `${directory}/${entry.name}` : entry.name;
         if (relative === ".git") return;
         if (
-          policy.phase === "foundation" &&
+          policy.phase !== "governance" &&
           ["node_modules", "coverage"].includes(relative)
         ) {
           if (entry.isSymbolicLink() || !entry.isDirectory())
@@ -202,10 +234,7 @@ export const inspectBootstrap = async (root) => {
     applicationReady: false,
     files: found.size,
     phase: policy.phase,
-    scope:
-      policy.phase === "foundation"
-        ? "Published wire contracts, input helpers and settings-language loading only; Next.js UI, routes, browser behavior and deployment are not published or validated."
-        : "Published governance files only; website runtime is not published or validated.",
+    scope: publicationScopes[policy.phase],
   };
 };
 

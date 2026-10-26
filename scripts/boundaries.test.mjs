@@ -12,8 +12,8 @@ import {
 
 const root = path.resolve("fixture");
 const file = path.join(root, "src/shared/settings/language.ts");
-const check = (specifier, resolved, owner = file) =>
-  boundaryViolation({ root, file: owner, specifier, resolved });
+const check = (specifier, resolved, owner = file, typeOnly = false) =>
+  boundaryViolation({ root, file: owner, specifier, resolved, typeOnly });
 
 test("captures static, erased, re-export, dynamic and require dependencies", () => {
   const edges = inspectImports(`
@@ -72,6 +72,59 @@ test("external packages, built-in modules and computed imports are not productio
   assert.deepEqual(
     inspectImports("const mode = process.env.API_BASE_URL; new URL(mode);"),
     [],
+  );
+});
+
+test("catalog data uses erased local types without runtime imports or fallback catalogs", () => {
+  const owner = path.join(root, "src/i18n/catalog-data/locales/fa.ts");
+  const type = path.join(root, "src/i18n/catalog-data/website-types.ts");
+  assert.equal(check("../website-types.ts", type, owner, true), undefined);
+  assert.ok(check("../website-types.ts", type, owner, false));
+  const [fallback] = inspectImports(
+    'import english from "./en.ts"; export default { ...english };',
+  );
+  assert.ok(
+    check(
+      fallback.specifier,
+      path.join(root, "src/i18n/catalog-data/locales/en.ts"),
+      owner,
+      fallback.typeOnly,
+    ),
+  );
+  assert.ok(check("next-intl", undefined, owner));
+  assert.ok(
+    check("../../request", path.join(root, "src/i18n/request.ts"), owner, true),
+  );
+  assert.ok(
+    check(
+      "../../catalogs",
+      path.join(root, "src/i18n/catalogs.ts"),
+      owner,
+      true,
+    ),
+  );
+  assert.ok(check("@/i18n/catalog-data/website-types", type, owner, true));
+  assert.equal(
+    check(
+      "@/i18n/catalog-data/locales/fa",
+      path.join(root, "src/i18n/catalog-data/locales/fa.ts"),
+      path.join(root, "src/i18n/catalogs.ts"),
+    ),
+    undefined,
+  );
+});
+
+test("the import graph distinguishes erased declarations from module-loading edges", () => {
+  const edges = inspectImports(`
+import type Shape from "./shape";
+import { type Shape } from "./shape";
+export type { Shape } from "./shape";
+type Other = import("./shape").Shape;
+import Runtime from "./runtime";
+`);
+  assert.deepEqual(
+    edges.map((edge) => edge.typeOnly),
+    [true, false, true, true, false],
   );
 });
 
@@ -200,8 +253,8 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the exact foundation has ten closed production modules", async () => {
+test("the localization phase has twenty-two closed production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 10);
+  assert.equal(result.files, 22);
   assert.deepEqual(result.violations, []);
 });
