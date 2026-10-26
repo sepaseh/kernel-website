@@ -10,4 +10,6 @@ The canonical full phase gate is npm run validate -- full after npm ci. It must 
 
 Preserve unrelated work. Git/remote mutations and provider comments require explicit authorization. Use codex/ branches and Conventional Commit titles. Follow the native CI/CodeRabbit/Sonar review process; no custom approval publisher is used. Existing app build/e2e/visual requirements remain unsatisfied until real runnable implementation and evidence exist.
 
+Before requesting an initial CodeRabbit review or re-review, follow the [review-request preflight](docs/sonarqube.md#before-requesting-coderabbit): every required non-CodeRabbit check, including protected build/e2e/visual if still required, scanner and actual Sonar quality gate, must pass for the exact current head, with zero OPEN/unresolved Sonar issues of every severity. Missing evidence blocks requests; a new head invalidates evidence. Exclude only CodeRabbit's own check/approval, respect quotas and do not duplicate an in-flight review.
+
 Assistant instructions are English only. Human docs keep complete English/Persian companions and reciprocal links. A later runnable phase requires the full application build, HTTP/auth integration, browser/CSP, accessibility and reviewed visual checks with a separately installed synthetic API fixture. Foundation checks do not establish application readiness.

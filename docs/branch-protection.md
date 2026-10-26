@@ -18,7 +18,7 @@ jobs. Existing requirements for those jobs remain blocked; this source change
 does not remove them, fabricate success or authorize protection changes.
 
 CodeRabbit automatic review, incremental review and draft review are disabled.
-Request one manual review per authorized PR. Automatic approvals remain enabled
+Request a manual review only after the [strict preflight](sonarqube.md#before-requesting-coderabbit) passes for the exact current head, including every required non-CodeRabbit check and zero OPEN/unresolved Sonar issues of all severities. Required missing app checks still block the request; recheck new heads, respect quota and avoid duplicate in-flight requests. Automatic approvals remain enabled
 and author-command approval is disabled. A skipped or quota-limited progress
 status is not a substantive current-head review.
 

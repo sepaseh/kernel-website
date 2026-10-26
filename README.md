@@ -21,7 +21,7 @@ are not included. There are no runtime dependencies. See the exact
 ## Install and validate
 
 Use Node.js from [.nvmrc](.nvmrc), within the [package](package.json) engine range,
-and npm 12.
+and the npm bundled with that Node.js release, matching CI.
 
 ```sh
 npm ci

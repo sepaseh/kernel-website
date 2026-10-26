@@ -20,7 +20,7 @@
 ## نصب و اعتبارسنجی
 
 از Node.js در [.nvmrc](.nvmrc)، در محدودهٔ engine تعریف‌شده در
-[package](package.json)، و npm 12 استفاده کنید.
+[package](package.json)، و npm همراه همان نسخهٔ Node.js، مطابق CI استفاده کنید.
 
 ```sh
 npm ci

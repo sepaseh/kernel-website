@@ -35,8 +35,12 @@ Pagination follows dependent server links sequentially and rejects incomplete
 or changing head/base evidence.
 
 Use native CodeRabbit/Sonar/CI and one approving review with resolved
-conversations. CodeRabbit automatic review is disabled; request one manual review
-per authorized PR and respect quota. See [Contributing](../CONTRIBUTING.md),
+conversations. CodeRabbit automatic review is disabled; request a manual review
+only after the [strict preflight](sonarqube.md#before-requesting-coderabbit) passes
+for the current head. All required non-CodeRabbit checks and zero OPEN/unresolved
+Sonar issues of every severity are mandatory; missing protected app checks block
+the request. Recheck after head changes, respect quotas and avoid duplicate
+in-flight requests. See [Contributing](../CONTRIBUTING.md),
 [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
 
 Existing full-app build/e2e/visual requirements remain unsatisfied. This phase

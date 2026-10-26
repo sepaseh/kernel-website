@@ -46,3 +46,31 @@ suppression, helper wrapper or parallel requests to silence this finding.
 
 Use [official GitHub Actions setup](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/github-actions-for-sonarcloud)
 and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis).
+
+## Before requesting CodeRabbit
+
+Request an initial review or re-review only after **every required
+non-CodeRabbit check passes for the exact current PR head**. This includes the
+Sonar scanner and actual provider quality gate, plus protected `build`, `e2e`
+and `visual` jobs if they are still required. A publication phase or docs-only
+change does not waive missing requirements. Exclude only CodeRabbit's own check
+and approval from this preflight to avoid a circular dependency.
+
+Verify the latest applicable Sonar PR/branch analysis matches that head and
+source scope, with **zero OPEN/unresolved issues across all severities**,
+including existing issues. A green quality gate or zero issues on new code is
+insufficient. Check complete issue results, filters and pagination. Missing,
+pending, skipped, failed or unavailable checks, an absent/mismatched report or
+missing complete zero-issue evidence blocks the review request.
+
+A locally documented false positive, including S9382 on dependent Link
+pagination, remains a blocker while OPEN in the provider. A properly authorized
+provider classification, or a real fix followed by fresh analysis, must be
+reflected in the report. Do not exclude/suppress issues, add metric-only wrappers
+or weaken checks to bypass this requirement.
+
+Record the head, required-check results and Sonar analysis. Any new commit/head
+change invalidates this evidence. Recheck after fixes, respect review quotas and
+do not duplicate a request already in flight for the same head. Send one manual
+request only after preflight passes and the remote action is explicitly
+authorized; a skipped or quota-limited review is not a completed review.
