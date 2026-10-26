@@ -50,11 +50,18 @@ and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-so
 ## Before requesting CodeRabbit
 
 Request an initial review or re-review only after **every required
-non-CodeRabbit check passes for the exact current PR head**. This includes the
-Sonar scanner and actual provider quality gate, plus protected `build`, `e2e`
-and `visual` jobs if they are still required. A publication phase or docs-only
-change does not waive missing requirements. Exclude only CodeRabbit's own check
-and approval from this preflight to avoid a circular dependency.
+non-CodeRabbit check passes for the exact current PR head**. Use the approved
+phase-specific set in [branch protection](branch-protection.md). The non-runnable
+foundation requires `check`, `SonarQube Cloud analysis` and the actual
+`SonarCloud Code Analysis` quality gate before a request. Exclude only
+CodeRabbit's own check and approval from this preflight to avoid a circular
+dependency.
+
+Under the explicitly approved foundation policy, app `build`, `e2e` and
+`visual` jobs are not currently required. Before any runnable-app merge,
+introduce those real jobs, observe them pass, add them to required checks and
+expand the full canonical application gate. Do not emit placeholder jobs,
+skip required checks or treat a documentation edit as a remote policy change.
 
 Verify the latest applicable Sonar PR/branch analysis matches that head and
 source scope, with **zero OPEN/unresolved issues across all severities**,

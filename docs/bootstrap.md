@@ -38,13 +38,17 @@ Use native CodeRabbit/Sonar/CI and one approving review with resolved
 conversations. CodeRabbit automatic review is disabled; request a manual review
 only after the [strict preflight](sonarqube.md#before-requesting-coderabbit) passes
 for the current head. All required non-CodeRabbit checks and zero OPEN/unresolved
-Sonar issues of every severity are mandatory; missing protected app checks block
-the request. Recheck after head changes, respect quotas and avoid duplicate
+Sonar issues of every severity are mandatory under the approved foundation
+check set. Recheck after head changes, respect quotas and avoid duplicate
 in-flight requests. See [Contributing](../CONTRIBUTING.md),
 [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
 
-Existing full-app build/e2e/visual requirements remain unsatisfied. This phase
-does not emit fake checks or change remote protection. When introducing a
-runnable app, add complete build, HTTP/auth, browser/CSP, accessibility and
-reviewed visual validation against a separately installed synthetic API fixture.
-Verify actual replacement execution before any authorized protection migration.
+Under the explicitly approved non-runnable foundation policy, app build/e2e/visual
+jobs are not required. The four native contexts are listed in
+[branch protection](branch-protection.md); the closed inventory and
+applicationReady:false remain unchanged. No fake jobs or skipped required checks
+are used. Before any runnable-app merge, introduce complete UI build, HTTP/auth,
+browser/CSP, accessibility and reviewed visual validation against a separately
+published synthetic API fixture; observe real build/e2e/visual jobs pass, add
+them to required checks and expand the full canonical gate. Preserve every other
+branch protection.

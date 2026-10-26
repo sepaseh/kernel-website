@@ -29,7 +29,7 @@ of suppressing findings or making metrics pass with wrappers.
 
 Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Report the exact revision,
 phase, commands, results and limitations. Publish or comment only with explicit
-authorization. Request CodeRabbit only after the [strict preflight](docs/sonarqube.md#before-requesting-coderabbit) passes for that exact head, including all required non-CodeRabbit checks and zero OPEN/unresolved Sonar issues of every severity. Missing protected build/e2e/visual checks still block requests. Recheck after a new head, respect quota and do not duplicate an in-flight review. A skipped result is not a completed review; fix actionable findings and rerun affected checks.
+authorization. Request CodeRabbit only after the [strict preflight](docs/sonarqube.md#before-requesting-coderabbit) passes for that exact head, including all required non-CodeRabbit checks and zero OPEN/unresolved Sonar issues of every severity. Use the explicitly approved [foundation check set](docs/branch-protection.md); app build/e2e/visual jobs are not required in this non-runnable phase. Recheck after a new head, respect quota and do not duplicate an in-flight review. A skipped result is not a completed review; fix actionable findings and rerun affected checks.
 
 Merge under the ordinary native CI, CodeRabbit and Sonar checks, an approving
 review and resolved conversations; see [branch protection](docs/branch-protection.md).
@@ -39,4 +39,4 @@ not hosted evidence.
 A runnable phase must add real Next.js routes/UI/catalog adapters, the complete
 application gate and its synthetic HTTP/auth, browser/CSP, accessibility and
 reviewed visual evidence. It must preserve the independent API boundary.
-Foundation success does not replace these checks or justify applicationReady:true.
+Before any runnable-app merge, observe the real build/e2e/visual jobs pass, add them to required checks and expand full canonical validation. Preserve all other protections. Foundation success does not replace these checks or justify applicationReady:true.
