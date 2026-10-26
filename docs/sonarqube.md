@@ -41,13 +41,15 @@ data-only duplication scope from concealing executable logic. This authorization
 does not extend to other files, security rules or provider classifications. The complete gate and
 fresh Sonar analysis must verify the actual result.
 
-The same analysis raised S2068 at the Spanish `password: "Contraseña"` message in
-[`es.ts`](../src/i18n/catalog-data/locales/es.ts). This is the visible password
-field label, not an authentication credential. The provider issue
-`AaF5M1BkNrX0jLhu4aR3` is still **OPEN** while its legitimate false-positive
-classification awaits explicit authorization. Do not change or obfuscate the
-translation to evade the rule. This explanation does not resolve the issue or
-satisfy the zero-open-issue review preflight.
+Sonar classifies the `typescript:S2068` finding `AaF5M1BkNrX0jLhu4aR3` on the
+Spanish `password: "Contraseña"` UI label in
+[`es.ts`](../src/i18n/catalog-data/locales/es.ts) as **False Positive**, under
+separate explicit user authorization. The value is visible UI text, not an
+authentication credential. The translation is unchanged; no security-rule
+suppression or source/coverage exclusion was added. This classification applies
+only to this exact literal-label finding and does not authorize classifying
+other issues. Before requesting CodeRabbit, verify a fresh report for the exact
+current head with zero open/unresolved issues and a passing actual quality gate.
 
 Record the actual run, analyzed SHA/PR, provider analysis and quality-gate result.
 The scanner uses `sonar.qualitygate.wait=false`; successful scan submission and
@@ -67,8 +69,8 @@ The [PR-file guard](../scripts/check-pr-size.mjs) rejects metadata counts above
 any next-page link is inconsistent and fails closed without following it.
 The guard validates all returned entries and rechecks the head, base and count
 after retrieval. This keeps the 100-file policy explicit and avoids unnecessary
-API calls. Fresh provider analysis must verify the result; no suppression or
-provider classification is used.
+API calls. Fresh provider analysis must verify the result. The PR-file guard
+does not suppress findings or change provider classifications.
 
 Use [official GitHub Actions setup](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/github-actions-for-sonarcloud)
 and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis).
