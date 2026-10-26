@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { evaluateFiles, inspectPullRequest } from "./check-pr-size.mjs";
 
@@ -270,4 +276,69 @@ test("validates its target before making requests", async () => {
     );
     assert.equal(requests, 0);
   }
+});
+
+test("CLI emits structured counts and escapes untrusted errors as one log line", async (context) => {
+  const eventPath = path.join(tmpdir(), `website-pr-size-${randomUUID()}.json`);
+  await writeFile(
+    eventPath,
+    JSON.stringify({ pull_request: { head: { sha: head }, number: 1 } }),
+    { flag: "wx" },
+  );
+  context.after(() => unlink(eventPath));
+  const cli = (preload) =>
+    spawnSync(
+      process.execPath,
+      [
+        "--import",
+        `data:text/javascript,${encodeURIComponent(preload)}`,
+        fileURLToPath(new URL("./check-pr-size.mjs", import.meta.url)),
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          GITHUB_API_URL: "https://api.github.com",
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_REPOSITORY: "example/api",
+        },
+        windowsHide: true,
+      },
+    );
+
+  const passed =
+    cli(`globalThis.fetch = async (url) => new Response(JSON.stringify(
+    url.includes('/files') ? ${JSON.stringify(files(3))} : ${JSON.stringify(pull(3))}
+  ));`);
+  assert.equal(passed.error, undefined);
+  assert.equal(passed.status, 0);
+  assert.equal(passed.stderr, "");
+  assert.equal(passed.stdout.trim().split(/\r?\n/).length, 1);
+  assert.deepEqual(JSON.parse(passed.stdout), {
+    baseSha: base,
+    changedFiles: 3,
+    headSha: head,
+    maximumChangedFiles: 100,
+    message:
+      "PR file limit passed; additions, deletions, renames and binary files all count.",
+    status: "passed",
+    statusCounts: { added: 3 },
+  });
+
+  const message =
+    "Synthetic provider failure\r\n::error::forged\u001b[31m\u2028first\u2029second";
+  const failed = cli(`globalThis.fetch = async () => {
+    throw new Error(${JSON.stringify(message)});
+  };`);
+  assert.equal(failed.error, undefined);
+  assert.equal(failed.status, 1);
+  assert.equal(failed.stdout, "");
+  assert.equal(failed.stderr.trim().split(/\r?\n/).length, 1);
+  assert.equal(failed.stderr.includes("\u001b"), false);
+  assert.equal(failed.stderr.includes("\u2028"), false);
+  assert.equal(failed.stderr.includes("\u2029"), false);
+  assert.deepEqual(JSON.parse(failed.stderr), {
+    message:
+      "Synthetic provider failure\r\n::error::forged\u001b[31m first second",
+    status: "failed",
+  });
 });
