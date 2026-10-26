@@ -30,10 +30,19 @@ check from App `12526`, required under [branch protection](branch-protection.md)
 Missing, skipped or failed analysis is not a passing quality gate.
 
 Configuration and an empty project's zero issue counters are not execution
-evidence. This guide records no hosted website foundation scan. An empty main
+evidence. The initial CI and Sonar quality gate for [website PR #1](https://github.com/sepaseh/kernel-website/pull/1)
+were verified on 26 October 2026; later heads require fresh results. An empty main
 analysis history alone does not prove that first-PR analysis is blocked; inspect
 the actual provider error. Fork PRs do not receive this workflow's credentials;
 do not expose secrets to unreviewed fork code.
+
+For S9382 in [PR-file pagination](../scripts/check-pr-size.mjs), each next URL
+comes from the preceding response's Link header, so awaiting pages sequentially
+is required. This matches the [documented dependent-iteration exception](https://eslint.org/docs/latest/rules/no-await-in-loop#when-not-to-use-it).
+Repository review identifies this occurrence as a false positive; the provider
+issue is still **OPEN** at the 26 October 2026 checkpoint. No provider
+classification is claimed. Preserve the dependent sequence; do not add a
+suppression, helper wrapper or parallel requests to silence this finding.
 
 Use [official GitHub Actions setup](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/github-actions-for-sonarcloud)
 and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis).
