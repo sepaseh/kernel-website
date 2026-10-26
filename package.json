@@ -1,0 +1,35 @@
+{
+  "name": "kernel-website",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "audit": "node scripts/run-audit.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:snapshot": "node scripts/validate-bootstrap.mjs",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "npm run test:unit && npm run test:governance",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "validate": "node scripts/validate.mjs",
+    "test:unit": "vitest run --coverage",
+    "test:governance": "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "5.0.5",
+    "@vitest/coverage-v8": "5.0.5"
+  }
+}

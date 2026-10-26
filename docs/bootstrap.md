@@ -1,0 +1,46 @@
+# Foundation phase
+
+[English](bootstrap.md) · [فارسی](bootstrap.fa.md)
+
+This phase contains twelve source files: six contract modules, form helpers and
+tests, API-origin validation, locale codes and the public-settings language
+loader/tests. `applicationReady:false` is enforced by the
+[exact inventory](../.github/bootstrap-policy.json). No Next.js app, catalog
+rendering, browser journey, deployment or runtime dependency is included.
+
+After `npm ci`, run `npm run validate -- full`. The
+[manifest](../.agents/validation.json) defines eight required checks: snapshot,
+audit, closed imports, types, lint, formatting, measured unit tests and measured
+governance tests. Run the full current phase before an authorized commit, push
+or PR handoff. Use only the isolated exact proposed tree, not omitted source
+from the primary checkout.
+
+Unit coverage must reach 90% for statements, branches, functions and lines.
+Governance coverage must reach 80% for lines, functions and branches, excluding
+test files. Reports are generated from actual execution at
+`coverage/unit/lcov.info` and `coverage/governance/lcov.info`; do not commit
+them, fabricate results or attribute them to a complete website.
+
+The inventory rejects undeclared/missing files, private paths and symlinks and
+checks maintained local links. It allows ordinary root `node_modules` and
+`coverage` output directories. The 100-file cap applies to each PR's changed-file
+list, not the total inventory.
+
+[CI](../.github/workflows/ci.yml) runs the full phase and an unprivileged
+read-only PR-size check. The initial empty main has no trusted PR guard yet.
+After a reviewed merge, the [target guard](../.github/workflows/pr-policy.yml)
+uses only the immutable `github.workflow_sha` checkout with read-only permissions.
+Never execute PR-head or unreviewed base code in that privileged event.
+Pagination follows dependent server links sequentially and rejects incomplete
+or changing head/base evidence.
+
+Use native CodeRabbit/Sonar/CI and one approving review with resolved
+conversations. CodeRabbit automatic review is disabled; request one manual review
+per authorized PR and respect quota. See [Contributing](../CONTRIBUTING.md),
+[branch protection](branch-protection.md) and [Sonar](sonarqube.md).
+
+Existing full-app build/e2e/visual requirements remain unsatisfied. This phase
+does not emit fake checks or change remote protection. When introducing a
+runnable app, add complete build, HTTP/auth, browser/CSP, accessibility and
+reviewed visual validation against a separately installed synthetic API fixture.
+Verify actual replacement execution before any authorized protection migration.
