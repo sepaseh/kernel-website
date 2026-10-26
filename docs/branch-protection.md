@@ -3,8 +3,8 @@
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
 The approved **foundation** and **localization** phases remain non-runnable with
-`applicationReady:false` and its closed source inventory. Its required native
-check set is:
+`applicationReady:false` and explicit source inventories. Both phases require
+these native checks:
 
 | Required published-phase check | Expected GitHub App         |
 | ------------------------------ | --------------------------- |

@@ -27,7 +27,8 @@ cannot replace the full PR gate.
 The CI policy parses YAML with unique keys and verifies the PR trigger, mandatory
 job, root directory and unconditional install/full-gate steps. Path/branch filters,
 draft conditions, ignored failures and reordered/missing commands fail validation.
-All current required checks belong to `check`; future build/e2e/visual jobs need
+All nine checks in the canonical full profile execute in the `check` job. The
+other required native contexts are listed below. Future build/e2e/visual jobs need
 an explicit policy transition instead of silently running a Windows check on Linux.
 
 Unit coverage must reach 90% for statements, branches, functions and lines.
