@@ -35,7 +35,7 @@ const checkInventory = (manifest) => {
   for (const check of manifest.checks) {
     if (
       typeof check?.id !== "string" ||
-      !/^[\w][\w:-]*$/.test(check.id) ||
+      !/^\w[\w:-]*$/.test(check.id) ||
       checks.has(check.id) ||
       !["required", "advisory", "manual"].includes(check.kind)
     )
