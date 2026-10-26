@@ -23,6 +23,32 @@ published helpers, local catalogs and governance scripts, not Next.js UI, HTTP r
 journeys or deployment. Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
 
+## Static catalog findings
+
+The first localization analysis for PR #2 reported **65.2% new-code duplication**
+across the ten static translated dictionaries. Their repeated key schema is data
+ownership, not shared executable behavior. The explicitly authorized duplication-only
+scope covers only the ten language-data files under
+`src/i18n/catalog-data/locales/*.ts`; loaders, settings, application
+logic and tooling remain subject to duplication analysis. Source/security checks
+and genuine unit/governance coverage still include every catalog.
+
+The [catalog tests](../src/i18n/catalog-data/integrity.test.ts) must additionally
+inspect each file's TypeScript AST: a flat object of literal string values,
+erased local type imports and its default export only. Runtime statements,
+spreads, computed keys and computed values must fail CI. This prevents the
+data-only duplication scope from concealing executable logic. This authorization
+does not extend to other files, security rules or provider classifications. The complete gate and
+fresh Sonar analysis must verify the actual result.
+
+The same analysis raised S2068 at the Spanish `password: "Contraseña"` message in
+[`es.ts`](../src/i18n/catalog-data/locales/es.ts). This is the visible password
+field label, not an authentication credential. The provider issue
+`AaF5M1BkNrX0jLhu4aR3` is still **OPEN** while its legitimate false-positive
+classification awaits explicit authorization. Do not change or obfuscate the
+translation to evade the rule. This explanation does not resolve the issue or
+satisfy the zero-open-issue review preflight.
+
 Record the actual run, analyzed SHA/PR, provider analysis and quality-gate result.
 The scanner uses `sonar.qualitygate.wait=false`; successful scan submission and
 a successful Actions job are distinct from a passing **SonarCloud Code Analysis**
@@ -52,7 +78,7 @@ and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-so
 Request an initial review or re-review only after **every required
 non-CodeRabbit check passes for the exact current PR head**. Use the approved
 phase-specific set in [branch protection](branch-protection.md). The non-runnable
-publication requires `check`, `SonarQube Cloud analysis` and the actual
+publication requires `check`, the trusted `PR file limit`, `SonarQube Cloud analysis` and the actual
 `SonarCloud Code Analysis` quality gate before a request. Exclude only
 CodeRabbit's own check and approval from this preflight to avoid a circular
 dependency.

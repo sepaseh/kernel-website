@@ -59,7 +59,8 @@ in-flight requests. See [Contributing](../CONTRIBUTING.md),
 [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
 
 Under the non-runnable publication policy, app build/e2e/visual
-jobs are not required. The four native contexts are listed in
+jobs are not required. The five native contexts, including the trusted
+`PR file limit`, are listed in
 [branch protection](branch-protection.md); the closed inventory and
 applicationReady:false remain unchanged. No fake jobs or skipped required checks
 are used. Before any runnable-app merge, introduce complete UI build, HTTP/auth,

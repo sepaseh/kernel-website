@@ -1,5 +1,6 @@
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { catalogs } from "../catalogs";
@@ -16,7 +17,122 @@ const entries = async () =>
     })),
   );
 
+const isErasedLocalImport = (statement: ts.Statement) =>
+  ts.isImportDeclaration(statement) &&
+  statement.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword &&
+  ts.isStringLiteral(statement.moduleSpecifier) &&
+  statement.moduleSpecifier.text.startsWith(".");
+const isCatalogExport = (statement: ts.Statement) =>
+  ts.isExportAssignment(statement) &&
+  !statement.isExportEquals &&
+  ts.isIdentifier(statement.expression) &&
+  statement.expression.text === "messages";
+
+const assertLiteralMessages = (statement: ts.VariableStatement) => {
+  const definitions = statement.declarationList;
+  if (
+    definitions.flags !== ts.NodeFlags.Const ||
+    definitions.declarations.length !== 1 ||
+    statement.modifiers?.length
+  )
+    throw new Error("Catalogs must declare one plain const message object");
+  const declaration = definitions.declarations[0];
+  if (
+    !ts.isIdentifier(declaration.name) ||
+    declaration.name.text !== "messages"
+  )
+    throw new Error("Catalogs must name their single data object messages");
+  const initializer = declaration.initializer;
+  const value =
+    initializer && ts.isSatisfiesExpression(initializer)
+      ? initializer.expression
+      : initializer;
+  if (!value || !ts.isObjectLiteralExpression(value))
+    throw new Error("Catalog messages must be a literal flat object");
+  for (const property of value.properties) {
+    if (
+      !ts.isPropertyAssignment(property) ||
+      (!ts.isIdentifier(property.name) && !ts.isStringLiteral(property.name)) ||
+      (!ts.isStringLiteral(property.initializer) &&
+        !ts.isNoSubstitutionTemplateLiteral(property.initializer))
+    )
+      throw new Error("Catalogs may contain only literal string properties");
+  }
+};
+
+const assertLiteralCatalog = (content: string) => {
+  const source = ts.createSourceFile(
+    "catalog.ts",
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  let declarations = 0;
+  let exports = 0;
+  for (const statement of source.statements) {
+    if (isErasedLocalImport(statement)) continue;
+    if (ts.isVariableStatement(statement)) {
+      assertLiteralMessages(statement);
+      declarations++;
+      continue;
+    }
+    if (isCatalogExport(statement)) {
+      exports++;
+      continue;
+    }
+    throw new Error(
+      "Catalog files must not contain executable statements or imports",
+    );
+  }
+  if (declarations !== 1 || exports !== 1)
+    throw new Error(
+      "Catalogs must declare and default-export one message object",
+    );
+};
+
 describe("complete local website catalogs", () => {
+  it("keeps every catalog as literal flat data with erased local type imports only", async () => {
+    for (const code of localeCodes) {
+      const content = await readFile(
+        new URL(`./locales/${code}.ts`, import.meta.url),
+        "utf8",
+      );
+      expect(() => assertLiteralCatalog(content), code).not.toThrow();
+    }
+  });
+
+  it("rejects executable code, fallback spreads, computed keys and computed values in data files", () => {
+    const declarations = [
+      "const messages = { ...english };",
+      'const messages = { [name]: "label" };',
+      'const messages = { password: translate("label") };',
+      "const messages = { password: `label ${value}` };",
+      'const messages = { nested: { label: "value" } };',
+      'const messages = { get password() { return "label"; } };',
+      "const messages = { password };",
+      "const messages = buildCatalog();",
+      'const messages = { password: "label" }; runBusinessLogic();',
+      'import english from "./en.ts"; const messages = { password: "label" };',
+      'import type { Shape } from "foreign-package"; const messages = { password: "label" };',
+      'const messages = { password: "label" }; function businessLogic() {}',
+      'let messages = { password: "label" };',
+      'using messages = { password: "label" };',
+      'await using messages = { password: "label" };',
+      'const messages = { password: "label" }, hidden = runBusinessLogic();',
+      'export const messages = { password: "label" };',
+    ];
+    for (const declaration of declarations)
+      expect(() =>
+        assertLiteralCatalog(`${declaration}\nexport default messages;`),
+      ).toThrow();
+    expect(() =>
+      assertLiteralCatalog('export default { password: "label" };'),
+    ).toThrow();
+    expect(() =>
+      assertLiteralCatalog('const messages = { password: "label" };'),
+    ).toThrow();
+  });
+
   it("registers ten unique canonical codes and one loader per code", () => {
     expect(localeCodes).toHaveLength(10);
     expect(new Set(localeCodes).size).toBe(localeCodes.length);
