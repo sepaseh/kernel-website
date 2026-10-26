@@ -9,11 +9,24 @@ loader/tests. `applicationReady:false` is enforced by the
 rendering, browser journey, deployment or runtime dependency is included.
 
 After `npm ci`, run `npm run validate -- full`. The
-[manifest](../.agents/validation.json) defines eight required checks: snapshot,
-audit, closed imports, types, lint, formatting, measured unit tests and measured
+[manifest](../.agents/validation.json) defines nine required checks: snapshot,
+CI policy, audit, closed imports, types, lint, formatting, measured unit tests and measured
 governance tests. Run the full current phase before an authorized commit, push
 or PR handoff. Use only the isolated exact proposed tree, not omitted source
 from the primary checkout.
+
+Every PR, including drafts, executes that same canonical full command without
+changed-file filtering. The runner validates the entire selected plan before
+execution: duplicate check IDs/profile entries, unknown checks, missing required
+checks and manual/advisory entries in `full` fail closed. CI does not maintain a
+second list of phase commands. Focused development profiles remain available but
+cannot replace the full PR gate.
+
+The CI policy parses YAML with unique keys and verifies the PR trigger, mandatory
+job, root directory and unconditional install/full-gate steps. Path/branch filters,
+draft conditions, ignored failures and reordered/missing commands fail validation.
+All current required checks belong to `check`; future build/e2e/visual jobs need
+an explicit policy transition instead of silently running a Windows check on Linux.
 
 Unit coverage must reach 90% for statements, branches, functions and lines.
 Governance coverage must reach 80% for lines, functions and branches, excluding
@@ -31,8 +44,9 @@ read-only PR-size check. The initial empty main has no trusted PR guard yet.
 After a reviewed merge, the [target guard](../.github/workflows/pr-policy.yml)
 uses only the immutable `github.workflow_sha` checkout with read-only permissions.
 Never execute PR-head or unreviewed base code in that privileged event.
-Pagination follows dependent server links sequentially and rejects incomplete
-or changing head/base evidence.
+The size guard rejects metadata above 100 files before retrieval. An eligible PR
+fits one complete page; unexpected pagination, incomplete file metadata and
+changing head/base/count evidence fail closed.
 
 Use native CodeRabbit/Sonar/CI and one approving review with resolved
 conversations. CodeRabbit automatic review is disabled; request a manual review
@@ -52,3 +66,9 @@ browser/CSP, accessibility and reviewed visual validation against a separately
 published synthetic API fixture; observe real build/e2e/visual jobs pass, add
 them to required checks and expand the full canonical gate. Preserve every other
 branch protection.
+
+The complete website application has fifteen required checks. Their actual
+source and fixtures must arrive through focused publication PRs before this
+non-runnable foundation can become a runnable application. Once introduced, the
+entire application gate runs on every PR regardless of changed paths; the
+100-file PR cap is independent of test scope.

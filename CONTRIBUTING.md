@@ -16,6 +16,13 @@ explicitly authorized commit, push or PR handoff, run
 Do not weaken a failed or unavailable check. Untracked application files in
 another checkout cannot validate a partial publication.
 
+[CI](.github/workflows/ci.yml) runs this same canonical full command on every PR,
+including drafts, without changed-file filtering. The runner validates the complete
+plan before running a command: check IDs and profile entries must be unique, and
+`full` must contain every required check exactly once with no manual/advisory
+entries. A focused local profile cannot replace it. New published checks must
+join the canonical full profile rather than a separate CI command list.
+
 Use a focused `codex/<purpose>` branch and Conventional Commit title. Inspect the
 whole base diff and keep each PR at **100 or fewer GitHub changed-file entries**,
 including additions, deletions, renames and binaries. A GitHub rename is one entry.
@@ -40,3 +47,8 @@ A runnable phase must add real Next.js routes/UI/catalog adapters, the complete
 application gate and its synthetic HTTP/auth, browser/CSP, accessibility and
 reviewed visual evidence. It must preserve the independent API boundary.
 Before any runnable-app merge, observe the real build/e2e/visual jobs pass, add them to required checks and expand full canonical validation. Preserve all other protections. Foundation success does not replace these checks or justify applicationReady:true.
+
+The complete website gate has fifteen required application checks. Publish their
+source, tooling and synthetic fixtures through focused PRs before claiming that
+gate passes. Once runnable, every PR runs the entire application gate regardless
+of the files it changes; the 100-file cap never reduces test scope.

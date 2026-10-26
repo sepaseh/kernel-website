@@ -27,7 +27,7 @@ npm ci
 npm run validate -- full
 ```
 
-[فهرست مرجع](.agents/validation.json) هر هشت بررسی الزامی مرحله را تعیین
+[فهرست مرجع](.agents/validation.json) هر نه بررسی الزامی مرحله را تعیین
 می‌کند. تست واحد در Node، با پاسخ مصنوعی fetch و بدون بارگذاری dotenv اجرا
 می‌شود و `coverage/unit/lcov.info` را تولید می‌کند. تست‌های گردش‌کار در Node
 نیز `coverage/governance/lcov.info` می‌سازند. این‌ها اندازه‌گیری واقعی کد

@@ -31,6 +31,8 @@ const foundationFiles = [
   ...coreFiles.filter((file) => file !== ".github/workflows/bootstrap.yml"),
   ".agents/validation.json",
   ".github/workflows/ci.yml",
+  "scripts/check-ci.mjs",
+  "scripts/check-ci.test.mjs",
   "package.json",
   "package-lock.json",
   "scripts/validate.mjs",
@@ -55,6 +57,19 @@ const foundationPolicy = (overrides = {}) =>
     phase: "foundation",
     ...overrides,
   });
+
+test("foundation cannot omit either CI policy guard file", () => {
+  for (const file of ["scripts/check-ci.mjs", "scripts/check-ci.test.mjs"])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          foundationPolicy({
+            allowedFiles: foundationFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());

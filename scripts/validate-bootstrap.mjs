@@ -15,6 +15,8 @@ const coreFiles = [
 const foundationFiles = [
   ".agents/validation.json",
   ".github/workflows/ci.yml",
+  "scripts/check-ci.mjs",
+  "scripts/check-ci.test.mjs",
   "package.json",
   "package-lock.json",
   "scripts/validate.mjs",

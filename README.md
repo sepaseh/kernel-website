@@ -28,7 +28,7 @@ npm ci
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) defines all eight required phase
+The [canonical manifest](.agents/validation.json) defines all nine required phase
 checks. Unit tests run in Node with synthetic fetch responses and dotenv loading
 disabled. They produce `coverage/unit/lcov.info`; Node governance tests produce
 `coverage/governance/lcov.info`. These are real measurements of this foundation

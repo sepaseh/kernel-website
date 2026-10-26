@@ -28,15 +28,54 @@ export const commandArguments = (command) => {
     throw new Error("Validation commands must pass script arguments after --");
   return args.slice(1);
 };
+const checkInventory = (manifest) => {
+  if (!Array.isArray(manifest.checks) || !manifest.checks.length)
+    throw new Error("Validation checks must be a nonempty array");
+  const checks = new Map();
+  for (const check of manifest.checks) {
+    if (
+      typeof check?.id !== "string" ||
+      !/^[\w][\w:-]*$/.test(check.id) ||
+      checks.has(check.id) ||
+      !["required", "advisory", "manual"].includes(check.kind)
+    )
+      throw new Error("Validation checks need unique IDs and explicit kinds");
+    checks.set(check.id, check);
+  }
+  return checks;
+};
+
 export const runProfile = (manifest, profile, run) => {
+  const checks = checkInventory(manifest);
   const ids = manifest.profiles?.[profile];
   if (!Array.isArray(ids) || !ids.length)
     throw new Error("Unknown or empty validation profile: " + profile);
-  const checks = new Map(manifest.checks.map((check) => [check.id, check]));
-  for (const id of ids) {
+  if (new Set(ids).size !== ids.length)
+    throw new Error("Validation profiles must not repeat check IDs");
+  const selected = ids.map((id) => {
     const check = checks.get(id);
     if (!check) throw new Error("Unknown validation check: " + id);
-    const result = run(commandArguments(check.command), check);
+    return check;
+  });
+  if (profile === "full") {
+    const required = manifest.checks.filter(
+      (check) => check.kind === "required",
+    );
+    if (
+      !required.length ||
+      selected.length !== required.length ||
+      selected.some((check) => check.kind !== "required")
+    )
+      throw new Error(
+        "Full validation must contain every required check exactly once and no optional checks",
+      );
+  }
+  const commands = selected.map((check) => ({
+    args: commandArguments(check.command),
+    check,
+  }));
+  for (const { args, check } of commands) {
+    const result = run(args, check);
     if (result !== 0) return result ?? 1;
   }
   return 0;
