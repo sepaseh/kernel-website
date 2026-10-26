@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+.next/
+reports/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.env
+.env.*
+.agents/settings.local.json
