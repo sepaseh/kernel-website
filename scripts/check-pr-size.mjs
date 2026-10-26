@@ -59,13 +59,13 @@ export const evaluateFiles = (files, expectedCount) => {
     )
       throw new Error("GitHub returned incomplete changed-file metadata.");
     if (names.has(file.filename))
-      throw new Error("GitHub returned duplicate changed files across pages.");
+      throw new Error("GitHub returned duplicate changed files.");
     names.add(file.filename);
     statusCounts[file.status] = (statusCounts[file.status] ?? 0) + 1;
   }
   if (files.length !== expectedCount)
     throw new Error(
-      "The file list is incomplete or changed during pagination; rerun the check.",
+      "The file list is incomplete or changed during retrieval; rerun the check.",
     );
   if (files.length > maximumChangedFiles)
     throw new Error(
@@ -128,34 +128,18 @@ export const inspectPullRequest = async ({
   const before = metadata((await query(endpoint)).data);
   if (before.headSha !== expectedHeadSha)
     throw new Error("This run belongs to an older PR head; rerun the check.");
-  if (before.changedFiles > 3000)
+  if (before.changedFiles > maximumChangedFiles)
     throw new Error(
-      `Pull request exceeds the ${maximumChangedFiles}-file limit and GitHub's file-list limit.`,
+      `Pull request changes ${before.changedFiles} files; the maximum is ${maximumChangedFiles}. Split the change into smaller pull requests.`,
     );
 
-  const files = [];
-  const visited = new Set();
-  let next = filesEndpoint;
-  while (next) {
-    if (
-      next.origin !== filesEndpoint.origin ||
-      next.pathname !== filesEndpoint.pathname ||
-      next.username ||
-      next.password ||
-      next.hash ||
-      visited.has(next.href) ||
-      visited.size >= 30
-    )
-      throw new Error("GitHub returned unsafe or incomplete file pagination.");
-    visited.add(next.href);
-    // Each next URL comes from the preceding page, so requests must stay sequential.
-    const page = await query(next);
-    if (!Array.isArray(page.data))
-      throw new Error("GitHub returned an invalid pull request file page.");
-    files.push(...page.data);
-    const nextLink = parseNextPageLink(page.link);
-    next = nextLink ? new URL(nextLink, filesEndpoint) : undefined;
-  }
+  const page = await query(filesEndpoint);
+  if (!Array.isArray(page.data))
+    throw new Error("GitHub returned an invalid pull request file page.");
+  if (parseNextPageLink(page.link))
+    throw new Error(
+      "GitHub returned unexpected file pagination for a pull request within the 100-file limit.",
+    );
   const after = metadata((await query(endpoint)).data);
   if (
     before.headSha !== after.headSha ||
@@ -163,7 +147,7 @@ export const inspectPullRequest = async ({
     before.changedFiles !== after.changedFiles
   )
     throw new Error("The PR changed while files were being checked; rerun.");
-  return { ...evaluateFiles(files, after.changedFiles), ...after };
+  return { ...evaluateFiles(page.data, after.changedFiles), ...after };
 };
 
 if (

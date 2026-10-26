@@ -36,13 +36,13 @@ analysis history alone does not prove that first-PR analysis is blocked; inspect
 the actual provider error. Fork PRs do not receive this workflow's credentials;
 do not expose secrets to unreviewed fork code.
 
-For S9382 in [PR-file pagination](../scripts/check-pr-size.mjs), each next URL
-comes from the preceding response's Link header, so awaiting pages sequentially
-is required. This matches the [documented dependent-iteration exception](https://eslint.org/docs/latest/rules/no-await-in-loop#when-not-to-use-it).
-Repository review identifies this occurrence as a false positive; the provider
-issue is still **OPEN** at the 26 October 2026 checkpoint. No provider
-classification is claimed. Preserve the dependent sequence; do not add a
-suppression, helper wrapper or parallel requests to silence this finding.
+The [PR-file guard](../scripts/check-pr-size.mjs) rejects metadata counts above
+100 before requesting files. An accepted PR fits one `per_page=100` response;
+any next-page link is inconsistent and fails closed without following it.
+The guard validates all returned entries and rechecks the head, base and count
+after retrieval. This keeps the 100-file policy explicit and avoids unnecessary
+API calls. Fresh provider analysis must verify the result; no suppression or
+provider classification is used.
 
 Use [official GitHub Actions setup](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/github-actions-for-sonarcloud)
 and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis).
@@ -70,8 +70,8 @@ insufficient. Check complete issue results, filters and pagination. Missing,
 pending, skipped, failed or unavailable checks, an absent/mismatched report or
 missing complete zero-issue evidence blocks the review request.
 
-A locally documented false positive, including S9382 on dependent Link
-pagination, remains a blocker while OPEN in the provider. A properly authorized
+A locally documented false positive remains a blocker while OPEN in the provider.
+A properly authorized
 provider classification, or a real fix followed by fresh analysis, must be
 reflected in the report. Do not exclude/suppress issues, add metric-only wrappers
 or weaken checks to bypass this requirement.

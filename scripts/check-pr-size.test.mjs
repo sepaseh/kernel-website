@@ -72,43 +72,50 @@ test("rejects duplicate, incomplete, malformed and unknown file results", () => 
     assert.throws(() => evaluateFiles([file], 1), /incomplete/);
 });
 
-test("follows all pagination links and checks the same head and count afterward", async () => {
+test("reads exactly 100 files in one page and checks the same head and count afterward", async () => {
   const requests = [];
   const fixture = files(100);
+  fixture[0] = {
+    filename: "renamed.ts",
+    previous_filename: "old.ts",
+    status: "renamed",
+  };
+  fixture[1] = { filename: "image.png", status: "modified" };
   const result = await inspect(async (url, options) => {
     requests.push({ url, options });
     if (!url.includes("/files")) return response(pull(100));
-    if (url.includes("page=2")) return response(fixture.slice(60));
-    return response(
-      fixture.slice(0, 60),
-      '<https://api.github.com/repos/example/api/pulls/1/files?per_page=100&page=2>; rel="next"',
-    );
+    return response(fixture);
   });
   assert.equal(result.changedFiles, 100);
-  assert.equal(requests.length, 4);
+  assert.equal(result.statusCounts.renamed, 1);
+  assert.equal(result.statusCounts.modified, 1);
+  assert.equal(requests.length, 3);
+  assert.equal(
+    requests[1].url,
+    "https://api.github.com/repos/example/api/pulls/1/files?per_page=100",
+  );
   assert.equal(requests[1].options.redirect, "error");
 });
 
-test("selects the next page from a multi-link header without following other relations", async () => {
-  const fixture = files(2);
+test("rejects an unexpected next page without following any pagination target", async () => {
   const requests = [];
   const endpoint = "https://api.github.com/repos/example/api/pulls/1/files";
-  const result = await inspect(async (url) => {
-    requests.push(url);
-    if (!url.includes("/files")) return response(pull(2));
-    if (url.includes("page=2")) return response(fixture.slice(1));
-    return response(
-      fixture.slice(0, 1),
-      [
-        `<${endpoint}?page=1>; rel="first"`,
-        `<${endpoint}?page=2>; rel="next"`,
-        `<${endpoint}?page=3>; rel="last"`,
-      ].join(", "),
-    );
-  });
-  assert.equal(result.changedFiles, 2);
-  assert.equal(requests.length, 4);
-  assert.equal(requests[2], `${endpoint}?page=2`);
+  await assert.rejects(
+    inspect(async (url) => {
+      requests.push(url);
+      if (!url.includes("/files")) return response(pull(2));
+      return response(
+        files(1),
+        [
+          `<${endpoint}?page=1>; rel="first"`,
+          `<${endpoint}?page=2>; rel="next"`,
+          `<${endpoint}?page=3>; rel="last"`,
+        ].join(", "),
+      );
+    }),
+    /unexpected file pagination/,
+  );
+  assert.equal(requests.length, 2);
 });
 
 test("rejects incomplete results with long malformed or embedded pagination links", async () => {
@@ -150,22 +157,20 @@ test("rejects ambiguous next-page links before requesting either target", async 
   assert.equal(requests, 2);
 });
 
-test("rejects an over-limit result spread across pages", async () => {
-  const fixture = files(101);
+test("rejects 101 files before requesting the file list", async () => {
+  const requests = [];
   await assert.rejects(
     inspect(async (url) => {
-      if (!url.includes("/files")) return response(pull(101));
-      if (url.includes("page=2")) return response(fixture.slice(100));
-      return response(
-        fixture.slice(0, 100),
-        '<https://api.github.com/repos/example/api/pulls/1/files?per_page=100&page=2>; rel="next"',
-      );
+      requests.push(url);
+      assert.equal(url.includes("/files"), false);
+      return response(pull(101));
     }),
     /maximum is 100/,
   );
+  assert.equal(requests.length, 1);
 });
 
-test("fails closed for missing pages and a head or base changed during enumeration", async () => {
+test("fails closed for incomplete results and changed head, base or count", async () => {
   await assert.rejects(
     inspect(async (url) =>
       response(url.includes("/files") ? files(1) : pull(2)),
@@ -185,6 +190,15 @@ test("fails closed for missing pages and a head or base changed during enumerati
       /PR changed/,
     );
   }
+  let reads = 0;
+  await assert.rejects(
+    inspect(async (url) => {
+      if (url.includes("/files")) return response(files(1));
+      reads++;
+      return response(pull(reads === 2 ? 2 : 1));
+    }),
+    /PR changed/,
+  );
 });
 
 test("never sends authorization to an off-host or off-endpoint pagination URL", async () => {
@@ -204,20 +218,24 @@ test("never sends authorization to an off-host or off-endpoint pagination URL", 
         },
         { token: "synthetic-token" },
       ),
-      /unsafe/,
+      /unexpected file pagination/,
     );
     assert.equal(requests, 2);
   }
 });
 
-test("rejects repeated pagination and invalid HTTP or metadata responses", async () => {
+test("rejects repeated pagination and invalid HTTP, file-page or metadata responses", async () => {
   await assert.rejects(
     inspect(async (url) =>
       url.includes("/files")
         ? response(files(1), `<${url}>; rel="next"`)
         : response(pull(1)),
     ),
-    /unsafe/,
+    /unexpected file pagination/,
+  );
+  await assert.rejects(
+    inspect(async (url) => response(url.includes("/files") ? {} : pull(1))),
+    /invalid pull request file page/,
   );
   await assert.rejects(
     inspect(async () => new Response("unavailable", { status: 503 })),
