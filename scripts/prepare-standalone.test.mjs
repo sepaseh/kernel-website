@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -14,7 +15,9 @@ import { test } from "node:test";
 import { prepareStandalone } from "./prepare-standalone.mjs";
 
 async function fixture(t, ready = true) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "website-standalone-"));
+  const root = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), "website-standalone-")),
+  );
   t.after(() => rm(root, { recursive: true, force: true }));
   const put = async (name, value) => {
     const filename = path.join(root, name);

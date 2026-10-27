@@ -20,6 +20,20 @@ exclusions and failure cases, not a runnable Linux artifact, reproducibility acr
 machines or a complete installed dependency graph. The current package has no
 build/start or release-publishing command.
 
+Source roots and destination ancestors must be physical local directories without
+symlinked ancestors. Resolve an intentionally selected root to its canonical path
+before validation; the temporary owner-test fixtures do this as well. Keep the
+input and output trees under a single writer throughout preparation and packaging.
+
+Overwrite copies stream into an exclusively created staging file in the destination
+directory, retain the source permissions, close both file handles and rename the
+stage over the destination. This replaces a swapped final-component link without
+writing through it; a failed operation removes only its own claimed stage. The
+pathname checks do not provide descriptor-relative no-follow access to ancestor
+directories or protect a source tree changed concurrently. A trusted tree without
+concurrent writers remains required; these tests do not establish protection
+against ancestor-directory races.
+
 Before a later real release, deliver and verify the application, pass its complete
 required gates, build with the locked toolchain on the intended platform and record
 artifact/source hashes and compatibility. Review the actual artifact contents;

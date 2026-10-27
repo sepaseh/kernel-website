@@ -1,11 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   copyFile,
   lstat,
   mkdir,
+  open,
   readdir,
   readFile,
   realpath,
+  rename,
+  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -218,7 +222,36 @@ async function copyFileEntry(source, destination, overwrite, destinationRoot) {
   } catch (error_) {
     if (error_.code !== "ENOENT") throw error_;
   }
-  await copyFile(source, destination, overwrite ? 0 : constants.COPYFILE_EXCL);
+  if (overwrite) await replaceArtifactFile(source, destination);
+  else await copyFile(source, destination, constants.COPYFILE_EXCL);
+}
+
+async function replaceArtifactFile(source, destination) {
+  const staged = path.join(
+    path.dirname(destination),
+    `.kernel-copy-${randomUUID()}.partial`,
+  );
+  const output = await open(staged, "wx", 0o600);
+  let published = false;
+  try {
+    try {
+      const input = await open(source, "r");
+      try {
+        const { mode } = await input.stat();
+        for await (const chunk of input.createReadStream({ autoClose: false }))
+          await output.writeFile(chunk);
+        await output.chmod(mode & 0o7777);
+      } finally {
+        await input.close();
+      }
+    } finally {
+      await output.close();
+    }
+    await rename(staged, destination);
+    published = true;
+  } finally {
+    if (!published) await rm(staged, { force: true });
+  }
 }
 
 async function copyEntry(

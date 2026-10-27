@@ -1,15 +1,21 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import filesystem from "node:fs/promises";
 import {
+  chmod,
   copyFile,
+  link,
+  lstat,
   mkdir,
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -29,7 +35,9 @@ import {
 } from "./release-files.mjs";
 
 async function fixture(t) {
-  const root = await mkdtemp(path.join(os.tmpdir(), "website-release-files-"));
+  const root = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), "website-release-files-")),
+  );
   t.after(() => rm(root, { recursive: true, force: true }));
   return root;
 }
@@ -39,6 +47,18 @@ const put = async (root, name, value = "synthetic") => {
   await writeFile(filename, value);
   return filename;
 };
+
+async function withFileOperations(context, operations, action) {
+  try {
+    for (const [name, implementation] of Object.entries(operations))
+      context.mock.method(filesystem, name, implementation);
+    syncBuiltinESMExports();
+    await action();
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+}
 
 test("artifact paths are explicit and reads never follow linked ancestors", async (t) => {
   const root = await fixture(t);
@@ -188,6 +208,200 @@ test("artifact copying resolves owned dependency links but refuses escape, loops
     }),
     /circular/,
   );
+});
+
+test("overwrite copying replaces a destination link swapped after validation without altering its target", async (t) => {
+  const root = await fixture(t);
+  const sourceRoot = path.join(root, "source");
+  const content = "streamed replacement bytes\n".repeat(20_000);
+  const source = await put(sourceRoot, "entry.txt", content);
+  const destination = await put(root, "output/entry.txt", "previous bytes");
+  const outside = await put(root, "outside.txt", "preserve outside bytes");
+  await chmod(source, 0o751);
+  const sourceMode = (await lstat(source)).mode & 0o777;
+  const originalCopyFile = filesystem.copyFile;
+  const originalOpen = filesystem.open;
+  let swapped = false;
+  const swapDestination = async () => {
+    if (swapped) return;
+    await rm(destination);
+    // Windows file symlinks require privileges; a hard link exposes the same overwrite target.
+    if (process.platform === "win32") await link(outside, destination);
+    else await symlink(outside, destination, "file");
+    swapped = true;
+  };
+
+  await withFileOperations(
+    t,
+    {
+      copyFile: async (from, to, flags) => {
+        if (to === destination) await swapDestination();
+        return originalCopyFile(from, to, flags);
+      },
+      open: async (filename, flags, ...options) => {
+        if (
+          flags === "wx" &&
+          path.dirname(filename) === path.dirname(destination) &&
+          path.basename(filename).startsWith(".kernel-copy-") &&
+          filename.endsWith(".partial")
+        )
+          await swapDestination();
+        return originalOpen(filename, flags, ...options);
+      },
+    },
+    () =>
+      copyArtifactTree({ source, destination, sourceRoot, overwrite: true }),
+  );
+
+  assert.equal(swapped, true, "the owned destination swap was exercised");
+  assert.equal(await readFile(outside, "utf8"), "preserve outside bytes");
+  assert.equal((await lstat(destination)).isSymbolicLink(), false);
+  assert.notEqual((await lstat(destination)).ino, (await lstat(outside)).ino);
+  assert.equal(await readFile(destination, "utf8"), content);
+  assert.equal((await lstat(destination)).mode & 0o777, sourceMode);
+  if (process.platform !== "win32") assert.equal(sourceMode, 0o751);
+  assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
+});
+
+test("overwrite staging cleans its owned file after a failed rename and preserves the existing destination", async (t) => {
+  const root = await fixture(t);
+  const sourceRoot = path.join(root, "source");
+  const source = await put(sourceRoot, "entry.txt", "replacement bytes");
+  await chmod(source, 0o444);
+  const destination = await put(root, "output/entry.txt", "previous bytes");
+  const originalRename = filesystem.rename;
+  let staged;
+  const failure = Object.assign(new Error("Synthetic rename failure"), {
+    code: "EACCES",
+  });
+
+  await withFileOperations(
+    t,
+    {
+      rename: async (from, to) => {
+        if (to === destination) {
+          staged = from;
+          throw failure;
+        }
+        return originalRename(from, to);
+      },
+    },
+    () =>
+      assert.rejects(
+        copyArtifactTree({ source, destination, sourceRoot, overwrite: true }),
+        (error) => error === failure,
+      ),
+  );
+
+  assert.equal(typeof staged, "string");
+  await assert.rejects(lstat(staged), { code: "ENOENT" });
+  assert.equal(await readFile(destination, "utf8"), "previous bytes");
+  assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
+});
+
+test("failed staging writes close both handles and remove only the owned temporary file", async (t) => {
+  const root = await fixture(t);
+  const sourceRoot = path.join(root, "source");
+  const source = await put(sourceRoot, "entry.txt", "replacement bytes");
+  const destination = await put(root, "output/entry.txt", "previous bytes");
+  const originalOpen = filesystem.open;
+  const handles = [];
+  const failure = new Error("Synthetic staged write failure");
+
+  await withFileOperations(
+    t,
+    {
+      open: async (filename, flags, ...options) => {
+        const handle = await originalOpen(filename, flags, ...options);
+        handles.push(handle);
+        if (flags === "wx")
+          t.mock.method(handle, "writeFile", async () => {
+            throw failure;
+          });
+        return handle;
+      },
+    },
+    () =>
+      assert.rejects(
+        copyArtifactTree({ source, destination, sourceRoot, overwrite: true }),
+        (error) => error === failure,
+      ),
+  );
+
+  assert.equal(handles.length, 2);
+  assert.ok(handles.every((handle) => handle.fd === -1));
+  assert.equal(await readFile(destination, "utf8"), "previous bytes");
+  assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
+});
+
+test("failure to open the source removes the claimed stage and closes its handle", async (t) => {
+  const root = await fixture(t);
+  const sourceRoot = path.join(root, "source");
+  const source = await put(sourceRoot, "entry.txt", "replacement bytes");
+  const destination = await put(root, "output/entry.txt", "previous bytes");
+  const originalOpen = filesystem.open;
+  let output;
+  const failure = new Error("Synthetic source open failure");
+
+  await withFileOperations(
+    t,
+    {
+      open: async (filename, flags, ...options) => {
+        if (filename === source && flags === "r") throw failure;
+        const handle = await originalOpen(filename, flags, ...options);
+        if (flags === "wx") output = handle;
+        return handle;
+      },
+    },
+    () =>
+      assert.rejects(
+        copyArtifactTree({ source, destination, sourceRoot, overwrite: true }),
+        (error) => error === failure,
+      ),
+  );
+
+  assert.equal(output.fd, -1);
+  assert.equal(await readFile(destination, "utf8"), "previous bytes");
+  assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
+});
+
+test("a staging collision belongs to its creator and is never removed by failed overwrite copying", async (t) => {
+  const root = await fixture(t);
+  const sourceRoot = path.join(root, "source");
+  const source = await put(sourceRoot, "entry.txt", "replacement bytes");
+  const destination = await put(root, "output/entry.txt", "previous bytes");
+  const originalOpen = filesystem.open;
+  let collision;
+
+  await withFileOperations(
+    t,
+    {
+      open: async (filename, flags, ...options) => {
+        if (
+          flags === "wx" &&
+          path.dirname(filename) === path.dirname(destination) &&
+          path.basename(filename).startsWith(".kernel-copy-") &&
+          filename.endsWith(".partial")
+        ) {
+          collision = filename;
+          await writeFile(filename, "preserve another creator's file");
+        }
+        return originalOpen(filename, flags, ...options);
+      },
+    },
+    () =>
+      assert.rejects(
+        copyArtifactTree({ source, destination, sourceRoot, overwrite: true }),
+        { code: "EEXIST" },
+      ),
+  );
+
+  assert.equal(typeof collision, "string");
+  assert.equal(
+    await readFile(collision, "utf8"),
+    "preserve another creator's file",
+  );
+  assert.equal(await readFile(destination, "utf8"), "previous bytes");
 });
 
 test("core CLIs refuse false snapshots before build, environment or output access", async (t) => {

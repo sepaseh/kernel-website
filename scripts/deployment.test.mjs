@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -56,11 +57,12 @@ async function markedCliFixture(directory, ready = true) {
 }
 
 async function temporaryFixture(context) {
-  const directory = await mkdtemp(
-    path.join(tmpdir(), "kernel-render-fixture-"),
+  const temporaryRoot = await realpath(tmpdir());
+  const directory = await realpath(
+    await mkdtemp(path.join(temporaryRoot, "kernel-render-fixture-")),
   );
   context.after(async () => {
-    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
+    assert.equal(path.dirname(directory), temporaryRoot);
     assert.ok(path.basename(directory).startsWith("kernel-render-fixture-"));
     await rm(directory, {
       recursive: true,
@@ -253,8 +255,9 @@ test("native nginx templates render with the documented public field contract", 
 });
 
 test("renderer CLI refuses overwrites unless explicitly requested", async () => {
-  const directory = await mkdtemp(
-    path.join(tmpdir(), "kernel-render-fixture-"),
+  const temporaryRoot = await realpath(tmpdir());
+  const directory = await realpath(
+    await mkdtemp(path.join(temporaryRoot, "kernel-render-fixture-")),
   );
   try {
     await markedCliFixture(directory);
@@ -288,7 +291,7 @@ test("renderer CLI refuses overwrites unless explicitly requested", async () => 
     assert.equal(run([...args, "--force"]).status, 0);
     assert.equal(await readFile(output, "utf8"), "server_name kernel.test;");
   } finally {
-    assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
+    assert.equal(path.dirname(directory), temporaryRoot);
     assert.ok(path.basename(directory).startsWith("kernel-render-fixture-"));
     await rm(directory, {
       recursive: true,
@@ -637,7 +640,14 @@ test("future Docker and native templates retain explicit runtime, TLS and proxy 
       new URL("../deploy/docker/nginx.conf.template", import.meta.url),
     ].map(async (filename) => {
       const template = await readFile(filename, "utf8");
-      const rendered = renderDeploymentTemplate(template, publicValues);
+      const rendered = renderDeploymentTemplate(template, {
+        ...publicValues,
+        HTTPS_PORT: "9443",
+      });
+      assert.match(rendered, /proxy_set_header\s+Host\s+\$host;/);
+      assert.match(rendered, /proxy_set_header\s+X-Forwarded-Host\s+\$host;/);
+      assert.match(rendered, /proxy_set_header\s+X-Forwarded-Port\s+9443;/);
+      assert.doesNotMatch(rendered, /\$http_host\b/);
       assert.ok(
         rendered.includes("proxy_set_header X-Forwarded-For $remote_addr;"),
       );

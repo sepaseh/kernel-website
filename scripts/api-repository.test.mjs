@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdir,
   mkdtemp,
+  realpath,
   rename,
   rm,
   symlink,
@@ -18,7 +19,9 @@ const environment = (directory) => ({
   KERNEL_SYNTHETIC_ENV: "1",
 });
 async function fixture(t) {
-  const root = await mkdtemp(path.join(tmpdir(), "website-api-location-"));
+  const root = await realpath(
+    await mkdtemp(path.join(tmpdir(), "website-api-location-")),
+  );
   t.after(() => rm(root, { recursive: true, force: true }));
   const directory = path.join(root, "fixture");
   await mkdir(path.join(directory, "src"), { recursive: true });

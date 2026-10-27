@@ -1,5 +1,5 @@
 import process from "node:process";
-import { fileURLToPath, URL } from "node:url";
+import { URL } from "node:url";
 
 const hostnameLabelPattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -134,7 +134,12 @@ export const validateWorkflowTargets = (mode, environment) => {
   validators[mode](environment);
 };
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (typeof import.meta.main !== "boolean") {
+  console.error(
+    "Target validation requires the repository's Node.js 24 runtime.",
+  );
+  process.exitCode = 1;
+} else if (import.meta.main) {
   try {
     if (process.argv.length !== 3)
       throw new Error("Supply one validation mode.");

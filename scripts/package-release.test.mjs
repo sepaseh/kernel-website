@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   symlink,
@@ -18,8 +19,8 @@ import { test } from "node:test";
 import { packageRelease, parseReleaseArguments } from "./package-release.mjs";
 
 async function fixture(context) {
-  const temporary = await mkdtemp(
-    path.join(os.tmpdir(), "kernel-package-release-"),
+  const temporary = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), "kernel-package-release-")),
   );
   context.after(() => rm(temporary, { recursive: true, force: true }));
   const repository = path.join(temporary, "repository");

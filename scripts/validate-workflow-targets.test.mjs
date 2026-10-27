@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +43,13 @@ const dast = {
   DAST_PRODUCTION_HOST: "example.com",
   DAST_TARGET: "http://staging.example.com",
 };
+
+const commandEnvironment = () =>
+  Object.fromEntries(
+    ["SystemRoot", "WINDIR", "PATH", "Path"].flatMap((name) =>
+      process.env[name] === undefined ? [] : [[name, process.env[name]]],
+    ),
+  );
 
 test("configured hosts are canonical DNS names with bounded labels", () => {
   assert.equal(parseConfiguredHostname("HOST", "EXAMPLE.COM"), "example.com");
@@ -196,11 +213,7 @@ test("CLI uses only supplied synthetic target values and rejects extra arguments
   const script = fileURLToPath(
     new URL("./validate-workflow-targets.mjs", import.meta.url),
   );
-  const environment = Object.fromEntries(
-    ["SystemRoot", "WINDIR", "PATH", "Path"].flatMap((name) =>
-      process.env[name] === undefined ? [] : [[name, process.env[name]]],
-    ),
-  );
+  const environment = commandEnvironment();
   const run = (args, values = staging) =>
     spawnSync(process.execPath, [script, ...args], {
       env: { ...environment, ...values },
@@ -217,4 +230,83 @@ test("CLI uses only supplied synthetic target values and rejects extra arguments
     assert.equal(result.error, undefined);
   }
   assert.match(run(["staging"], {}).stderr, /STAGING_BASE_URL is required/);
+});
+
+test("CLI validation cannot be bypassed by an owned directory alias", async (context) => {
+  const root = await realpath(
+    await mkdtemp(path.join(tmpdir(), "website-target-cli-")),
+  );
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const actual = path.join(root, "actual");
+  const alias = path.join(root, "alias");
+  await mkdir(actual);
+  await copyFile(
+    new URL("./validate-workflow-targets.mjs", import.meta.url),
+    path.join(actual, "validate-workflow-targets.mjs"),
+  );
+  await symlink(actual, alias, "junction");
+  const script = path.join(alias, "validate-workflow-targets.mjs");
+  const run = (entry, args, values = staging) =>
+    spawnSync(process.execPath, [entry, ...args], {
+      env: { ...commandEnvironment(), ...values },
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+    });
+
+  const entries = [script];
+  if (process.platform === "win32")
+    entries.push(
+      path.join(path.dirname(script).toUpperCase(), path.basename(script)),
+    );
+  for (const entry of entries) {
+    for (const args of [[], ["constructor"], ["staging", "extra"]]) {
+      const result = run(entry, args);
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 1, result.stderr);
+    }
+    const invalidTarget = run(entry, ["staging"], {});
+    assert.equal(invalidTarget.status, 1);
+    assert.match(invalidTarget.stderr, /STAGING_BASE_URL is required/);
+    for (const [mode, values] of [
+      ["staging", staging],
+      ["smoke", smoke],
+      ["dast", dast],
+    ]) {
+      const result = run(entry, [mode], values);
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 0, result.stderr);
+    }
+  }
+});
+
+test("an imported validator does not inspect target environment even when argv names it", () => {
+  const moduleUrl = new URL("./validate-workflow-targets.mjs", import.meta.url);
+  const script = fileURLToPath(moduleUrl);
+  const expression = `
+    process.argv = [process.execPath, ${JSON.stringify(script)}, "staging"];
+    process.env = new Proxy(process.env, {
+      get(target, key) {
+        if (/^(?:STAGING|SMOKE|DAST)_/.test(String(key)))
+          throw new Error("Import inspected target environment.");
+        return Reflect.get(target, key);
+      },
+    });
+    await import(${JSON.stringify(moduleUrl.href)});
+    console.info("Target validator imported without running.");
+  `;
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", expression],
+    {
+      env: commandEnvironment(),
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /imported without running/);
+  assert.equal(result.stderr, "");
 });

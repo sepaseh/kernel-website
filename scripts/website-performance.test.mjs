@@ -5,6 +5,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rename,
   rm,
   symlink,
@@ -55,7 +56,9 @@ const clientGraph = (
 const assignment = (graph) =>
   `globalThis.__RSC_MANIFEST = {};\nglobalThis.__RSC_MANIFEST["/page"] = ${JSON.stringify(graph)};`;
 async function fixture(t) {
-  const root = await mkdtemp(path.join(tmpdir(), "website-bundle-test-"));
+  const root = await realpath(
+    await mkdtemp(path.join(tmpdir(), "website-bundle-test-")),
+  );
   t.after(() => rm(root, { recursive: true, force: true }));
   const build = path.join(root, ".next");
   for (const directory of ["static/chunks", "server/app/nested"])
