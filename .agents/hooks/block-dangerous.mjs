@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const record = (value) =>
@@ -60,11 +59,25 @@ export const inspectHookPayload = (payload) => {
   return undefined;
 };
 
-if (
-  process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
-  const problem = inspectHookPayload(readFileSync(0, "utf8"));
+if (typeof import.meta.main !== "boolean") {
+  process.stderr.write(
+    "Safety hook requires the repository's Node.js 24 runtime; command blocked.\n",
+  );
+  process.exitCode = 2;
+} else if (import.meta.main) {
+  let problem;
+  try {
+    const entrypoint = process.argv[1];
+    if (
+      !entrypoint ||
+      realpathSync(entrypoint) !== realpathSync(fileURLToPath(import.meta.url))
+    )
+      problem = "Safety hook could not verify its entrypoint; command blocked.";
+    else problem = inspectHookPayload(readFileSync(0, "utf8"));
+  } catch {
+    problem =
+      "Safety hook could not resolve its entrypoint or read input; command blocked.";
+  }
   if (problem) {
     process.stderr.write(`${problem}\n`);
     process.exitCode = 2;

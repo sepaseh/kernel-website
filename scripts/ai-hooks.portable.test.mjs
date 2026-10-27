@@ -12,7 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { inspectHookPayload } from "../.agents/hooks/block-dangerous.mjs";
 
@@ -197,6 +197,97 @@ const fixture = async (t, hookName) => {
   await copyFile(path.join(hooks, hookName), script);
   return { root, script };
 };
+
+test("Node safety entrypoint inspects directory aliases with either main-module symlink mode", async (t) => {
+  const { root, script } = await fixture(t, "block-dangerous.mjs");
+  const alias = path.join(root, "linked-hooks");
+  await symlink(path.dirname(script), alias, "junction");
+  const linkedHook = path.join(alias, "block-dangerous.mjs");
+  await copyFile(
+    shellHook,
+    path.join(path.dirname(script), "block-dangerous.sh"),
+  );
+  for (const [payload, expected] of [
+    [{ command: "git push --force origin feature" }, 2],
+    [{ command: "npm run typecheck" }, 0],
+  ]) {
+    const result = runShell(payload, path.join(alias, "block-dangerous.sh"));
+    assert.equal(result.status, expected, result.stderr);
+  }
+  const paths = [linkedHook];
+  if (process.platform === "win32")
+    paths.push(
+      path.join(
+        path.dirname(linkedHook).toUpperCase(),
+        path.basename(linkedHook),
+      ),
+    );
+  for (const filename of paths)
+    for (const flags of [[], ["--preserve-symlinks-main"]])
+      for (const [payload, expected] of [
+        [{ command: "git push --force origin feature" }, 2],
+        [{ command: "npm run typecheck" }, 0],
+      ]) {
+        const result = spawnSync(process.execPath, [...flags, filename], {
+          input: JSON.stringify(payload),
+          encoding: "utf8",
+          timeout: 10_000,
+          windowsHide: true,
+        });
+        assert.equal(result.status, expected, result.stderr);
+      }
+});
+
+test("main-module identity failures block instead of silently skipping inspection", async (t) => {
+  const { root, script } = await fixture(t, "block-dangerous.mjs");
+  const preload = path.join(root, "synthetic-preload.mjs");
+  for (const setup of [
+    `process.argv.length = 1;`,
+    `process.argv[1] = ${JSON.stringify(path.join(root, "missing.mjs"))};`,
+    `process.argv[1] = ${JSON.stringify(preload)};`,
+  ]) {
+    await writeFile(preload, setup);
+    const result = spawnSync(
+      process.execPath,
+      ["--import", pathToFileURL(preload).href, script],
+      {
+        input: JSON.stringify({ command: "npm run typecheck" }),
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /could not (?:verify|resolve) its entrypoint/);
+  }
+});
+
+test("ordinary imports do not read stdin or resolve another entrypoint", async (t) => {
+  const { root, script } = await fixture(t, "block-dangerous.mjs");
+  for (const entrypoint of [undefined, path.join(root, "missing-main.mjs")]) {
+    const source = [
+      `import { readFileSync } from "node:fs";`,
+      entrypoint === undefined
+        ? `process.argv.length = 1;`
+        : `process.argv[1] = ${JSON.stringify(entrypoint)};`,
+      `await import(${JSON.stringify(pathToFileURL(script).href)});`,
+      `process.stdout.write(readFileSync(0, "utf8"));`,
+    ].join("\n");
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", source],
+      {
+        input: "intentionally not JSON",
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    assert.equal(result.stdout, "intentionally not JSON");
+  }
+});
 
 test("post-edit helper passes only the selected in-project file to installed ESLint", async (t) => {
   const { root, script } = await fixture(t, "post-edit-format.sh");

@@ -6,6 +6,14 @@
   "workingTreeFingerprint": null,
   "assistant": { "name": null, "version": null, "model": null, "host": null },
   "configuration": "existing-search",
+  "allowedTools": [],
+  "measurements": {
+    "elapsedMs": null,
+    "inputTokens": null,
+    "outputTokens": null,
+    "totalTokens": null,
+    "costUsd": null
+  },
   "instructionDiscovery": {
     "reportedLoadedFiles": [],
     "evidence": null,

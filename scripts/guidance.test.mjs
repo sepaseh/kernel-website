@@ -126,6 +126,120 @@ const fixture = () => {
   return { manifest, settings, ci };
 };
 
+const syntheticGuidanceProject = async (t) => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "website-guide-index-diagnostics-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = fixture();
+  const manifest = {
+    schemaVersion: 1,
+    checks: [source.manifest.checks[0]],
+    profiles: { full: ["types"] },
+  };
+  const settings = {
+    ...source.settings,
+    rules: [],
+    skills: [],
+    optionalHooks: [],
+  };
+  const navigation = {
+    schemaVersion: 1,
+    tasks: [
+      {
+        id: "account",
+        when: "Inspect the synthetic owner",
+        owners: ["AGENTS.md"],
+        contracts: [],
+        tests: [],
+        rules: [],
+        checks: ["types"],
+      },
+    ],
+  };
+  const evaluation = {
+    schemaVersion: 1,
+    cases: [
+      {
+        id: "account-case",
+        prompt: { en: "Explain the synthetic source owner" },
+        taskIds: ["account"],
+        evidence: ["AGENTS.md"],
+        checks: ["types"],
+        mustExplain: ["Source ownership"],
+        mustNot: ["Claim a deployment"],
+      },
+    ],
+  };
+  const pkg = { name: "synthetic-guidance", scripts: { typecheck: "tsc" } };
+  const documents = {
+    ".agents/validation.json": JSON.stringify(manifest),
+    ".agents/settings.json": JSON.stringify(settings),
+    ".agents/navigation.json": JSON.stringify(navigation),
+    ".agents/evaluation/cases.json": JSON.stringify(evaluation),
+    "package.json": JSON.stringify(pkg),
+    "package-lock.json": JSON.stringify({
+      name: pkg.name,
+      packages: { "": {} },
+    }),
+    ".github/workflows/ci.yml": await readFile(
+      new URL("../.github/workflows/ci.yml", import.meta.url),
+      "utf8",
+    ),
+  };
+  for (const filename of [
+    "AGENTS.md",
+    "docs/bootstrap.md",
+    "docs/bootstrap.fa.md",
+    "docs/source-navigation.md",
+    "docs/source-navigation.fa.md",
+    "docs/comprehension-evaluation.md",
+    "docs/comprehension-evaluation.fa.md",
+  ])
+    documents[filename] = "Synthetic maintained guidance.\n";
+  await Promise.all(
+    Object.entries(documents).map(async ([filename, content]) => {
+      const target = path.join(root, filename);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, content);
+    }),
+  );
+  return { root, navigation, evaluation };
+};
+
+test("full guidance inspection diagnoses malformed task rules without spreading or throwing", async (t) => {
+  await Promise.all(
+    ["AGENTS.md", { path: "AGENTS.md" }].map(async (rules) => {
+      const { root, navigation } = await syntheticGuidanceProject(t);
+      navigation.tasks[0].rules = rules;
+      await writeFile(
+        path.join(root, ".agents/navigation.json"),
+        JSON.stringify(navigation),
+      );
+      const result = await checkGuidance(root);
+      assert.deepEqual(result.errors, ["Invalid paths: account.rules"]);
+    }),
+  );
+});
+
+test("full guidance inspection diagnoses missing or malformed evaluation evidence", async (t) => {
+  await Promise.all(
+    [undefined, "AGENTS.md", { path: "AGENTS.md" }].map(async (evidence) => {
+      const { root, evaluation } = await syntheticGuidanceProject(t);
+      evaluation.cases[0].evidence = evidence;
+      await writeFile(
+        path.join(root, ".agents/evaluation/cases.json"),
+        JSON.stringify(evaluation),
+      );
+      const result = await checkGuidance(root);
+      const expected = ["Invalid paths: account-case"];
+      if (typeof evidence !== "string")
+        expected.push("Case needs source evidence: account-case");
+      assert.deepEqual(result.errors, expected);
+    }),
+  );
+});
+
 test("CI extraction preserves job and advisory boundaries", () => {
   const { ci, manifest, settings } = fixture();
   assert.deepEqual(ci.get("check"), [

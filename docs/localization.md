@@ -55,7 +55,7 @@ linguistic quality assessment.
 The exact publication guard requires every catalog, its type, registry, tests
 and this bilingual guide. Production boundary checks reject runtime data
 imports, foreign packages, omitted adapters and cross-checkout dependencies.
-All ten checks in the [canonical full gate](../.agents/validation.json) run on
+All eleven checks in the [canonical full gate](../.agents/validation.json) run on
 every PR and produce real unit/governance coverage for the published scope.
 
 [Client message selections](../src/i18n/client-messages.ts) and their owner tests cover explicit root/auth/account key boundaries, shared-key retention and missing/nested-value rejection across all ten languages. [Local UI/session tests](client-ui.md) exercise a real next-intl provider with synthetic EN/FA data. Feature form tests use [scoped fixture messages](../src/test/feature-session.tsx) from the explicit auth/account selections, so complete catalogs cannot hide a missing client key. Request-scoped Next.js integration, application provider rendering and bootstrap error-page use belong to the later runtime owners.

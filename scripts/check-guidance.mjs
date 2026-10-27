@@ -483,7 +483,8 @@ const navigationReferencePaths = (tasks) => {
       Array.isArray(task[field]) ? task[field] : [],
     ),
   );
-  for (const task of tasks) if (task.rules) paths.push(...task.rules);
+  for (const task of tasks)
+    if (Array.isArray(task.rules)) paths.push(...task.rules);
   return paths;
 };
 
@@ -498,7 +499,8 @@ const guidanceReferences = (settings, navigation, evaluation, manifest) => {
     ...(Array.isArray(settings.optionalHooks) ? settings.optionalHooks : []),
   ];
   referencedPaths.push(...navigationReferencePaths(navigation.tasks));
-  for (const item of evaluation.cases) referencedPaths.push(...item.evidence);
+  for (const item of evaluation.cases)
+    if (Array.isArray(item.evidence)) referencedPaths.push(...item.evidence);
   for (const entry of manifest.externalWorkflows ?? [])
     referencedPaths.push(entry.path);
   return { paths: referencedPaths, errors };
