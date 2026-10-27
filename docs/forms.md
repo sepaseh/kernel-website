@@ -2,7 +2,7 @@
 
 [English](forms.md) · [فارسی](forms.fa.md)
 
-The **feature-ui** phase publishes local [login](../src/features/login/Login.tsx),
+The **guidance** phase publishes local [login](../src/features/login/Login.tsx),
 [registration](../src/features/register/Register.tsx),
 [recovery](../src/features/recovery/Recovery.tsx) and
 [account](../src/features/account/Account.tsx) components. Registration and

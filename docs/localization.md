@@ -2,7 +2,7 @@
 
 [English](localization.md) · [فارسی](localization.fa.md)
 
-The current [feature UI phase](bootstrap.md) publishes complete local website catalogs, a plain lazy loader registry and explicit client message selection. Local components use real next-intl in isolated tests. It remains non-runnable with
+The current [guidance phase](bootstrap.md) publishes complete local website catalogs, a plain lazy loader registry and explicit client message selection. Local components use real next-intl in isolated tests. It remains non-runnable with
 `applicationReady:false`: request-scoped Next.js adapters, application message providers, screens and browser-rendered translation behavior are not included.
 
 ## Catalog ownership

@@ -4,7 +4,7 @@ Describe the concrete problem, resulting behavior and focused scope.
 
 ## Publication phase
 
-- Phase: feature-ui; applicationReady:false.
+- Phase: guidance; applicationReady:false.
 - Exact head/base or isolated snapshot:
 - GitHub changed-file entries (maximum 100):
 

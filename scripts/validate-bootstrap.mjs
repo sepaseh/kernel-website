@@ -189,6 +189,73 @@ const featureUiFiles = [
 const featureUiSource = new Set(
   featureUiFiles.filter((file) => file.startsWith("src/")),
 );
+const guidanceFiles = [
+  ".agents/README.md",
+  ".agents/evaluation/cases.json",
+  ".agents/evaluation/run-template.json",
+  ".agents/hooks/block-dangerous.mjs",
+  ".agents/hooks/block-dangerous.sh",
+  ".agents/hooks/post-edit-format.sh",
+  ".agents/hooks/quality-gate.sh",
+  ".agents/navigation.json",
+  ".agents/rules/api-collection.md",
+  ".agents/rules/branches.md",
+  ".agents/rules/code-quality.md",
+  ".agents/rules/code-review.md",
+  ".agents/rules/commits.md",
+  ".agents/rules/git.md",
+  ".agents/rules/guidance.md",
+  ".agents/rules/imports.md",
+  ".agents/rules/issues.md",
+  ".agents/rules/localization.md",
+  ".agents/rules/ordering.md",
+  ".agents/rules/pull-requests.md",
+  ".agents/rules/safety.md",
+  ".agents/rules/testing.md",
+  ".agents/rules/typescript.md",
+  ".agents/rules/website.md",
+  ".agents/settings.json",
+  ".agents/skills/commit/SKILL.md",
+  ".agents/skills/create-issue/SKILL.md",
+  ".agents/skills/create-pr/SKILL.md",
+  ".agents/skills/design-ui/SKILL.md",
+  ".agents/skills/review-pr/SKILL.md",
+  ".agents/skills/start-issue/SKILL.md",
+  ".agents/skills/validate-change/SKILL.md",
+  ".claude/skills/design-ui/SKILL.md",
+  ".github/CODEOWNERS",
+  ".github/dependabot.yml",
+  "CLAUDE.md",
+  "DESIGN.fa.md",
+  "DESIGN.md",
+  "SECURITY.fa.md",
+  "SECURITY.md",
+  "docs/adr/0001-independent-runtimes.fa.md",
+  "docs/adr/0001-independent-runtimes.md",
+  "docs/adr/0002-lightweight-clean-api.fa.md",
+  "docs/adr/0002-lightweight-clean-api.md",
+  "docs/adr/0003-single-active-language.fa.md",
+  "docs/adr/0003-single-active-language.md",
+  "docs/adr/0004-cookie-proxy-and-sessions.fa.md",
+  "docs/adr/0004-cookie-proxy-and-sessions.md",
+  "docs/adr/0005-independent-repositories.fa.md",
+  "docs/adr/0005-independent-repositories.md",
+  "docs/adr/README.fa.md",
+  "docs/adr/README.md",
+  "docs/ai-code-understanding.fa.md",
+  "docs/ai-code-understanding.md",
+  "docs/architecture.fa.md",
+  "docs/architecture.md",
+  "docs/change-workflow.fa.md",
+  "docs/change-workflow.md",
+  "docs/comprehension-evaluation.fa.md",
+  "docs/comprehension-evaluation.md",
+  "docs/source-navigation.fa.md",
+  "docs/source-navigation.md",
+  "scripts/ai-hooks.portable.test.mjs",
+  "scripts/check-guidance.mjs",
+  "scripts/guidance.test.mjs",
+];
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
   ([
@@ -208,6 +275,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  guidance:
+    "Published portable guidance, source navigation, optional host hooks and architecture/design records over the unchanged local feature/UI support. This is not a runnable application or proof of assistant discovery, browser behavior, deployment or model comprehension.",
   "feature-ui":
     "Published local authentication/account forms, scoped-session ownership and UI support with real HTTP/React tests; framework navigation is mocked. Next.js routes, server rendering, browser journeys, CSS and deployment remain unpublished and unvalidated.",
   "client-ui":
@@ -234,6 +303,7 @@ export const validateBootstrapPolicy = (policy) => {
     !policy.allowedFiles.length
   )
     throw new Error("An explicit non-runnable publication phase is required.");
+  const sourcePhase = policy.phase === "guidance" ? "feature-ui" : policy.phase;
   const files = new Set();
   for (const file of policy.allowedFiles) {
     if (
@@ -248,7 +318,7 @@ export const validateBootstrapPolicy = (policy) => {
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
         (policy.phase === "governance" ||
-          !isPublishedSource(file, policy.phase))) ||
+          !isPublishedSource(file, sourcePhase))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
       /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
@@ -262,7 +332,7 @@ export const validateBootstrapPolicy = (policy) => {
   }
   const requiredFiles = [
     ...coreFiles,
-    ...(policy.phase === "governance"
+    ...(sourcePhase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
     ...([
@@ -271,7 +341,7 @@ export const validateBootstrapPolicy = (policy) => {
       "client-document",
       "client-ui",
       "feature-ui",
-    ].includes(policy.phase)
+    ].includes(sourcePhase)
       ? localizationFiles
       : []),
     ...([
@@ -279,16 +349,15 @@ export const validateBootstrapPolicy = (policy) => {
       "client-document",
       "client-ui",
       "feature-ui",
-    ].includes(policy.phase)
+    ].includes(sourcePhase)
       ? serverBoundaryFiles
       : []),
-    ...(["client-document", "client-ui", "feature-ui"].includes(policy.phase)
+    ...(["client-document", "client-ui", "feature-ui"].includes(sourcePhase)
       ? clientDocumentFiles
       : []),
-    ...(["client-ui", "feature-ui"].includes(policy.phase)
-      ? clientUiFiles
-      : []),
-    ...(policy.phase === "feature-ui" ? featureUiFiles : []),
+    ...(["client-ui", "feature-ui"].includes(sourcePhase) ? clientUiFiles : []),
+    ...(sourcePhase === "feature-ui" ? featureUiFiles : []),
+    ...(policy.phase === "guidance" ? guidanceFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(

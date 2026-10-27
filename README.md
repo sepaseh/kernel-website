@@ -2,7 +2,7 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **feature-ui** phase.
+This standalone TypeScript project is in its **guidance** phase.
 `applicationReady` is **false**. The published scope contains sixty-six production
 modules, thirty-four source test files and three test-support modules:
 
@@ -27,6 +27,8 @@ modules, thirty-four source test files and three test-support modules:
   verification, password-change and logout controls; mount/session ownership
   protects local feedback and navigation from late results.
 
+Portable [guidance](.agents/README.md), [source navigation](docs/source-navigation.md), [architecture](docs/architecture.md), [design](DESIGN.md), [ADRs](docs/adr/README.md) and [evaluation templates](docs/comprehension-evaluation.md) now accompany that unchanged production scope. The indexes point only to published owners and tests. Optional host hooks/adapters do not establish automatic discovery, a benchmark result or runtime readiness.
+
 Read [forms](docs/forms.md), [client UI](docs/client-ui.md), [session ownership](docs/session.md),
 [client/document support](docs/client-document.md), [fonts](docs/fonts.md) and
 [server boundary](docs/server-boundary.md) for behavior and remaining integration.
@@ -35,7 +37,9 @@ journeys and deployment are not included. The installed support libraries are
 explicitly declared in [package.json](package.json); production package imports
 have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
 feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
-[168-file snapshot inventory](.github/bootstrap-policy.json).
+[233-file snapshot inventory](.github/bootstrap-policy.json).
+
+Dependabot version-update pull requests are configured with a zero limit while publication follows one open PR at a time. Repository security-update settings are separate and are not established by this local configuration. The future component-generator configuration and CSS integration are deferred.
 
 ## Install and validate
 
@@ -48,7 +52,7 @@ python -m pip install --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) defines all ten required phase
+The [canonical manifest](.agents/validation.json) defines all eleven required phase
 checks. Unit tests run in Node or isolated jsdom with real React/RTL, Radix,
 next-intl and next-themes, synthetic fetch responses and dotenv loading disabled.
 Feature tests use scoped auth/account messages and the real HTTP/session stack;

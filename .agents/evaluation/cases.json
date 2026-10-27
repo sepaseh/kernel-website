@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "session-lifecycle",
+      "prompt": {
+        "en": "Trace login, account mutations, password changes and logout across the published HTTP client, forms and session provider. Explain ownership and integration limits."
+      },
+      "taskIds": ["auth-session", "website-feature"],
+      "evidence": [
+        "src/shared/api/proxy.ts",
+        "src/shared/api/client.ts",
+        "src/features/auth/SessionProvider.tsx",
+        "src/features/account/Account.test.tsx",
+        "docs/session.md"
+      ],
+      "mustExplain": [
+        "The forwarding helper allowlists routes, preserves HttpOnly cookies and removes credential fields; independent API authentication, OTP delivery and revocation are outside this checkout.",
+        "Session generation and mount/account ownership reject stale results; public authentication 401 feedback does not announce protected-session expiry.",
+        "Local real HTTP/React tests do not establish framework routing, browser cookie isolation or a running site."
+      ],
+      "mustNot": [
+        "Claim bearer storage, real OTP delivery, API implementation or runnable Next.js routes are provided by these forms."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "language-authority",
+      "prompt": {
+        "en": "Trace API-owned active language validation into local catalog selection, without operator settings or an unpublished framework adapter."
+      },
+      "taskIds": ["active-language"],
+      "evidence": [
+        "src/shared/settings/language.ts",
+        "src/shared/settings/language.test.ts",
+        "src/i18n/catalogs.ts",
+        "docs/localization.md"
+      ],
+      "mustExplain": [
+        "Uncached API settings select one supported language/direction; unavailable or unsupported settings fail explicitly.",
+        "All ten local flat catalogs are complete; request/layout adapters and browser negotiation are not published."
+      ],
+      "mustNot": [
+        "Add a visitor language selector, silently fall back to English or claim SSR/header redirects have been verified."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "local-common-label",
+      "prompt": {
+        "en": "Locate one shared root key and its consumers; plan a genuine ten-language label with matching ICU variables and client selection."
+      },
+      "taskIds": ["shared-translation"],
+      "evidence": [
+        "src/i18n/catalog-data/locales/en.ts",
+        "src/i18n/catalog-data/locales.ts",
+        "src/i18n/catalog-data/integrity.test.ts",
+        "src/i18n/client-messages.ts",
+        "docs/adr/0005-independent-repositories.md"
+      ],
+      "mustExplain": [
+        "Each locale has one flat code-named string catalog with shared bare keys and explicit feature prefixes, genuine translations and matching ICU variables.",
+        "Client key groups use explicit selections and do not import a runtime English catalog."
+      ],
+      "mustNot": [
+        "Introduce nested common/feature objects, dotted aliases, duplicate catalogs or source imports from another checkout."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "proxy-origin-boundary",
+      "prompt": {
+        "en": "Inspect origin, credentials and body/route restrictions in the pure forwarding helper and distinguish them from future route wiring."
+      },
+      "taskIds": ["auth-session"],
+      "evidence": [
+        "src/shared/api/proxy.ts",
+        "src/shared/api/proxy.test.ts",
+        "docs/server-boundary.md"
+      ],
+      "mustExplain": [
+        "Unsupported routes/methods, foreign mutation origins and invalid or oversized JSON are rejected.",
+        "Cookie/private responses remain no-store; synthetic Request/Response tests validate the helper, not a deployed gateway or real browser."
+      ],
+      "mustNot": [
+        "Bypass the helper, import API implementation or claim an unpublished Next route or TLS gateway ran."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "seo-publication",
+      "prompt": {
+        "en": "Explain explicit origins, indexing conditions, metadata and escaped JSON-LD in the published helpers, including their current publication limits."
+      },
+      "taskIds": ["public-seo"],
+      "evidence": [
+        "src/shared/seo/config.ts",
+        "src/shared/seo/metadata.ts",
+        "src/shared/seo/structured-data.ts",
+        "src/shared/seo/config.test.ts",
+        "docs/client-document.md"
+      ],
+      "mustExplain": [
+        "SEO uses an explicitly valid public HTTPS origin and opt-in production indexing rather than upstream or request Host.",
+        "Data/metadata/JSON-LD helpers do not publish robots, sitemap, social images, SSR content or Search Console verification."
+      ],
+      "mustNot": [
+        "Infer real discovery routes, published URLs or field indexing from helper coverage or the existence of ten catalogs."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "performance-privacy",
+      "prompt": {
+        "en": "Trace scoped messages, visible-first motion, verified font source/subsets and optional Web Vitals delivery; separate local evidence from browser or field results."
+      },
+      "taskIds": ["website-performance"],
+      "evidence": [
+        "src/i18n/client-messages.ts",
+        "src/website/home/Reveal.tsx",
+        "src/shared/fonts/manifest.json",
+        "src/shared/performance/web-vitals.ts",
+        "docs/fonts.md"
+      ],
+      "mustExplain": [
+        "Font source/license, shaping, hashes, axes and disjoint CSS assignments are checked against real binaries.",
+        "Optional Web Vitals preserve metric semantics and have no default transport; static-markup and local tests do not prove browser loading, field INP or p75."
+      ],
+      "mustNot": [
+        "Claim enabled RUM, runnable CSS/header integration, initial transfer size or real performance measurements from helper tests."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "nonce-rollout",
+      "prompt": {
+        "en": "Explain what the pure CSP policy helper does and what still needs nonce generation and framework/gateway integration."
+      },
+      "taskIds": ["website-csp"],
+      "evidence": [
+        "src/shared/security/csp.ts",
+        "src/shared/security/csp.test.ts",
+        "docs/server-boundary.md",
+        "SECURITY.md"
+      ],
+      "mustExplain": [
+        "Separate helpers parse report-only/enforce mode and construct a mode-independent CSP policy from a supplied nonce. Choosing the enforcing or report-only response header belongs to future framework wiring; report-only does not block violations.",
+        "Nonce generation, incoming-header removal, response wiring, HTML caching and gateway rollout need unpublished adapters and future browser evidence."
+      ],
+      "mustNot": [
+        "Claim fresh per-response nonces, a collector, deployed CSP or both browser modes are already verified."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "publication-readiness",
+      "prompt": {
+        "en": "Determine the exact current publication scope and the evidence required before runtime activation, a CodeRabbit request or an authorized merge."
+      },
+      "taskIds": ["guidance", "git-workflow"],
+      "evidence": [
+        ".github/bootstrap-policy.json",
+        ".agents/validation.json",
+        "scripts/validate-bootstrap.mjs",
+        ".agents/rules/pull-requests.md",
+        "docs/bootstrap.md"
+      ],
+      "mustExplain": [
+        "The guidance snapshot remains applicationReady:false with unchanged production closure and required isolated full validation; a PR changes no more than100 entries.",
+        "Provider requests require successful latest exact-head non-CodeRabbit checks, matching genuine Sonar analysis and an all-severity complete zero-unresolved report, cooldown and no in-flight duplicate.",
+        "Runtime build/browser/visual/deployment evidence and current-head approval cannot be inferred from local guidance or a skipped review."
+      ],
+      "mustNot": [
+        "Publish while another PR is open, weaken checks, read private state, merge without authorization or treat a closed unmerged PR as an unlock."
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
+      "id": "design-system-handoff",
+      "prompt": {
+        "en": "Plan a sign-in component redesign and optional design-tool handoff using the published source. Identify available primitives, states, language/theme boundaries and missing integration evidence."
+      },
+      "taskIds": ["design-ui"],
+      "evidence": [
+        "DESIGN.md",
+        ".agents/skills/design-ui/SKILL.md",
+        "src/components/ui/button.tsx",
+        "src/shared/ui/FormField.tsx",
+        "src/features/login/Login.tsx",
+        "src/i18n/client-messages.ts"
+      ],
+      "mustExplain": [
+        "Read the canonical design contract/skill and actual primitives before selecting tools; CSS tokens, a root layout and generator configuration are future integration work.",
+        "Preserve native submit semantics, pending/error states, API-owned locale/direction, ten flat catalogs, scoped messages, theme and cookie/session ownership.",
+        "A concept/editable design is separate evidence from runnable integration or a hosted preview; instruction loading and external tool actions require actual observed evidence and existing authorization."
+      ],
+      "mustNot": [
+        "Introduce another UI stack, visitor language controls or duplicate tokens; claim universal autoload, visual/browser readiness or upload/publication without authorization."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage", "guidance"]
+    }
+  ]
+}

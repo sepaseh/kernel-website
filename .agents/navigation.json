@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "design-ui",
+      "when": "Design or restyle published local components/forms or prepare a design-tool handoff; framework/CSS/browser integration remains future work.",
+      "owners": [
+        "src/components/ui",
+        "src/shared/ui",
+        "src/features/login/Login.tsx",
+        "src/website/home/Reveal.tsx"
+      ],
+      "contracts": [
+        "DESIGN.md",
+        ".agents/skills/design-ui/SKILL.md",
+        ".agents/rules/website.md",
+        ".agents/rules/localization.md"
+      ],
+      "tests": [
+        "src/components/ui/primitives.test.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/features/login/Login.test.tsx"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage", "guidance"]
+    },
+    {
+      "id": "website-feature",
+      "when": "Change local login, registration, recovery, account forms or their operation ownership.",
+      "owners": [
+        "src/features/login/Login.tsx",
+        "src/features/register/Register.tsx",
+        "src/features/recovery/Recovery.tsx",
+        "src/features/auth/OtpForm.tsx",
+        "src/features/account/Account.tsx"
+      ],
+      "contracts": [
+        "src/shared/contracts/index.ts",
+        ".agents/rules/website.md",
+        "docs/forms.md"
+      ],
+      "tests": [
+        "src/features/login/Login.test.tsx",
+        "src/features/register/Register.test.tsx",
+        "src/features/recovery/Recovery.test.tsx",
+        "src/features/account/Account.test.tsx"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "auth-session",
+      "when": "Change HTTP forwarding, protected/public 401 behavior, session generations, cookies or stale-result ownership.",
+      "owners": [
+        "src/shared/api/proxy.ts",
+        "src/shared/api/client.ts",
+        "src/features/auth/SessionProvider.tsx",
+        "src/shared/hooks/use-operation-scope.ts"
+      ],
+      "contracts": [
+        "src/shared/contracts/index.ts",
+        "docs/adr/0004-cookie-proxy-and-sessions.md",
+        "docs/session.md"
+      ],
+      "tests": [
+        "src/shared/api/proxy.test.ts",
+        "src/shared/api/client.test.ts",
+        "src/features/auth/SessionProvider.test.tsx",
+        "src/shared/hooks/use-operation-scope.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "active-language",
+      "when": "Change API-owned settings-language validation, catalog selection or supported aliases; no visitor negotiation or framework adapter is published.",
+      "owners": ["src/shared/settings/language.ts", "src/i18n/catalogs.ts"],
+      "contracts": [
+        "src/shared/settings/contracts.ts",
+        "src/i18n/catalog-data/locales.ts",
+        ".agents/rules/localization.md"
+      ],
+      "tests": [
+        "src/shared/settings/language.test.ts",
+        "src/i18n/catalogs.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "shared-translation",
+      "when": "Change flat root keys, explicit client key selections, ICU variables or locale registration.",
+      "owners": [
+        "src/i18n/catalog-data/locales",
+        "src/i18n/catalog-data/locales.ts",
+        "src/i18n/catalog-data/website-types.ts",
+        "src/i18n/client-messages.ts"
+      ],
+      "contracts": [
+        ".agents/rules/localization.md",
+        "docs/adr/0005-independent-repositories.md",
+        "docs/localization.md"
+      ],
+      "tests": [
+        "src/i18n/catalog-data/integrity.test.ts",
+        "src/i18n/catalogs.test.ts",
+        "src/i18n/client-messages.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "http-contract",
+      "when": "Change pure wire DTOs, constants or the twelve client operations consumed through HTTP by the independent API.",
+      "owners": [
+        "src/shared/contracts/index.ts",
+        "src/shared/settings/contracts.ts",
+        "src/features/account/types.ts",
+        "src/features/login/types.ts",
+        "src/features/register/types.ts",
+        "src/features/recovery/types.ts"
+      ],
+      "contracts": [
+        "docs/adr/0005-independent-repositories.md",
+        ".agents/rules/api-collection.md",
+        ".agents/rules/imports.md"
+      ],
+      "tests": [
+        "src/features/api.test.ts",
+        "src/shared/api/proxy.test.ts",
+        "scripts/boundaries.test.mjs"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "public-seo",
+      "when": "Change explicit-origin SEO data, metadata types or escaped JSON-LD helpers; discovery routes and SSR integration remain unpublished.",
+      "owners": [
+        "src/shared/seo/config.ts",
+        "src/shared/seo/metadata.ts",
+        "src/shared/seo/structured-data.ts"
+      ],
+      "contracts": ["docs/client-document.md", "src/i18n/catalog-data/locales"],
+      "tests": [
+        "src/shared/seo/config.test.ts",
+        "src/shared/seo/metadata.test.ts",
+        "src/shared/seo/structured-data.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "website-performance",
+      "when": "Change scoped messages, visible-first motion, font assets/preload selection or optional private Web Vitals delivery.",
+      "owners": [
+        "src/i18n/client-messages.ts",
+        "src/website/home/Reveal.tsx",
+        "src/shared/fonts",
+        "src/shared/performance"
+      ],
+      "contracts": [
+        "performance-budget.json",
+        "docs/fonts.md",
+        "docs/client-document.md"
+      ],
+      "tests": [
+        "src/website/home/Reveal.test.ts",
+        "src/shared/fonts/preloads.test.ts",
+        "src/shared/performance/web-vitals.test.ts",
+        "src/shared/performance/WebVitals.test.ts"
+      ],
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-coverage",
+        "font-integrity"
+      ]
+    },
+    {
+      "id": "website-csp",
+      "when": "Change pure CSP construction and forwarding/cache privacy; nonce generation, framework response wiring and gateways remain future work.",
+      "owners": ["src/shared/security/csp.ts", "src/shared/api/proxy.ts"],
+      "contracts": ["docs/server-boundary.md", "SECURITY.md"],
+      "tests": [
+        "src/shared/security/csp.test.ts",
+        "src/shared/api/proxy.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "accessibility-visual",
+      "when": "Change native controls, labels/descriptions, local pending/error feedback, theme or reduced-motion behavior. Local DOM tests are not browser/visual evidence.",
+      "owners": [
+        "src/components/ui",
+        "src/shared/ui",
+        "src/website/shared/Preferences.tsx",
+        "src/website/home/Reveal.tsx"
+      ],
+      "contracts": ["DESIGN.md", "docs/client-ui.md"],
+      "tests": [
+        "src/components/ui/primitives.test.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/shared/ui/Feedback.test.tsx",
+        "src/website/shared/Preferences.test.tsx"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "guidance",
+      "when": "Change portable instructions, optional hooks, source navigation, canonical validation, ADRs or evaluation templates.",
+      "owners": [
+        ".agents/settings.json",
+        ".agents/navigation.json",
+        ".agents/validation.json",
+        ".agents/evaluation/cases.json",
+        "scripts/check-guidance.mjs",
+        ".agents/hooks/block-dangerous.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/guidance.md",
+        "docs/comprehension-evaluation.md",
+        "docs/bootstrap.md"
+      ],
+      "tests": [
+        "scripts/guidance.test.mjs",
+        "scripts/validate.test.mjs",
+        "scripts/ai-hooks.portable.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
+      "id": "git-workflow",
+      "when": "Plan an issue/branch, prepare an authorized commit or PR, or inspect review/publication policy while preserving session authorization.",
+      "owners": [
+        ".agents/rules/git.md",
+        ".agents/rules/branches.md",
+        ".agents/rules/commits.md",
+        ".agents/skills/commit/SKILL.md",
+        ".agents/skills/start-issue/SKILL.md"
+      ],
+      "contracts": [
+        ".agents/rules/issues.md",
+        ".agents/rules/pull-requests.md",
+        ".agents/rules/code-review.md",
+        ".agents/rules/safety.md",
+        ".agents/validation.json",
+        "CONTRIBUTING.md"
+      ],
+      "tests": [
+        "scripts/guidance.test.mjs",
+        "scripts/validate.test.mjs",
+        "scripts/ai-hooks.portable.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ]
+    }
+  ]
+}

@@ -426,16 +426,16 @@ test("server-boundary inspects its exact non-runnable snapshot", async (context)
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
 });
 
-test("feature-ui requires complete forms, support, owner tests and fonts while remaining non-runnable", async () => {
+test("guidance retains complete forms, support, owner tests and fonts while remaining non-runnable", async () => {
   const declared = JSON.parse(
     await readFile(
       new URL("../.github/bootstrap-policy.json", import.meta.url),
       "utf8",
     ),
   );
-  assert.equal(declared.phase, "feature-ui");
+  assert.equal(declared.phase, "guidance");
   assert.equal(declared.applicationReady, false);
-  assert.equal(validateBootstrapPolicy(declared).size, 168);
+  assert.equal(validateBootstrapPolicy(declared).size, 233);
   const older = new Set(serverBoundaryPolicy().allowedFiles);
   const added = declared.allowedFiles.filter(
     (file) =>
@@ -489,6 +489,38 @@ test("feature-ui requires complete forms, support, owner tests and fonts while r
   const result = await inspectBootstrap(
     fileURLToPath(new URL("../", import.meta.url)),
   );
-  assert.equal(result.phase, "feature-ui");
+  assert.equal(result.phase, "guidance");
   assert.equal(result.applicationReady, false);
+});
+
+test("guidance requires its executable policy, optional hooks, indexes and bilingual architecture records", async () => {
+  const declared = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  for (const file of [
+    ".agents/README.md",
+    ".agents/settings.json",
+    ".agents/navigation.json",
+    ".agents/evaluation/cases.json",
+    ".agents/hooks/block-dangerous.mjs",
+    "scripts/check-guidance.mjs",
+    "scripts/guidance.test.mjs",
+    "scripts/ai-hooks.portable.test.mjs",
+    "DESIGN.md",
+    "DESIGN.fa.md",
+    "docs/adr/README.md",
+    "docs/adr/README.fa.md",
+  ]) {
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+    );
+  }
 });

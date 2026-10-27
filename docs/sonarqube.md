@@ -26,6 +26,12 @@ routes, styled pages, browser journeys and deployment remain outside this phase.
 Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
 
+The guidance phase also analyzes `scripts/check-guidance.mjs` and the optional
+Node safety guard in `.agents/hooks`. The governance command runs the guidance
+and portable-hook tests and measures their actual imported JavaScript alongside
+the existing guards. Shell fixture behavior is tested, but Node LCOV does not
+measure Bash source. No new analysis or coverage exclusion is introduced.
+
 ## Static catalog findings
 
 The first localization analysis for PR #2 reported **65.2% new-code duplication**
