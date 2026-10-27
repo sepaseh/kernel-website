@@ -145,10 +145,19 @@ describe("account view ownership", () => {
       fetch.mock.calls.filter(([path]) => path === "/api/auth/logout"),
     ).toHaveLength(1);
     await act(async () => signOut.resolve(new Response(null, { status: 204 })));
-    expect(router.replace).toHaveBeenCalledWith("/login");
-    expect(screen.queryByTestId("account-content")).toBeNull();
-    const call = fetch.mock.calls.find(([path]) => path === "/api/auth/logout");
-    expect(call).toBeDefined();
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith("/login");
+      expect(screen.queryByTestId("account-content")).toBeNull();
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/auth/logout",
+      expect.objectContaining({
+        method: "POST",
+        body: "{}",
+        credentials: "include",
+        cache: "no-store",
+      }),
+    );
   });
 
   it("retains the account and a retry path when logout fails", async () => {
