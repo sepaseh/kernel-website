@@ -1,3 +1,5 @@
+import { AuthPaths } from "@/shared/contracts";
+
 export class WebsiteApiError extends Error {
   constructor(
     message: string,
@@ -8,6 +10,15 @@ export class WebsiteApiError extends Error {
     super(message);
   }
 }
+
+// Rejected public credentials/codes do not establish an expired user session.
+const sessionExpiryExemptPaths = new Set<string>([
+  "/account/me",
+  AuthPaths.forgotPassword,
+  AuthPaths.login,
+  AuthPaths.otpRequest,
+  AuthPaths.register,
+]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -57,7 +68,7 @@ export async function apiRequest<T = void>(
     const error = await responseError(response);
     if (
       response.status === 401 &&
-      path !== "/account/me" &&
+      !sessionExpiryExemptPaths.has(path) &&
       typeof window !== "undefined"
     )
       window.dispatchEvent(new Event("kernel:session-expired"));

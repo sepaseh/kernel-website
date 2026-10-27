@@ -266,9 +266,9 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the client-ui phase has fifty explicitly owned production modules", async () => {
+test("the feature-ui phase has sixty-six explicitly owned production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 50);
+  assert.equal(result.files, 66);
   assert.deepEqual(result.violations, []);
 });
 
@@ -379,6 +379,48 @@ test("UI dependencies remain exact per owner, package location and erased/runtim
     "src/components/ui/dialog.tsx",
   ])
     assert.ok(check("./target", path.join(root, target), session));
+});
+
+test("feature forms restrict framework navigation to exact owners and runtime permissions", () => {
+  const login = path.join(root, "src/features/login/Login.tsx");
+  const otp = path.join(root, "src/features/auth/OtpForm.tsx");
+  const account = path.join(root, "src/features/account/Account.tsx");
+  const navigation = path.join(root, "node_modules/next/navigation.d.ts");
+  const link = path.join(root, "node_modules/next/link.d.ts");
+  assert.equal(
+    check("next/navigation", navigation, login, false, "next"),
+    undefined,
+  );
+  assert.equal(
+    check("next/navigation", navigation, account, false, "next"),
+    undefined,
+  );
+  assert.equal(check("next/link", link, otp, false, "next"), undefined);
+  assert.ok(check("next/navigation", navigation, login, true, "next"));
+  assert.ok(check("next/link", link, account, false, "next"));
+  for (const target of [
+    "src/shared/hooks/use-operation-scope.ts",
+    "src/shared/navigation/document.ts",
+    "src/features/register/Register.tsx",
+  ])
+    assert.ok(
+      check(
+        "next/navigation",
+        navigation,
+        path.join(root, target),
+        false,
+        "next",
+      ),
+    );
+  assert.ok(
+    check(
+      "next/server",
+      path.join(root, "node_modules/next/server.d.ts"),
+      login,
+      false,
+      "next",
+    ),
+  );
 });
 
 test("package names cannot conceal local links, aliases or repository dependencies", async (context) => {

@@ -155,18 +155,61 @@ const clientUiFiles = [
 const clientUiSource = new Set(
   clientUiFiles.filter((file) => file.startsWith("src/")),
 );
+const featureUiFiles = [
+  "docs/forms.fa.md",
+  "docs/forms.md",
+  "src/features/account/Account.test.tsx",
+  "src/features/account/Account.tsx",
+  "src/features/account/components/account-section/AccountSection.tsx",
+  "src/features/account/components/email-form/EmailForm.test.tsx",
+  "src/features/account/components/email-form/EmailForm.tsx",
+  "src/features/account/components/password-form/PasswordForm.test.tsx",
+  "src/features/account/components/password-form/PasswordForm.tsx",
+  "src/features/account/components/profile-form/ProfileForm.test.tsx",
+  "src/features/account/components/profile-form/ProfileForm.tsx",
+  "src/features/account/components/username-form/UsernameForm.test.tsx",
+  "src/features/account/components/username-form/UsernameForm.tsx",
+  "src/features/account/index.ts",
+  "src/features/auth/OtpForm.tsx",
+  "src/features/login/Login.test.tsx",
+  "src/features/login/Login.tsx",
+  "src/features/login/index.ts",
+  "src/features/recovery/Recovery.test.tsx",
+  "src/features/recovery/Recovery.tsx",
+  "src/features/recovery/index.ts",
+  "src/features/register/Register.test.tsx",
+  "src/features/register/Register.tsx",
+  "src/features/register/index.ts",
+  "src/shared/hooks/use-operation-scope.test.ts",
+  "src/shared/hooks/use-operation-scope.ts",
+  "src/shared/navigation/document.test.ts",
+  "src/shared/navigation/document.ts",
+  "src/test/feature-session.tsx",
+];
+const featureUiSource = new Set(
+  featureUiFiles.filter((file) => file.startsWith("src/")),
+);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
-  (["localization", "server-boundary", "client-document", "client-ui"].includes(
+  ([
+    "localization",
+    "server-boundary",
+    "client-document",
+    "client-ui",
+    "feature-ui",
+  ].includes(phase) &&
+    localizationSource.has(file)) ||
+  (["server-boundary", "client-document", "client-ui", "feature-ui"].includes(
     phase,
   ) &&
-    localizationSource.has(file)) ||
-  (["server-boundary", "client-document", "client-ui"].includes(phase) &&
     serverBoundarySource.has(file)) ||
-  (["client-document", "client-ui"].includes(phase) &&
+  (["client-document", "client-ui", "feature-ui"].includes(phase) &&
     clientDocumentSource.has(file)) ||
-  (phase === "client-ui" && clientUiSource.has(file));
+  (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
+  (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "feature-ui":
+    "Published local authentication/account forms, scoped-session ownership and UI support with real HTTP/React tests; framework navigation is mocked. Next.js routes, server rendering, browser journeys, CSS and deployment remain unpublished and unvalidated.",
   "client-ui":
     "Published client HTTP/document support and independently tested local UI primitives, session/theme providers, countdown and motion adapters; Next.js pages/routes, styled browser journeys, full framework rendering and deployment are not published or validated.",
   "client-document":
@@ -227,18 +270,25 @@ export const validateBootstrapPolicy = (policy) => {
       "server-boundary",
       "client-document",
       "client-ui",
+      "feature-ui",
     ].includes(policy.phase)
       ? localizationFiles
       : []),
-    ...(["server-boundary", "client-document", "client-ui"].includes(
-      policy.phase,
-    )
+    ...([
+      "server-boundary",
+      "client-document",
+      "client-ui",
+      "feature-ui",
+    ].includes(policy.phase)
       ? serverBoundaryFiles
       : []),
-    ...(["client-document", "client-ui"].includes(policy.phase)
+    ...(["client-document", "client-ui", "feature-ui"].includes(policy.phase)
       ? clientDocumentFiles
       : []),
-    ...(policy.phase === "client-ui" ? clientUiFiles : []),
+    ...(["client-ui", "feature-ui"].includes(policy.phase)
+      ? clientUiFiles
+      : []),
+    ...(policy.phase === "feature-ui" ? featureUiFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(

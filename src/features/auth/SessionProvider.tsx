@@ -15,6 +15,7 @@ import { WebsiteApiError } from "@/shared/api/client";
 import type { Account } from "@/shared/contracts";
 type Session = {
   account?: Account;
+  readonly generation: number;
   loading: boolean;
   error?: unknown;
   refresh: () => void;
@@ -79,10 +80,11 @@ export const SessionProvider = ({ children }: Props) => {
       account: current ? snapshot.account : undefined,
       loading: !current,
       error: current ? snapshot.error : undefined,
+      generation: request.version,
       refresh,
       acceptAccount,
     }),
-    [acceptAccount, current, refresh, snapshot],
+    [acceptAccount, current, refresh, request.version, snapshot],
   );
 
   return (

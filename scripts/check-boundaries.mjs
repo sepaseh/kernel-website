@@ -5,6 +5,23 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/features/account/Account.tsx",
+  "src/features/account/components/account-section/AccountSection.tsx",
+  "src/features/account/components/email-form/EmailForm.tsx",
+  "src/features/account/components/password-form/PasswordForm.tsx",
+  "src/features/account/components/profile-form/ProfileForm.tsx",
+  "src/features/account/components/username-form/UsernameForm.tsx",
+  "src/features/account/index.ts",
+  "src/features/auth/OtpForm.tsx",
+  "src/features/login/Login.tsx",
+  "src/features/login/index.ts",
+  "src/features/recovery/Recovery.tsx",
+  "src/features/recovery/index.ts",
+  "src/features/register/Register.tsx",
+  "src/features/register/index.ts",
+  "src/shared/hooks/use-operation-scope.ts",
+  "src/shared/navigation/document.ts",
+
   "src/components/ui/alert.tsx",
   "src/components/ui/button.tsx",
   "src/components/ui/card.tsx",
@@ -57,6 +74,70 @@ const publishedProductionFiles = new Set([
   "src/shared/settings/language.ts",
 ]);
 const ownerPackages = new Map([
+  [
+    "src/features/account/Account.tsx",
+    [
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/account/components/account-section/AccountSection.tsx",
+    [{ specifier: "react", package: "@types/react", typeOnly: true }],
+  ],
+  [
+    "src/features/account/components/email-form/EmailForm.tsx",
+    [
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/account/components/password-form/PasswordForm.tsx",
+    [
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/account/components/profile-form/ProfileForm.tsx",
+    [
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/account/components/username-form/UsernameForm.tsx",
+    [
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/auth/OtpForm.tsx",
+    [
+      { specifier: "next/link", package: "next", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/login/Login.tsx",
+    [
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+      { specifier: "next/link", package: "next", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/shared/hooks/use-operation-scope.ts",
+    [{ specifier: "react", package: "@types/react", typeOnly: false }],
+  ],
   [
     "src/components/ui/alert.tsx",
     [
@@ -364,7 +445,7 @@ export const checkBoundaries = async (root = repository) => {
     )
   )
     violations.push(
-      "This publication requires exactly its declared client UI foundation packages",
+      "This publication requires exactly its declared feature UI packages",
     );
   if (
     Object.values(manifest.devDependencies ?? {}).some(

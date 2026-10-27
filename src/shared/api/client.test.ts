@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { AuthPaths } from "@/shared/contracts";
+
 import { apiRequest, WebsiteApiError } from "./client.ts";
 
 afterEach(() => {
@@ -113,7 +115,35 @@ describe("cookie-only website HTTP client", () => {
     },
   );
 
-  it("notifies once for a protected 401 while the anonymous session read stays silent", async () => {
+  it.each([
+    AuthPaths.forgotPassword,
+    AuthPaths.login,
+    AuthPaths.otpRequest,
+    AuthPaths.register,
+  ])(
+    "keeps rejected public credentials/codes local for %s without expiring a session",
+    async (path) => {
+      const expired = sessionObserver();
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            Response.json(
+              { message: "Public credentials rejected" },
+              { status: 401 },
+            ),
+          ),
+      );
+      await expect(apiRequest(path, "en")).rejects.toMatchObject({
+        message: "Public credentials rejected",
+        status: 401,
+      });
+      expect(expired).not.toHaveBeenCalled();
+    },
+  );
+
+  it("notifies once per protected 401 while the anonymous session read stays silent", async () => {
     const expired = sessionObserver();
     vi.stubGlobal(
       "fetch",
@@ -128,10 +158,12 @@ describe("cookie-only website HTTP client", () => {
       WebsiteApiError,
     );
     expect(expired).not.toHaveBeenCalled();
-    await expect(apiRequest("/auth/logout", "en")).rejects.toBeInstanceOf(
-      WebsiteApiError,
-    );
-    expect(expired).toHaveBeenCalledTimes(1);
+    for (const path of [AuthPaths.logout, "/auth/change-password"]) {
+      await expect(apiRequest(path, "en")).rejects.toBeInstanceOf(
+        WebsiteApiError,
+      );
+    }
+    expect(expired).toHaveBeenCalledTimes(2);
   });
 
   it.each([
