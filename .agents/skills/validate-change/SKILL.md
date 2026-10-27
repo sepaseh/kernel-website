@@ -31,6 +31,8 @@ hide or weaken a failure. Ask only when a correction needs a missing material
 decision, destructive action, outside authority or a scope change. Preserve user
 authorization already provided; routine safe fixes need no repeated permission.
 
-For independent quality helpers, run their relevant Node owner tests first, then the required governance coverage check. Keep explicit fixture-location, bundle/budget, environment, metadata and locking failures observable in owned temporary projects. Read [testing](../../../docs/testing.md); deferred browser/API launchers are not part of this phase gate.
+For independent quality helpers, run their relevant Node owner tests first, then the required governance coverage check. Keep explicit fixture-location, bundle/budget, environment, metadata and locking failures observable in owned temporary projects. Read [testing](../../../docs/testing.md); deferred browser suites and real API compatibility are not established by this phase gate.
 
 For delivery tooling, run the matching registered Node owner cases with owned marked fixtures and injected engine callbacks. The current false source marker must never be toggled to run an operation. The complete canonical profile includes all delivery cases and the existing audit regression; static templates and synthetic archives do not establish an application build or deployment.
+
+For runner-foundation changes, select the six Node owner files in [runner foundation](../../../docs/runner-foundation.md), then run measured governance coverage and the unchanged full profile on the exact exported source. Positive cases use owned marked fixtures and disposable Node children; do not toggle the current source marker, load real dotenv, or use a live API/Next/browser/Docker run as a shortcut.

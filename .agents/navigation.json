@@ -340,6 +340,42 @@
         "format",
         "governance-coverage"
       ]
+    },
+    {
+      "id": "runner-foundation",
+      "when": "Change readiness-first local Node runner inputs, owned direct-child lifecycle, standalone/API fixture launching or bounded analysis output. Real application, API compatibility, browser SDK/suites and deployment remain deferred.",
+      "owners": [
+        "scripts/analyze-website-performance.mjs",
+        "scripts/runner-inputs.mjs",
+        "scripts/runner-process.mjs",
+        "scripts/start-website.mjs",
+        "scripts/test-website-api.mjs",
+        "scripts/test-website-server.mjs"
+      ],
+      "contracts": [
+        ".github/bootstrap-policy.json",
+        "docs/runner-foundation.md",
+        "scripts/release-files.mjs",
+        "scripts/api-repository.mjs",
+        ".agents/rules/testing.md"
+      ],
+      "tests": [
+        "scripts/analyze-website-performance.test.mjs",
+        "scripts/runner-inputs.test.mjs",
+        "scripts/runner-process.test.mjs",
+        "scripts/start-website.test.mjs",
+        "scripts/test-website-api.test.mjs",
+        "scripts/test-website-server.test.mjs",
+        "scripts/validate-bootstrap.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "governance-coverage"
+      ]
     }
   ]
 }

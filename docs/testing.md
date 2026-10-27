@@ -3,12 +3,12 @@
 [English](testing.md) · [فارسی](testing.fa.md)
 
 Use the [canonical manifest](../.agents/validation.json) for commands and
-[validation](validation.md) for scope and sequencing. The **delivery-tooling**
-phase has an exact 303-file inventory and remains non-runnable with
+[validation](validation.md) for scope and sequencing. The **runner-foundation**
+phase has an exact 317-file inventory and remains non-runnable with
 applicationReady:false. Its 66 production modules, 34 source test files and three
 source test-support modules are unchanged. Four retained integration helpers with
 three Node owner-test files and eight delivery helpers with six Node owner-test
-files add no application entry point or browser/API/Docker launcher.
+files retain their previous scope. The Node runner foundation adds six measured modules and six Node owner files; all actual runner operations reject the current false marker.
 
 | Layer               | Published evidence and limits                                                                                                                                                                            |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -17,7 +17,7 @@ files add no application entry point or browser/API/Docker launcher.
 | Governance/tools    | Snapshot/import/CI/guidance guards, portable hooks and owner tests for explicit API location, bundle data/budgets and performance/visual environment helpers.                                            |
 | Delivery contracts  | Artifact copying/packaging, readiness guards, public configuration, explicit health targets, cleanup and target validation use owned synthetic files, injected operations or owned loopback listeners.   |
 | Audit regression    | The existing eleven audit regression cases remain in measured Vitest unit coverage; they are not moved to the Node governance runner.                                                                    |
-| Runtime integration | Pages, layout/CSS, browser journeys, API launchers, actual screenshot comparisons, Lighthouse and deployment remain deferred.                                                                            |
+| Runtime integration | Pages, layout/CSS, browser journeys, independent API installation/compatibility, actual screenshot comparisons, Lighthouse and deployment remain deferred.                                               |
 
 The retained integration owners are [API location](../scripts/api-repository.test.mjs),
 [performance helpers](../scripts/website-performance.test.mjs) and
@@ -39,7 +39,7 @@ Node owner files are [file policy](../scripts/release-files.test.mjs),
 [configuration/health/template contracts](../scripts/deployment.test.mjs),
 [cleanup](../scripts/docker-smoke-cleanup.test.mjs) and
 [target contracts](../scripts/validate-workflow-targets.test.mjs). The complete
-eleven-check gate includes all nine integration/delivery Node owner files; the
+eleven-check gate includes all nine retained integration/delivery Node owner files; the
 existing [audit tests](../scripts/run-audit.test.mjs) keep their Vitest unit owner.
 
 Core delivery CLIs require the unlinked public readiness marker before operations
@@ -63,3 +63,5 @@ dated history are different records. Follow [test reliability](test-reliability.
 Before runnable publication, add and observe genuine build, browser, both CSP-mode
 and compatible visual checks. Local tests do not establish SSR, browser cookies,
 complete accessibility, deployment, production OTP or field performance.
+
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.

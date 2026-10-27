@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The delivery-tooling phase publishes one independently installable root TypeScript package,
+The runner-foundation phase publishes one independently installable root TypeScript package,
 local feature/UI support and its maintained instructions. It is not a runnable
 Next.js application: routes, root layout, request adapter, global CSS, browser
 fixture and deployment are deferred. The accepted runtime direction remains
@@ -69,3 +69,5 @@ The four independent helpers under scripts keep test fixture location, synthetic
 ## Delivery preparation boundary
 
 Eight Node delivery helpers own public configuration, explicit readiness checks, file/archive policy, packaging, cleanup and target validation. Their six owner-test files operate owned synthetic trees, injected Docker callbacks and owned loopback health servers. Operator templates remain passive. The source phase stays false; core CLIs read only the unlinked public readiness marker and refuse operations before configuration/network/artifact access. A synthetic ready marker is test data, not delivered application readiness. [Delivery](deployment.md), [operations](release-operations.md) and [security review](security/authentication-review.md) separate current local contracts from later runtime acceptance.
+
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.

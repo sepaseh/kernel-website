@@ -366,7 +366,25 @@ const publicDeliveryExamples = new Set([
   "deploy/native/hosts.env.example",
   "deploy/native/website.env.example",
 ]);
-const toolingPhases = new Set(["integration-tooling", "delivery-tooling"]);
+const runnerFoundationFiles = [
+  "docs/runner-foundation.fa.md",
+  "docs/runner-foundation.md",
+  "scripts/analyze-website-performance.mjs",
+  "scripts/analyze-website-performance.test.mjs",
+  "scripts/runner-inputs.mjs",
+  "scripts/runner-inputs.test.mjs",
+  "scripts/runner-process.mjs",
+  "scripts/runner-process.test.mjs",
+  "scripts/start-website.mjs",
+  "scripts/start-website.test.mjs",
+  "scripts/test-website-api.mjs",
+  "scripts/test-website-api.test.mjs",
+  "scripts/test-website-server.mjs",
+  "scripts/test-website-server.test.mjs",
+];
+const runnerFoundationPaths = new Set(runnerFoundationFiles);
+const deliveryPhases = new Set(["delivery-tooling", "runner-foundation"]);
+const toolingPhases = new Set(["integration-tooling", ...deliveryPhases]);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
   ([
@@ -386,6 +404,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "runner-foundation":
+    "Published readiness-first Node process/input, standalone/API fixture and analysis runners with owned local subprocess tests. The readiness guard refuses this non-runnable snapshot; no real Next.js build/start, independent API compatibility, browser, Docker or deployment execution is established.",
   "delivery-tooling":
     "Published local artifact preparation, public configuration/target validation and inert delivery templates with owned synthetic tests. The readiness guard refuses this non-runnable snapshot; no application build, API, browser, Docker engine, deployment, release or provider workflow activation is established.",
   "integration-tooling":
@@ -439,7 +459,8 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(toolingPhases.has(phase)
     ? [...maintainedSupportFiles, ...integrationToolingFiles]
     : []),
-  ...(phase === "delivery-tooling" ? deliveryToolingFiles : []),
+  ...(deliveryPhases.has(phase) ? deliveryToolingFiles : []),
+  ...(phase === "runner-foundation" ? runnerFoundationFiles : []),
 ];
 
 export const validateBootstrapPolicy = (policy) => {
@@ -467,7 +488,7 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       ((file === "deploy" || file.startsWith("deploy/")) &&
-        (policy.phase !== "delivery-tooling" ||
+        (!deliveryPhases.has(policy.phase) ||
           !deliveryToolingPaths.has(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
@@ -478,11 +499,13 @@ export const validateBootstrapPolicy = (policy) => {
       (/(?:^|\/)(?:\.env(?:\.|$)|[^/]+\.env(?:\.|$)|settings\.local\.json$)/i.test(
         file,
       ) &&
-        (policy.phase !== "delivery-tooling" ||
+        (!deliveryPhases.has(policy.phase) ||
           !publicDeliveryExamples.has(file))) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
       (!toolingPhases.has(policy.phase) && integrationToolingPaths.has(file)) ||
       (!toolingPhases.has(policy.phase) && deliveryToolingPaths.has(file)) ||
+      (policy.phase !== "runner-foundation" &&
+        runnerFoundationPaths.has(file)) ||
       files.has(file)
     )
       throw new Error(
