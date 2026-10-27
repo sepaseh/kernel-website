@@ -124,9 +124,10 @@ const duplicates = (values) => new Set(values).size !== values.length;
 // Other npm steps remain explicit, so an extra or advisory command cannot hide
 // behind the projection. This inspects configuration without running workflows.
 const ciPolicyValue = (value) => {
-  if (value === undefined || value === false) return false;
-  if (value === true) return true;
-  return "unsupported";
+  if (value === undefined || value === false)
+    return { supported: true, advisory: false };
+  if (value === true) return { supported: true, advisory: true };
+  return { supported: false, advisory: false };
 };
 
 const ciStepCommands = (step, jobPolicy, manifest) => {
@@ -135,8 +136,8 @@ const ciStepCommands = (step, jobPolicy, manifest) => {
   if (!command.startsWith("npm run ")) return [];
   const stepPolicy = ciPolicyValue(step["continue-on-error"]);
   let advisory = "unsupported";
-  if (jobPolicy !== "unsupported" && stepPolicy !== "unsupported")
-    advisory = jobPolicy || stepPolicy;
+  if (jobPolicy.supported && stepPolicy.supported)
+    advisory = jobPolicy.advisory || stepPolicy.advisory;
   if (command !== "npm run validate -- full" || manifest === undefined)
     return [{ command, advisory }];
   const inventory = new Map(manifest.checks.map((check) => [check.id, check]));
@@ -476,6 +477,16 @@ const obsoleteProjectContainers = async (root) => {
   return results.flat();
 };
 
+const navigationReferencePaths = (tasks) => {
+  const paths = tasks.flatMap((task) =>
+    ["owners", "contracts", "tests"].flatMap((field) =>
+      Array.isArray(task[field]) ? task[field] : [],
+    ),
+  );
+  for (const task of tasks) if (task.rules) paths.push(...task.rules);
+  return paths;
+};
+
 const guidanceReferences = (settings, navigation, evaluation, manifest) => {
   const errors = [];
   for (const field of ["rules", "skills", "optionalHooks"])
@@ -486,11 +497,7 @@ const guidanceReferences = (settings, navigation, evaluation, manifest) => {
     ...(Array.isArray(settings.skills) ? settings.skills : []),
     ...(Array.isArray(settings.optionalHooks) ? settings.optionalHooks : []),
   ];
-  for (const task of navigation.tasks)
-    for (const field of ["owners", "contracts", "tests"])
-      referencedPaths.push(...(Array.isArray(task[field]) ? task[field] : []));
-  for (const task of navigation.tasks)
-    if (task.rules) referencedPaths.push(...task.rules);
+  referencedPaths.push(...navigationReferencePaths(navigation.tasks));
   for (const item of evaluation.cases) referencedPaths.push(...item.evidence);
   for (const entry of manifest.externalWorkflows ?? [])
     referencedPaths.push(entry.path);

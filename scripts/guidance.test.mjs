@@ -137,6 +137,24 @@ test("CI extraction preserves job and advisory boundaries", () => {
   assert.deepEqual(validateManifest(manifest, settings, ci), []);
 });
 
+test("unsupported CI policy types remain unsupported at both job and step boundaries", () => {
+  const { manifest, settings } = fixture();
+  for (const policy of [
+    '    continue-on-error: "true"\n    steps:\n      - run: npm run typecheck',
+    '    steps:\n      - run: npm run typecheck\n        continue-on-error: "true"',
+  ]) {
+    const ci = ciCommands(`jobs:\n  check:\n${policy}\n`);
+    assert.deepEqual(ci.get("check"), [
+      { command: "npm run typecheck", advisory: "unsupported" },
+    ]);
+    assert.ok(
+      validateManifest(manifest, settings, ci).some((error) =>
+        error.includes("advisory policy differs for types"),
+      ),
+    );
+  }
+});
+
 test("the verified canonical full runner projects every required check once", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/ci.yml", import.meta.url),
