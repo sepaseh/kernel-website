@@ -3,6 +3,14 @@ export type WebsiteSeoConfig = {
   indexable: boolean;
 };
 
+export function containsAsciiControl(value: string, includeSpace = false) {
+  const maximum = includeSpace ? 32 : 31;
+  return [...value].some((character) => {
+    const point = character.codePointAt(0) ?? 0;
+    return point <= maximum || point === 127;
+  });
+}
+
 function isLoopback(hostname: string) {
   const host = hostname.toLowerCase().replace(/\.$/, "");
   return (
@@ -36,12 +44,9 @@ export function readSeoConfig(
     if (
       !/^https?:\/\/[^/?#\\]+\/?$/i.test(configured) ||
       /\s/.test(configured) ||
-      [...configured].some(
-        (character) =>
-          character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
-      )
+      containsAsciiControl(configured, true)
     )
-      throw new Error();
+      throw new Error("Invalid website origin shape.");
     url = new URL(configured);
     if (
       url.username ||
@@ -50,7 +55,7 @@ export function readSeoConfig(
       url.search ||
       url.hash
     )
-      throw new Error();
+      throw new Error("Invalid website origin components.");
   } catch {
     throw new Error(
       "WEBSITE_URL must be an HTTP(S) origin without credentials, a path, query or fragment.",

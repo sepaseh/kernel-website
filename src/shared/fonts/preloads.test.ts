@@ -25,7 +25,7 @@ describe("self-hosted alphabet font loading", () => {
     const source = await readFile(
       new URL("../../../font-source/vazirmatn-variable.woff2", import.meta.url),
     );
-    expect(source.length).toBe(manifest.source.bytes);
+    expect(source).toHaveLength(manifest.source.bytes);
     expect(createHash("sha256").update(source).digest("hex")).toBe(
       manifest.source.sha256,
     );
@@ -43,7 +43,7 @@ describe("self-hosted alphabet font loading", () => {
       const bytes = await readFile(
         new URL(`../../../public${value.href}`, import.meta.url),
       );
-      expect(bytes.length).toBe(value.bytes);
+      expect(bytes).toHaveLength(value.bytes);
       expect(createHash("sha256").update(bytes).digest("hex")).toBe(
         value.sha256,
       );

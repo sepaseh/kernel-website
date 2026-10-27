@@ -140,6 +140,38 @@ export const inspectImports = (content, filename = "source.ts") => {
   return imports;
 };
 
+const localSourceViolation = ({
+  root,
+  file,
+  specifier,
+  resolved,
+  typeOnly,
+}) => {
+  for (const directory of ["src/shared/contracts", "src/i18n/catalog-data"]) {
+    const pure = path.resolve(root, directory);
+    if (
+      inside(pure, file) &&
+      (!specifier.startsWith(".") || !inside(pure, resolved))
+    )
+      return "Contracts and locale data must remain pure local source";
+  }
+  if (inside(path.resolve(root, "src/i18n/catalog-data"), file) && !typeOnly)
+    return "Catalog data may import only fully erased local types";
+  const wireOwners = [
+    "src/features/account/types.ts",
+    "src/features/login/types.ts",
+    "src/features/recovery/types.ts",
+    "src/features/register/types.ts",
+    "src/shared/settings/contracts.ts",
+  ];
+  if (
+    wireOwners.some((owner) => path.resolve(root, owner) === file) &&
+    !inside(path.resolve(root, "src/shared/contracts"), resolved)
+  )
+    return "Owned wire contracts may depend only on the local shared wire contract";
+  return undefined;
+};
+
 export const boundaryViolation = ({
   root,
   file,
@@ -175,29 +207,7 @@ export const boundaryViolation = ({
   if (!relativeTarget || !publishedProductionFiles.has(relativeTarget))
     return "Published imports must resolve only to published local production modules";
 
-  for (const directory of ["src/shared/contracts", "src/i18n/catalog-data"]) {
-    const pure = path.resolve(root, directory);
-    if (
-      inside(pure, file) &&
-      (!specifier.startsWith(".") || !inside(pure, resolved))
-    )
-      return "Contracts and locale data must remain pure local source";
-  }
-  if (inside(path.resolve(root, "src/i18n/catalog-data"), file) && !typeOnly)
-    return "Catalog data may import only fully erased local types";
-  const wireOwners = [
-    "src/features/account/types.ts",
-    "src/features/login/types.ts",
-    "src/features/recovery/types.ts",
-    "src/features/register/types.ts",
-    "src/shared/settings/contracts.ts",
-  ];
-  if (
-    wireOwners.some((owner) => path.resolve(root, owner) === file) &&
-    !inside(path.resolve(root, "src/shared/contracts"), resolved)
-  )
-    return "Owned wire contracts may depend only on the local shared wire contract";
-  return undefined;
+  return localSourceViolation({ root, file, specifier, resolved, typeOnly });
 };
 const sourceFiles = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -224,7 +234,9 @@ export const checkBoundaries = async (root = repository) => {
     await readFile(path.join(root, "package.json"), "utf8"),
   );
   const violations = [];
-  const dependencies = Object.keys(manifest.dependencies ?? {}).sort();
+  const dependencies = Object.keys(manifest.dependencies ?? {}).sort(
+    (left, right) => left.localeCompare(right),
+  );
   if (
     JSON.stringify(dependencies) !== JSON.stringify(runtimePackages) ||
     Object.values(manifest.dependencies ?? {}).some(

@@ -36,7 +36,8 @@ export function reportWebVital(metric: FrameworkMetric): void {
     rating: metric.rating,
     unit: metric.name === "CLS" ? "score" : "milliseconds",
   });
-  for (const reporter of [...reporters]) {
+  const delivery = new Set(reporters);
+  for (const reporter of delivery) {
     try {
       reporter(value);
     } catch {

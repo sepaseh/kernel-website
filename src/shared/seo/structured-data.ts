@@ -27,5 +27,5 @@ export function serializeJsonLd(value: unknown): string {
   const serialized = JSON.stringify(value);
   if (serialized === undefined)
     throw new Error("Structured data must be JSON serializable.");
-  return serialized.replace(/</g, "\\u003c");
+  return serialized.replaceAll("<", String.raw`\u003c`);
 }

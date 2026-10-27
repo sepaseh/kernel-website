@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-import { readSeoConfig, type WebsiteSeoConfig } from "./config";
+import {
+  containsAsciiControl,
+  readSeoConfig,
+  type WebsiteSeoConfig,
+} from "./config";
 
 type PageMetadata = {
   title: string;
@@ -18,10 +22,7 @@ function normalizedPath(value: string) {
     !value.startsWith("/") ||
     value.includes("//") ||
     /[?#\\]/.test(value) ||
-    [...value].some(
-      (character) =>
-        character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
-    )
+    containsAsciiControl(value, true)
   )
     throw invalid();
   for (const segment of value.split("/")) {
@@ -35,10 +36,7 @@ function normalizedPath(value: string) {
       decoded === "." ||
       decoded === ".." ||
       /[/\\?#]/.test(decoded) ||
-      [...decoded].some(
-        (character) =>
-          character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
-      )
+      containsAsciiControl(decoded)
     )
       throw invalid();
   }
