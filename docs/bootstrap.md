@@ -1,11 +1,12 @@
-# Localization phase
+# Server-boundary phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This phase contains twenty-five source files: wire contracts, form helpers,
+This phase contains twenty-nine source files: wire contracts, form helpers,
 API-origin validation, the API-authoritative settings-language loader, ten flat
 107-key catalogs, their erased key type and explicit lazy-loader registry, plus
-three source test files. `applicationReady:false` is enforced by the
+five source test files. Web API forwarding and pure CSP policy helpers extend the
+published closure; read [server boundary](server-boundary.md). `applicationReady:false` is enforced by the
 [exact inventory](../.github/bootstrap-policy.json). Read [localization](localization.md)
 for catalog ownership and language policy. No Next.js app, actual ICU rendering,
 browser journey, deployment or runtime dependency is included.

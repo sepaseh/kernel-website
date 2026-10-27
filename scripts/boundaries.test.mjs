@@ -253,8 +253,8 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the localization phase has twenty-two closed production modules", async () => {
+test("the server-boundary phase has twenty-four closed production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 22);
+  assert.equal(result.files, 24);
   assert.deepEqual(result.violations, []);
 });

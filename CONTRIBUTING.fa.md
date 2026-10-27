@@ -3,8 +3,8 @@
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
 [README](README.fa.md)، [راهنمای دستیار](AGENTS.md) و
-[راهنمای مرحله](docs/bootstrap.fa.md) و [ترجمه‌ها](docs/localization.fa.md) را بخوانید. قراردادها خالص و متعلق به
-قابلیت خود بمانند. import کد اجرایی فقط باید به یکی از بیست‌ودو ماژول اجرایی محلی
+[راهنمای مرحله](docs/bootstrap.fa.md) و [ترجمه‌ها](docs/localization.fa.md) و [مرز سرور](docs/server-boundary.fa.md) را بخوانید. قراردادها خالص و متعلق به
+قابلیت خود بمانند. import کد اجرایی فقط باید به یکی از بیست‌وچهار ماژول اجرایی محلی
 منتشرشده حل شود؛ بستهٔ خارجی، ماژول تست، وابستگی محاسبه‌شده یا checkout دیگر
 مجاز نیست.
 

@@ -2,9 +2,9 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **localization** phase.
-`applicationReady` is **false**. The published scope contains twenty-two production
-modules and three source test files:
+This standalone TypeScript project is in its **server-boundary** phase.
+`applicationReady` is **false**. The published scope contains twenty-four production
+modules and five source test files:
 
 - Six pure wire-contract modules under `src/shared/contracts`, feature-owned
   `types.ts` files and `src/shared/settings/contracts.ts`.
@@ -14,6 +14,10 @@ modules and three source test files:
 - Ten complete local translation catalogs with 107 flat string keys per language,
   a key type derived from English and an explicit lazy-loader registry.
 
+- Web API forwarding with exact mutation-origin checks, bounded bodies, cookie-only
+  sessions and safe uncached error responses; pure document CSP policy helpers.
+
+Read [server boundary](docs/server-boundary.md) for behavior and remaining integration.
 React/Next.js UI, routes, translation adapters, browser journeys and deployment
 are not included. Catalog loading does not establish ICU rendering or browser
 behavior. There are no runtime dependencies. Read [localization](docs/localization.md)

@@ -69,10 +69,25 @@ const localizationFiles = [
 const localizationSource = new Set(
   localizationFiles.filter((file) => file.startsWith("src/")),
 );
+const serverBoundaryFiles = [
+  "src/shared/api/proxy.ts",
+  "src/shared/api/proxy.test.ts",
+  "src/shared/security/csp.ts",
+  "src/shared/security/csp.test.ts",
+  "docs/server-boundary.md",
+  "docs/server-boundary.fa.md",
+];
+const serverBoundarySource = new Set(
+  serverBoundaryFiles.filter((file) => file.startsWith("src/")),
+);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
-  (phase === "localization" && localizationSource.has(file));
+  (["localization", "server-boundary"].includes(phase) &&
+    localizationSource.has(file)) ||
+  (phase === "server-boundary" && serverBoundarySource.has(file));
 const publicationScopes = {
+  "server-boundary":
+    "Published contracts, catalogs, API forwarding and pure CSP helpers; Next.js routes/UI, nonce integration, browser behavior and deployment are not published or validated.",
   governance:
     "Published governance files only; website runtime is not published or validated.",
   foundation:
@@ -122,7 +137,10 @@ export const validateBootstrapPolicy = (policy) => {
     ...(policy.phase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
-    ...(policy.phase === "localization" ? localizationFiles : []),
+    ...(["localization", "server-boundary"].includes(policy.phase)
+      ? localizationFiles
+      : []),
+    ...(policy.phase === "server-boundary" ? serverBoundaryFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(

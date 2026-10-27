@@ -3,8 +3,8 @@
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
 Read [README](README.md), [AGENTS](AGENTS.md) and the
-[phase guide](docs/bootstrap.md) and [localization](docs/localization.md). Keep wire definitions pure and feature
-owned. Production imports must resolve only to the twenty-two published local
+[phase guide](docs/bootstrap.md) and [localization](docs/localization.md) and [server boundary](docs/server-boundary.md). Keep wire definitions pure and feature
+owned. Production imports must resolve only to the twenty-four published local
 production modules; packages, test modules, computed dependencies and another
 checkout are not permitted.
 
