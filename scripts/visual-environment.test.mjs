@@ -96,7 +96,7 @@ test("metadata and lock output reject linked parents or non-file destinations", 
 
 test("concurrent locks have one owner and release is idempotent", async (t) => {
   const root = await fixture(t);
-  const directory = path.join(root, "results");
+  const directory = path.join(root, "results/nested/captures");
   const results = await Promise.allSettled([
     acquireVisualLock(directory),
     acquireVisualLock(directory),
@@ -247,4 +247,35 @@ test("port checks bind only validated IPv4 loopback TCP ports and close owned li
       assertVisualPortsAvailable(invalid),
       /integer TCP ports/,
     );
+});
+
+test("duplicate port requests do not conflict and a failed preflight releases its other probes", async (t) => {
+  const close = (server) =>
+    new Promise((resolve, reject) =>
+      server.close((error_) => (error_ ? reject(error_) : resolve())),
+    );
+  const ownedServer = async (port = 0) => {
+    const server = createServer();
+    await new Promise((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(port, "127.0.0.1", resolve);
+    });
+    t.after(() => (server.listening ? close(server) : undefined));
+    return server;
+  };
+  const occupied = await ownedServer();
+  const temporary = await ownedServer();
+  const availablePort = temporary.address().port;
+  await close(temporary);
+  await assertVisualPortsAvailable([availablePort, availablePort]);
+  await assert.rejects(
+    assertVisualPortsAvailable([
+      availablePort,
+      occupied.address().port,
+      availablePort,
+    ]),
+    /already in use or unavailable/,
+  );
+  const rebound = await ownedServer(availablePort);
+  assert.equal(rebound.address().port, availablePort);
 });

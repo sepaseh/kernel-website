@@ -8,6 +8,11 @@ const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const assetList = (value) =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+const compareStrings = (left, right) => {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+};
 
 export function parseClientManifest(text) {
   // Generated assignments contain JSON. No build output is evaluated as code.
@@ -72,31 +77,40 @@ async function buildFile(root, relative) {
     relative.split("/").some((part) => !part || part === "." || part === "..")
   )
     throw new Error("Unsafe build file path.");
-  let cursor = root;
-  for (const part of relative.split("/")) {
-    cursor = path.join(cursor, part);
-    if ((await lstat(cursor)).isSymbolicLink())
-      throw new Error("Build inputs must not follow symbolic links.");
+  const { filename, entry } = await buildEntry(root, relative);
+  if (!entry.isFile()) throw new Error("Build input must be a regular file.");
+  return readFile(filename);
+}
+
+async function buildEntry(root, relative) {
+  const parent = path.posix.dirname(relative);
+  if (parent !== ".") {
+    const ancestor = await buildEntry(root, parent);
+    if (!ancestor.entry.isDirectory())
+      throw new Error("Build ancestor must be a directory.");
   }
-  if (!(await lstat(cursor)).isFile())
-    throw new Error("Build input must be a regular file.");
-  return readFile(cursor);
+  const filename = path.join(root, relative);
+  const entry = await lstat(filename);
+  if (entry.isSymbolicLink())
+    throw new Error("Build inputs must not follow symbolic links.");
+  return { filename, entry };
 }
 
 async function filesUnder(root, relative) {
-  const directory = path.join(root, relative);
-  if ((await lstat(directory)).isSymbolicLink())
+  const { filename: directory, entry } = await buildEntry(root, relative);
+  if (!entry.isDirectory())
+    throw new Error("Browser assets must be in a directory.");
+  const entries = await readdir(directory, { withFileTypes: true });
+  if (entries.some((item) => item.isSymbolicLink()))
     throw new Error("Build inputs must not follow symbolic links.");
-  const files = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink())
-      throw new Error("Build inputs must not follow symbolic links.");
-    const filename = `${relative}/${entry.name}`;
-    if (entry.isDirectory()) files.push(...(await filesUnder(root, filename)));
-    else if (entry.isFile() && /\.(?:js|css)$/.test(entry.name))
-      files.push(filename);
-  }
-  return files;
+  const groups = await Promise.all(
+    entries.map((item) => {
+      const filename = `${relative}/${item.name}`;
+      if (item.isDirectory()) return filesUnder(root, filename);
+      return item.isFile() && /\.(?:js|css)$/.test(item.name) ? [filename] : [];
+    }),
+  );
+  return groups.flat();
 }
 
 const pageEntry = (entry, route) => {
@@ -134,7 +148,7 @@ async function pageAssets(root, entry) {
 }
 
 function summarizeAssets(files, assets) {
-  const paths = [...new Set(files.map(clientAssetPath))].sort();
+  const paths = [...new Set(files.map(clientAssetPath))].sort(compareStrings);
   let javaScriptBytes = 0;
   let javaScriptGzipBytes = 0;
   let cssBytes = 0;
@@ -179,23 +193,32 @@ export async function measureWebsiteBundle(buildDirectory) {
       }),
     ),
   );
-  const routes = {};
-  for (const [entry, route] of Object.entries(routeMap).sort()) {
-    if (!entry.endsWith("/page")) continue;
+  const pages = Object.entries(routeMap)
+    .sort((left, right) => compareStrings(String(left), String(right)))
+    .filter(([entry]) => entry.endsWith("/page"));
+  const seenRoutes = new Set();
+  for (const [entry, route] of pages) {
     pageEntry(entry, route);
-    if (Object.hasOwn(routes, route))
+    if (seenRoutes.has(route))
       throw new Error("Duplicate page route in route manifest.");
-    routes[route] = summarizeAssets(
-      [
-        ...build.rootMainFiles,
-        ...build.polyfillFiles,
-        ...(await pageAssets(root, entry)),
-      ],
-      assets,
-    );
+    seenRoutes.add(route);
   }
-  if (!Object.keys(routes).length)
-    throw new Error("No website page client graphs found.");
+  if (!pages.length) throw new Error("No website page client graphs found.");
+  const routes = Object.fromEntries(
+    await Promise.all(
+      pages.map(async ([entry, route]) => [
+        route,
+        summarizeAssets(
+          [
+            ...build.rootMainFiles,
+            ...build.polyfillFiles,
+            ...(await pageAssets(root, entry)),
+          ],
+          assets,
+        ),
+      ]),
+    ),
+  );
   return {
     version: 1,
     definition:
@@ -260,21 +283,28 @@ export function evaluateWebsiteBudget(report, budget) {
   return failures;
 }
 
-async function reportDirectory() {
-  let directory = repository;
-  for (const component of [".lighthouseci", "website"]) {
-    directory = path.join(directory, component);
-    try {
-      const entry = await lstat(directory);
-      if (entry.isSymbolicLink() || !entry.isDirectory())
-        throw new Error(
-          "Bundle report directory must not follow symbolic links.",
-        );
-    } catch (error_) {
-      if (error_.code !== "ENOENT") throw error_;
-      await mkdir(directory);
-    }
+async function reportFolder(parent, components) {
+  if (!components.length) return parent;
+  const [component, ...remaining] = components;
+  const directory = path.join(parent, component);
+  try {
+    const entry = await lstat(directory);
+    if (entry.isSymbolicLink() || !entry.isDirectory())
+      throw new Error(
+        "Bundle report directory must not follow symbolic links.",
+      );
+  } catch (error_) {
+    if (error_.code !== "ENOENT") throw error_;
+    await mkdir(directory);
   }
+  return reportFolder(directory, remaining);
+}
+
+async function reportDirectory() {
+  const directory = await reportFolder(repository, [
+    ".lighthouseci",
+    "website",
+  ]);
   const filename = path.join(directory, "bundle.json");
   try {
     const entry = await lstat(filename);

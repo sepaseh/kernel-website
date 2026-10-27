@@ -13,29 +13,36 @@ import path from "node:path";
 const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+async function createVisualDirectory(cursor, parts, index = 0) {
+  if (index === parts.length) return cursor;
+  const next = path.join(cursor, parts[index]);
+  let entry;
+  try {
+    entry = await lstat(next);
+  } catch (error_) {
+    if (error_.code !== "ENOENT") throw error_;
+    try {
+      await mkdir(next);
+    } catch (error_) {
+      if (error_.code !== "EEXIST") throw error_;
+    }
+    entry = await lstat(next);
+  }
+  if (entry.isSymbolicLink() || !entry.isDirectory())
+    throw new Error("Visual output must stay in an unlinked directory.");
+  // Verify or create each parent before inspecting or creating its child.
+  return createVisualDirectory(next, parts, index + 1);
+}
+
 async function visualDirectory(directory) {
   if (typeof directory !== "string" || !directory.trim())
     throw new Error("Visual output directory must be explicit.");
   const destination = path.resolve(directory);
-  let cursor = path.parse(destination).root;
-  for (const part of path.relative(cursor, destination).split(path.sep)) {
-    cursor = path.join(cursor, part);
-    let entry;
-    try {
-      entry = await lstat(cursor);
-    } catch (error_) {
-      if (error_.code !== "ENOENT") throw error_;
-      try {
-        await mkdir(cursor);
-      } catch (error_) {
-        if (error_.code !== "EEXIST") throw error_;
-      }
-      entry = await lstat(cursor);
-    }
-    if (entry.isSymbolicLink() || !entry.isDirectory())
-      throw new Error("Visual output must stay in an unlinked directory.");
-  }
-  return destination;
+  const root = path.parse(destination).root;
+  return createVisualDirectory(
+    root,
+    path.relative(root, destination).split(path.sep),
+  );
 }
 
 export async function markVisualBaselinePending(metadataPath, metadata) {
@@ -186,31 +193,39 @@ export function visualEnvironment(inherited = process.env) {
   };
 }
 
+async function probeVisualPort(port) {
+  const server = createServer();
+  try {
+    await new Promise((resolve, reject) => {
+      server.once("error", (error_) =>
+        reject(
+          new Error(
+            `Visual fixture port ${port} is already in use or unavailable.`,
+            { cause: error_ },
+          ),
+        ),
+      );
+      server.listen(port, "127.0.0.1", resolve);
+    });
+  } finally {
+    if (server.listening)
+      await new Promise((resolve, reject) =>
+        server.close((error_) => (error_ ? reject(error_) : resolve())),
+      );
+  }
+}
+
 export async function assertVisualPortsAvailable(ports = [3100, 3101]) {
   if (
     !Array.isArray(ports) ||
     ports.some((port) => !Number.isInteger(port) || port < 0 || port > 65535)
   )
     throw new Error("Visual fixture ports must be integer TCP ports.");
-  for (const port of ports) {
-    const server = createServer();
-    try {
-      await new Promise((resolve, reject) => {
-        server.once("error", (error_) =>
-          reject(
-            new Error(
-              `Visual fixture port ${port} is already in use or unavailable.`,
-              { cause: error_ },
-            ),
-          ),
-        );
-        server.listen(port, "127.0.0.1", resolve);
-      });
-    } finally {
-      if (server.listening)
-        await new Promise((resolve, reject) =>
-          server.close((error_) => (error_ ? reject(error_) : resolve())),
-        );
-    }
-  }
+  // Distinct ports are independent, but every owned listener must finish its
+  // cleanup before a failure is reported to the caller.
+  const results = await Promise.allSettled(
+    [...new Set(ports)].map(probeVisualPort),
+  );
+  const failure = results.find((result) => result.status === "rejected");
+  if (failure) throw failure.reason;
 }

@@ -47,6 +47,6 @@ export function apiRepository(inherited = process.env) {
   } catch {
     throw fixtureError();
   }
-  if (!manifest || manifest.name !== "kernel-api") throw fixtureError();
+  if (manifest?.name !== "kernel-api") throw fixtureError();
   return realpathSync(directory);
 }

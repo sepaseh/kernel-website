@@ -104,6 +104,40 @@ test("only emitted browser assets count, shared graph chunks deduplicate and fut
   assert.ok(result.routes["/"].javaScriptGzipBytes > 0);
 });
 
+test("bundle output preserves UTF-16 lexical order without locale-dependent sorting", async (t) => {
+  const { build, write } = await fixture(t);
+  await mkdir(path.join(build, "server/app/page(foo)"));
+  for (const name of ["Z", "_lower", "a"])
+    await write(`static/chunks/${name}.js`, name);
+  const graph = clientGraph([
+    "static/chunks/a.js",
+    "static/chunks/_lower.js",
+    "static/chunks/Z.js",
+  ]);
+  await write(
+    "server/app/page_client-reference-manifest.js",
+    assignment(graph),
+  );
+  await write(
+    "server/app/page(foo)/page_client-reference-manifest.js",
+    assignment(graph),
+  );
+  await write("app-path-routes-manifest.json", {
+    "/page": "/",
+    "/page(foo)/page": "/edge",
+  });
+  const result = await measureWebsiteBundle(build);
+  assert.deepEqual(Object.keys(result.routes), ["/edge", "/"]);
+  assert.deepEqual(result.routes["/"].files, [
+    "static/chunks/Z.js",
+    "static/chunks/_lower.js",
+    "static/chunks/a.js",
+    "static/chunks/page.js",
+    "static/chunks/shared.js",
+    "static/chunks/style.css",
+  ]);
+});
+
 test("bundle budgets pass boundaries and report each exceeded resource", () => {
   assert.deepEqual(evaluateWebsiteBudget(report(), budget), []);
   const larger = report();
