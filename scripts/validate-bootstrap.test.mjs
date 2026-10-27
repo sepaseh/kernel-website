@@ -57,6 +57,69 @@ const foundationPolicy = (overrides = {}) =>
     phase: "foundation",
     ...overrides,
   });
+const localizationFiles = [
+  "docs/localization.md",
+  "docs/localization.fa.md",
+  "src/i18n/catalogs.ts",
+  "src/i18n/catalog-data/integrity.test.ts",
+  "src/i18n/catalog-data/website-types.ts",
+  ...["ar", "de", "en", "es", "fa", "fr", "it", "pt", "ru", "tr"].map(
+    (code) => `src/i18n/catalog-data/locales/${code}.ts`,
+  ),
+];
+const localizationPolicy = (overrides = {}) =>
+  foundationPolicy({
+    allowedFiles: [...foundationFiles, ...localizationFiles],
+    phase: "localization",
+    ...overrides,
+  });
+
+test("localization requires every catalog, its type and loader, tests and guidance", () => {
+  const complete = [...foundationFiles, ...localizationFiles];
+  assert.equal(
+    validateBootstrapPolicy(localizationPolicy()).size,
+    complete.length,
+  );
+  for (const file of localizationFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          localizationPolicy({
+            allowedFiles: complete.filter((value) => value !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("only the localization phase admits its explicit pure source closure", () => {
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      foundationPolicy({
+        allowedFiles: [...foundationFiles, ...localizationFiles],
+      }),
+    ),
+  );
+  for (const file of [
+    "src/app/global-error.tsx",
+    "src/i18n/request.ts",
+    "src/i18n/client-messages.ts",
+    "src/i18n/catalog-data/locales/ja.ts",
+    "src/i18n/catalog-data/locales/common.ts",
+    "src/i18n/catalog-data/extra.ts",
+    "src/shared/settings/server.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        localizationPolicy({
+          allowedFiles: [...foundationFiles, ...localizationFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(localizationPolicy({ applicationReady: true })),
+  );
+});
 
 test("foundation cannot omit either CI policy guard file", () => {
   for (const file of ["scripts/check-ci.mjs", "scripts/check-ci.test.mjs"])
@@ -93,6 +156,21 @@ const fixture = async (context, declaredPolicy = policy()) => {
     );
   return { put, root };
 };
+
+test("localization inspects an exact non-runnable snapshot and rejects missing catalogs", async (context) => {
+  const { root } = await fixture(context, localizationPolicy());
+  await mkdir(path.join(root, "node_modules"));
+  await mkdir(path.join(root, "coverage"));
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: foundationFiles.length + localizationFiles.length,
+    phase: "localization",
+    scope:
+      "Published contracts, input helpers, API-authoritative settings-language loading and complete local catalogs; Next.js UI, rendering, browser behavior and deployment are not published or validated.",
+  });
+  await rm(path.join(root, "src/i18n/catalog-data/locales/fa.ts"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+});
 
 test("accepts only the declared governance phase and immutable 100-file maximum", () => {
   assert.equal(validateBootstrapPolicy(policy()).size, coreFiles.length);

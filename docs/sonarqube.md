@@ -19,9 +19,37 @@ The workflow validates the declared snapshot, installs the locked toolchain and
 runs both real coverage commands before scanning. The
 [properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
 `coverage/governance/lcov.info` from that same checkout/revision. They cover
-foundation helpers and governance scripts, not Next.js UI, HTTP routes, browser
+published helpers, local catalogs and governance scripts, not Next.js UI, HTTP routes, browser
 journeys or deployment. Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
+
+## Static catalog findings
+
+The first localization analysis for PR #2 reported **65.2% new-code duplication**
+across the ten static translated dictionaries. Their repeated key schema is data
+ownership, not shared executable behavior. The explicitly authorized duplication-only
+scope covers only the ten language-data files under
+`src/i18n/catalog-data/locales/*.ts`; loaders, settings, application
+logic and tooling remain subject to duplication analysis. Source/security checks
+and genuine unit/governance coverage still include every catalog.
+
+The [catalog tests](../src/i18n/catalog-data/integrity.test.ts) must additionally
+inspect each file's TypeScript AST: a flat object of literal string values,
+erased local type imports and its default export only. Runtime statements,
+spreads, computed keys and computed values must fail CI. This prevents the
+data-only duplication scope from concealing executable logic. This authorization
+does not extend to other files, security rules or provider classifications. The complete gate and
+fresh Sonar analysis must verify the actual result.
+
+Sonar classifies the `typescript:S2068` finding `AaF5M1BkNrX0jLhu4aR3` on the
+Spanish `password: "Contraseña"` UI label in
+[`es.ts`](../src/i18n/catalog-data/locales/es.ts) as **False Positive**, under
+separate explicit user authorization. The value is visible UI text, not an
+authentication credential. The translation is unchanged; no security-rule
+suppression or source/coverage exclusion was added. This classification applies
+only to this exact literal-label finding and does not authorize classifying
+other issues. Before requesting CodeRabbit, verify a fresh report for the exact
+current head with zero open/unresolved issues and a passing actual quality gate.
 
 Record the actual run, analyzed SHA/PR, provider analysis and quality-gate result.
 The scanner uses `sonar.qualitygate.wait=false`; successful scan submission and
@@ -41,8 +69,8 @@ The [PR-file guard](../scripts/check-pr-size.mjs) rejects metadata counts above
 any next-page link is inconsistent and fails closed without following it.
 The guard validates all returned entries and rechecks the head, base and count
 after retrieval. This keeps the 100-file policy explicit and avoids unnecessary
-API calls. Fresh provider analysis must verify the result; no suppression or
-provider classification is used.
+API calls. Fresh provider analysis must verify the result. The PR-file guard
+does not suppress findings or change provider classifications.
 
 Use [official GitHub Actions setup](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/ci-based-analysis/github-actions-for-sonarcloud)
 and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis).
@@ -52,12 +80,12 @@ and [analysis methods](https://docs.sonarsource.com/sonarqube-cloud/analyzing-so
 Request an initial review or re-review only after **every required
 non-CodeRabbit check passes for the exact current PR head**. Use the approved
 phase-specific set in [branch protection](branch-protection.md). The non-runnable
-foundation requires `check`, `SonarQube Cloud analysis` and the actual
+publication requires `check`, the trusted `PR file limit`, `SonarQube Cloud analysis` and the actual
 `SonarCloud Code Analysis` quality gate before a request. Exclude only
 CodeRabbit's own check and approval from this preflight to avoid a circular
 dependency.
 
-Under the explicitly approved foundation policy, app `build`, `e2e` and
+Under the non-runnable publication policy, app `build`, `e2e` and
 `visual` jobs are not currently required. Before any runnable-app merge,
 introduce those real jobs, observe them pass, add them to required checks and
 expand the full canonical application gate. Do not emit placeholder jobs,

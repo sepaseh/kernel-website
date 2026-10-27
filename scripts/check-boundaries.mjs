@@ -14,6 +14,18 @@ const publishedProductionFiles = new Set([
   "src/shared/lib/form-values.ts",
   "src/shared/api/origin.ts",
   "src/i18n/catalog-data/locales.ts",
+  "src/i18n/catalog-data/website-types.ts",
+  "src/i18n/catalog-data/locales/ar.ts",
+  "src/i18n/catalog-data/locales/de.ts",
+  "src/i18n/catalog-data/locales/en.ts",
+  "src/i18n/catalog-data/locales/es.ts",
+  "src/i18n/catalog-data/locales/fa.ts",
+  "src/i18n/catalog-data/locales/fr.ts",
+  "src/i18n/catalog-data/locales/it.ts",
+  "src/i18n/catalog-data/locales/pt.ts",
+  "src/i18n/catalog-data/locales/ru.ts",
+  "src/i18n/catalog-data/locales/tr.ts",
+  "src/i18n/catalogs.ts",
   "src/shared/settings/language.ts",
 ]);
 const inside = (root, file) => {
@@ -23,6 +35,15 @@ const inside = (root, file) => {
     relative !== ".." &&
     !path.isAbsolute(relative)
   );
+};
+
+const isErasedTypeReference = (node) => {
+  if (ts.isImportTypeNode(node)) return true;
+  if (ts.isImportDeclaration(node))
+    return node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword;
+  if (ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node))
+    return node.isTypeOnly;
+  return false;
 };
 
 export const inspectImports = (content, filename = "source.ts") => {
@@ -39,6 +60,7 @@ export const inspectImports = (content, filename = "source.ts") => {
         value && ts.isStringLiteralLike(value) ? value.text : undefined,
       line:
         source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+      typeOnly: isErasedTypeReference(node),
     });
   const visit = (node) => {
     if (
@@ -70,15 +92,21 @@ export const inspectImports = (content, filename = "source.ts") => {
   return imports;
 };
 
-export const boundaryViolation = ({ root, file, specifier, resolved }) => {
+export const boundaryViolation = ({
+  root,
+  file,
+  specifier,
+  resolved,
+  typeOnly,
+}) => {
   if (!specifier)
     return "Use explicit module entrypoints instead of computed imports";
   if (!specifier.startsWith(".") && !specifier.startsWith("@/"))
-    return "Foundation imports must use local relative paths or the project alias";
+    return "Published imports must use local relative paths or the project alias";
   const relativeTarget =
     resolved && path.relative(root, resolved).replaceAll(path.sep, "/");
   if (!relativeTarget || !publishedProductionFiles.has(relativeTarget))
-    return "Foundation imports must resolve only to published local production modules";
+    return "Published imports must resolve only to published local production modules";
 
   for (const directory of ["src/shared/contracts", "src/i18n/catalog-data"]) {
     const pure = path.resolve(root, directory);
@@ -88,6 +116,8 @@ export const boundaryViolation = ({ root, file, specifier, resolved }) => {
     )
       return "Contracts and locale data must remain pure local source";
   }
+  if (inside(path.resolve(root, "src/i18n/catalog-data"), file) && !typeOnly)
+    return "Catalog data may import only fully erased local types";
   const wireOwners = [
     "src/features/account/types.ts",
     "src/features/login/types.ts",
@@ -128,7 +158,7 @@ export const checkBoundaries = async (root = repository) => {
   );
   const violations = [];
   if (Object.keys(manifest.dependencies ?? {}).length)
-    violations.push("This foundation has no runtime dependencies");
+    violations.push("This publication has no runtime dependencies");
   if (manifest.workspaces !== undefined)
     violations.push("A standalone project must not declare npm workspaces");
   for (const name of await readdir(root))
@@ -163,10 +193,7 @@ export const checkBoundaries = async (root = repository) => {
           path.relative(root, file).replaceAll(path.sep, "/"),
         )
       )
-        own.push(
-          "Unpublished foundation production module: " +
-            path.relative(root, file),
-        );
+        own.push("Unpublished production module: " + path.relative(root, file));
       const edges = inspectImports(await readFile(file, "utf8"), file);
       const imports = await Promise.all(
         edges.map(async (edge) => {
@@ -177,12 +204,13 @@ export const checkBoundaries = async (root = repository) => {
           const target =
             resolved && (await realpath(resolved.resolvedFileName));
           const violation = !resolved
-            ? "Every foundation import must resolve"
+            ? "Every published import must resolve"
             : boundaryViolation({
                 root,
                 file,
                 specifier: edge.specifier,
                 resolved: target,
+                typeOnly: edge.typeOnly,
               });
           return violation
             ? path.relative(root, file) +

@@ -3,10 +3,15 @@
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
 Read [README](README.md), [AGENTS](AGENTS.md) and the
-[foundation guide](docs/bootstrap.md). Keep wire definitions pure and feature
-owned. Production imports must resolve only to the ten published local
+[phase guide](docs/bootstrap.md) and [localization](docs/localization.md). Keep wire definitions pure and feature
+owned. Production imports must resolve only to the twenty-two published local
 production modules; packages, test modules, computed dependencies and another
 checkout are not permitted.
+
+Catalog data may import erased local types only. Keep all ten code-named catalogs
+complete, flat and genuinely translated, with matching ICU placeholders and
+intentional newlines. Preserve the API's active language and direction; the plain
+loader registry never negotiates visitor preferences or overrides server settings.
 
 Use the Node version in [.nvmrc](.nvmrc), its bundled npm and `npm ci`, matching CI.
 During development select the smallest relevant existing check. Before every
@@ -36,7 +41,7 @@ of suppressing findings or making metrics pass with wrappers.
 
 Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Report the exact revision,
 phase, commands, results and limitations. Publish or comment only with explicit
-authorization. Request CodeRabbit only after the [strict preflight](docs/sonarqube.md#before-requesting-coderabbit) passes for that exact head, including all required non-CodeRabbit checks and zero OPEN/unresolved Sonar issues of every severity. Use the explicitly approved [foundation check set](docs/branch-protection.md); app build/e2e/visual jobs are not required in this non-runnable phase. Recheck after a new head, respect quota and do not duplicate an in-flight review. A skipped result is not a completed review; fix actionable findings and rerun affected checks.
+authorization. Request CodeRabbit only after the [strict preflight](docs/sonarqube.md#before-requesting-coderabbit) passes for that exact head, including all required non-CodeRabbit checks and zero OPEN/unresolved Sonar issues of every severity. Use the explicitly approved [non-runnable check set](docs/branch-protection.md); app build/e2e/visual jobs are not required in this non-runnable phase. Recheck after a new head, respect quota and do not duplicate an in-flight review. A skipped result is not a completed review; fix actionable findings and rerun affected checks.
 
 Merge under the ordinary native CI, CodeRabbit and Sonar checks, an approving
 review and resolved conversations; see [branch protection](docs/branch-protection.md).
@@ -46,7 +51,7 @@ not hosted evidence.
 A runnable phase must add real Next.js routes/UI/catalog adapters, the complete
 application gate and its synthetic HTTP/auth, browser/CSP, accessibility and
 reviewed visual evidence. It must preserve the independent API boundary.
-Before any runnable-app merge, observe the real build/e2e/visual jobs pass, add them to required checks and expand full canonical validation. Preserve all other protections. Foundation success does not replace these checks or justify applicationReady:true.
+Before any runnable-app merge, observe the real build/e2e/visual jobs pass, add them to required checks and expand full canonical validation. Preserve all other protections. A non-runnable phase pass does not replace these checks or justify applicationReady:true.
 
 The complete website gate has fifteen required application checks. Publish their
 source, tooling and synthetic fixtures through focused PRs before claiming that
