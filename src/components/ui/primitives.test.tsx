@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { FormEvent } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Alert, AlertDescription, AlertTitle } from "./alert";
@@ -39,6 +40,23 @@ describe("local UI primitives", () => {
     expect(click).toHaveBeenCalledOnce();
   });
 
+  it("does not submit forms by default and preserves explicit submit buttons", () => {
+    const submit = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    render(
+      <form onSubmit={submit}>
+        <Button>Toggle</Button>
+        <Button type="submit">Save</Button>
+      </form>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle" }));
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(submit).toHaveBeenCalledOnce();
+  });
+
   it("composes an actual Radix Slot link without nesting a button", () => {
     const click = vi.fn();
     render(
@@ -49,9 +67,26 @@ describe("local UI primitives", () => {
     const link = screen.getByRole("link", { name: "Continue" });
     expect(link.getAttribute("href")).toBe("#next");
     expect(link.getAttribute("data-variant")).toBe("outline");
+    expect(link.getAttribute("type")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
     fireEvent.click(link);
     expect(click).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the child button's submit behavior when composing a Radix Slot", () => {
+    const submit = vi.fn((event: FormEvent<HTMLFormElement>) =>
+      event.preventDefault(),
+    );
+    render(
+      <form onSubmit={submit}>
+        <Button asChild>
+          <button type="submit">Child submit</button>
+        </Button>
+      </form>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Child submit" }));
+    expect(submit).toHaveBeenCalledOnce();
   });
 
   it("keeps alert and status semantics while forwarding titles, descriptions and custom attributes", () => {

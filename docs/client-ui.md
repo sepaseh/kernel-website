@@ -16,6 +16,10 @@ disabled behavior, Slot child semantics and caller classes. Components receive
 typed parameters; React.FC/FunctionComponent aliases are forbidden by lint.
 Imports stay within exact per-owner package and erased/runtime permissions.
 
+Native Button elements default to type="button" to avoid accidental form
+submission. Submit controls pass type="submit" explicitly; asChild leaves the
+child element's type behavior unchanged.
+
 FormField associates an explicit id or a generated React id with its label; form
 names remain independent and need not be unique across the document.
 Generated ids keep anonymous fields distinct. Error text takes precedence over a
