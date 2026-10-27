@@ -1,0 +1,4 @@
+# Required font-integrity check and optional regeneration tooling.
+fonttools==4.67.0
+Brotli==1.2.1
+coverage==7.17.0

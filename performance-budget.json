@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "totalJavaScriptBytes": 850000,
+  "largestJavaScriptBytes": 260000,
+  "totalCssBytes": 45000,
+  "routeJavaScriptBytes": 800000,
+  "routeJavaScriptGzipBytes": 250000,
+  "routeCssBytes": 45000,
+  "fontSubsetBytes": {
+    "latin": 35000,
+    "arabic": 50000,
+    "extended": 30000
+  },
+  "preloadedFontBytes": 85000
+}

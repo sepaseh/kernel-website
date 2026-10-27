@@ -17,7 +17,7 @@ export default [
   ...tseslint.configs.recommended,
   {
     files: ["**/*.{ts,mjs}"],
-    languageOptions: { globals: globals.node },
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

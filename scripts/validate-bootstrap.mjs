@@ -80,12 +80,58 @@ const serverBoundaryFiles = [
 const serverBoundarySource = new Set(
   serverBoundaryFiles.filter((file) => file.startsWith("src/")),
 );
+const clientDocumentFiles = [
+  "src/shared/api/client.ts",
+  "src/shared/api/client.test.ts",
+  "src/features/auth/api.ts",
+  "src/features/account/api.ts",
+  "src/features/login/api.ts",
+  "src/features/register/api.ts",
+  "src/features/recovery/api.ts",
+  "src/features/api.test.ts",
+  "src/shared/seo/config.ts",
+  "src/shared/seo/config.test.ts",
+  "src/shared/seo/metadata.ts",
+  "src/shared/seo/metadata.test.ts",
+  "src/shared/seo/structured-data.ts",
+  "src/shared/seo/structured-data.test.ts",
+  "src/shared/performance/web-vitals.ts",
+  "src/shared/performance/web-vitals.test.ts",
+  "src/shared/fonts/preloads.ts",
+  "src/shared/fonts/preloads.test.ts",
+  "src/shared/fonts/manifest.json",
+  "src/shared/fonts/vazirmatn.css",
+  "src/i18n/client-messages.ts",
+  "src/i18n/client-messages.test.ts",
+  "src/i18n/catalogs.test.ts",
+  "src/lib/utils.ts",
+  "src/lib/utils.test.ts",
+  "public/fonts/vazirmatn-latin.woff2",
+  "public/fonts/vazirmatn-arabic.woff2",
+  "public/fonts/vazirmatn-extended.woff2",
+  "public/fonts/OFL.txt",
+  "font-source/vazirmatn-variable.woff2",
+  "font-source/requirements.txt",
+  "scripts/subset-website-fonts.py",
+  "performance-budget.json",
+  "docs/client-document.md",
+  "docs/client-document.fa.md",
+  "docs/fonts.md",
+  "docs/fonts.fa.md",
+];
+const clientDocumentSource = new Set(
+  clientDocumentFiles.filter((file) => file.startsWith("src/")),
+);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
-  (["localization", "server-boundary"].includes(phase) &&
+  (["localization", "server-boundary", "client-document"].includes(phase) &&
     localizationSource.has(file)) ||
-  (phase === "server-boundary" && serverBoundarySource.has(file));
+  (["server-boundary", "client-document"].includes(phase) &&
+    serverBoundarySource.has(file)) ||
+  (phase === "client-document" && clientDocumentSource.has(file));
 const publicationScopes = {
+  "client-document":
+    "Published client HTTP and document support, explicit client message selection and catalogs verified with the real ICU engine, SEO, private Web Vitals delivery and verified local fonts; Next.js routes/UI, server rendering, browser behavior and deployment are not published or validated.",
   "server-boundary":
     "Published contracts, catalogs, API forwarding and pure CSP helpers; Next.js routes/UI, nonce integration, browser behavior and deployment are not published or validated.",
   governance:
@@ -137,10 +183,15 @@ export const validateBootstrapPolicy = (policy) => {
     ...(policy.phase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
-    ...(["localization", "server-boundary"].includes(policy.phase)
+    ...(["localization", "server-boundary", "client-document"].includes(
+      policy.phase,
+    )
       ? localizationFiles
       : []),
-    ...(policy.phase === "server-boundary" ? serverBoundaryFiles : []),
+    ...(["server-boundary", "client-document"].includes(policy.phase)
+      ? serverBoundaryFiles
+      : []),
+    ...(policy.phase === "client-document" ? clientDocumentFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(

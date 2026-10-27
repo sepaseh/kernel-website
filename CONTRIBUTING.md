@@ -2,58 +2,28 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-Read [README](README.md), [AGENTS](AGENTS.md) and the
-[phase guide](docs/bootstrap.md) and [localization](docs/localization.md) and [server boundary](docs/server-boundary.md). Keep wire definitions pure and feature
-owned. Production imports must resolve only to the twenty-four published local
-production modules; packages, test modules, computed dependencies and another
-checkout are not permitted.
+Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. This client-document snapshot has thirty-seven production modules and fifteen source test files. It remains non-runnable.
 
-Catalog data may import erased local types only. Keep all ten code-named catalogs
-complete, flat and genuinely translated, with matching ICU placeholders and
-intentional newlines. Preserve the API's active language and direction; the plain
-loader registry never negotiates visitor preferences or overrides server settings.
+Keep the exact source closure explicit. Pure wire contracts and catalog data have only their permitted local imports; catalog imports are erased types. Only the boundary guard's exact per-owner/package/type-only permissions admit the support libraries. Other packages, local links, test imports, computed imports and another checkout remain forbidden.
 
-Use the Node version in [.nvmrc](.nvmrc), its bundled npm and `npm ci`, matching CI.
-During development select the smallest relevant existing check. Before every
-explicitly authorized commit, push or PR handoff, run
-**`npm run validate -- full`** from the
-[canonical manifest](.agents/validation.json) on the exact isolated proposed tree.
-Do not weaken a failed or unavailable check. Untracked application files in
-another checkout cannot validate a partial publication.
+Preserve all ten genuine flat catalogs, ICU interpolation, API-owned language/direction, cookie/no-store requests, original cancellation, scoped session notifications, explicit SEO origins and private optional metrics. Keep reviewed API forwarding and CSP behavior. Read [client/document support](docs/client-document.md), [localization](docs/localization.md), [server boundary](docs/server-boundary.md) and [fonts](docs/fonts.md).
 
-[CI](.github/workflows/ci.yml) runs this same canonical full command on every PR,
-including drafts, without changed-file filtering. The runner validates the complete
-plan before running a command: check IDs and profile entries must be unique, and
-`full` must contain every required check exactly once with no manual/advisory
-entries. A focused local profile cannot replace it. New published checks must
-join the canonical full profile rather than a separate CI command list.
+Use Node from [.nvmrc](.nvmrc), its bundled npm and Python 3.14.4. Activate a fresh disposable Python environment outside the checkout, then run:
 
-Use a focused `codex/<purpose>` branch and Conventional Commit title. Inspect the
-whole base diff and keep each PR at **100 or fewer GitHub changed-file entries**,
-including additions, deletions, renames and binaries. A GitHub rename is one entry.
-The [inventory](.github/bootstrap-policy.json) is an exact content guard, not a
-100-file limit on the repository.
+```sh
+npm ci
+python -m pip install --requirement font-source/requirements.txt
+npm run validate -- full
+```
 
-Preserve user work, private environment/state and credentials. Tests use only
-synthetic data; dotenv loading is disabled. Do not commit generated coverage.
-Maintain meaningful failure tests and the declared coverage thresholds instead
-of suppressing findings or making metrics pass with wrappers.
+Before every authorized commit, push or PR handoff, pass the entire ten-check [canonical full profile](.agents/validation.json) on the exact isolated proposed tree. A focused development command or a primary checkout cannot replace it. Preserve 90% unit coverage for all four metrics and 80% governance coverage. Required font verification opens real binaries and imports measured Python coverage into Sonar. Never fabricate reports, suppress findings or weaken a required check.
 
-Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Report the exact revision,
-phase, commands, results and limitations. Publish or comment only with explicit
-authorization. Request CodeRabbit only after the [strict preflight](docs/sonarqube.md#before-requesting-coderabbit) passes for that exact head, including all required non-CodeRabbit checks and zero OPEN/unresolved Sonar issues of every severity. Use the explicitly approved [non-runnable check set](docs/branch-protection.md); app build/e2e/visual jobs are not required in this non-runnable phase. Recheck after a new head, respect quota and do not duplicate an in-flight review. A skipped result is not a completed review; fix actionable findings and rerun affected checks.
+Every PR, including drafts and documentation changes, runs that same complete profile without path filters. Keep each PR at 100 or fewer GitHub changed-file entries, including additions, deletions, renames and binaries. A rename is one entry; the repository inventory may exceed 100.
 
-Merge under the ordinary native CI, CodeRabbit and Sonar checks, an approving
-review and resolved conversations; see [branch protection](docs/branch-protection.md).
-Inspect scanner execution and provider quality gate separately. Configuration is
-not hosted evidence.
+Use codex/ branches, Conventional Commit titles and the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Preserve user changes, private state and credentials. Tests use synthetic data and owned temporary resources; never load real dotenv or contact an existing API. Clean owned Docker resources after tests. Git mutations and provider messages require explicit authorization.
 
-A runnable phase must add real Next.js routes/UI/catalog adapters, the complete
-application gate and its synthetic HTTP/auth, browser/CSP, accessibility and
-reviewed visual evidence. It must preserve the independent API boundary.
-Before any runnable-app merge, observe the real build/e2e/visual jobs pass, add them to required checks and expand full canonical validation. Preserve all other protections. A non-runnable phase pass does not replace these checks or justify applicationReady:true.
+Before requesting CodeRabbit, enforce the [current-head preflight](docs/sonarqube.md#before-requesting-coderabbit): all required non-CodeRabbit contexts, scanner and native Sonar quality gate pass, with zero OPEN/unresolved issues of every severity in the complete applicable report. A new head invalidates evidence. Respect one hour since both the latest request and substantive review, provider retry limits and one in-flight request. Skipped or conversational replies are not completed reviews.
 
-The complete website gate has fifteen required application checks. Publish their
-source, tooling and synthetic fixtures through focused PRs before claiming that
-gate passes. Once runnable, every PR runs the entire application gate regardless
-of the files it changes; the 100-file cap never reduces test scope.
+Merge only under the ordinary [native protected checks](docs/branch-protection.md), current-head approval and resolved conversations. Do not change protections to merge. Publish complete English/Persian human documentation with reciprocal links; assistant guidance is English only.
+
+Before a runnable-app merge, publish real Next.js routes/UI, all fifteen application checks and an independently installed synthetic API fixture. Observe genuine build/e2e/visual jobs passing and make them required. This non-runnable phase establishes no SSR, browser, accessibility, visual or deployment behavior.

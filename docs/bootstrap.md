@@ -1,78 +1,19 @@
-# Server-boundary phase
+# Client/document publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This phase contains twenty-nine source files: wire contracts, form helpers,
-API-origin validation, the API-authoritative settings-language loader, ten flat
-107-key catalogs, their erased key type and explicit lazy-loader registry, plus
-five source test files. Web API forwarding and pure CSP policy helpers extend the
-published closure; read [server boundary](server-boundary.md). `applicationReady:false` is enforced by the
-[exact inventory](../.github/bootstrap-policy.json). Read [localization](localization.md)
-for catalog ownership and language policy. No Next.js app, actual ICU rendering,
-browser journey, deployment or runtime dependency is included.
+This non-runnable publication contains thirty-seven production modules, fifteen source test files and an exact 111-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
 
-After `npm ci`, run `npm run validate -- full`. The
-[manifest](../.agents/validation.json) defines nine required checks: snapshot,
-CI policy, audit, closed imports, types, lint, formatting, measured unit tests and measured
-governance tests. Run the full current phase before an authorized commit, push
-or PR handoff. Use only the isolated exact proposed tree, not omitted source
-from the primary checkout.
+The [client/document guide](client-document.md), [fonts](fonts.md), [localization](localization.md) and [server boundary](server-boundary.md) describe ownership. Next.js supplies erased framework types; actual next-intl tests exercise ICU. No src/app, server-only request adapter, UI, entry point, browser fixture or deployment is present.
 
-Every PR, including drafts, executes that same canonical full command without
-changed-file filtering. The runner validates the entire selected plan before
-execution: duplicate check IDs/profile entries, unknown checks, missing required
-checks and manual/advisory entries in `full` fail closed. CI does not maintain a
-second list of phase commands. Focused development profiles remain available but
-cannot replace the full PR gate.
+The [canonical manifest](../.agents/validation.json) has ten required checks: snapshot, semantic CI policy, audit, source boundaries, types, lint, formatting, measured unit tests, measured governance tests and real font integrity. Run npm ci, install [pinned Python requirements](../font-source/requirements.txt) under Python3.14.4, then npm run validate -- full before every authorized commit/push/handoff on the exact isolated tree.
 
-The CI policy parses YAML with unique keys and verifies the PR trigger, mandatory
-job, root directory and unconditional install/full-gate steps. Path/branch filters,
-draft conditions, ignored failures and reordered/missing commands fail validation.
-All nine checks in the canonical full profile execute in the `check` job. The
-other required native contexts are listed below. Future build/e2e/visual jobs need
-an explicit policy transition instead of silently running a Windows check on Linux.
+Every PR, including drafts, runs that complete profile without changed-path filtering. The runner rejects duplicate IDs, omitted required checks and manual/advisory entries before executing commands. CI requires unconditional root npm installation and full execution plus pinned Python setup/dependency installation. The scanner must generate real Python font coverage before analysis; semantic tests reject missing, conditional, reordered or advisory steps.
 
-Unit coverage must reach 90% for statements, branches, functions and lines.
-Governance coverage must reach 80% for lines, functions and branches, excluding
-test files. Reports are generated from actual execution at
-`coverage/unit/lcov.info` and `coverage/governance/lcov.info`; do not commit
-them, fabricate results or attribute them to a complete website.
+Unit thresholds remain 90% for statements, branches, functions and lines. Governance thresholds remain 80% for lines, functions and branches. Font tooling has measured branch/line coverage and an 80% combined required minimum. Actual reports are coverage/unit/lcov.info, coverage/governance/lcov.info and coverage/fonts/coverage.xml. Do not commit or fabricate them.
 
-The inventory rejects undeclared/missing files, private paths and symlinks and
-checks maintained local links. It allows ordinary root `node_modules` and
-`coverage` output directories. The 100-file cap applies to each PR's changed-file
-list, not the total inventory.
+Native [branch protection](branch-protection.md) still requires check, trusted PR file limit, SonarQube Cloud analysis, SonarCloud Code Analysis and CodeRabbit. The target size guard executes only its immutable workflow checkout with read-only permissions. Keep strict/up-to-date checks, current approval, resolved conversations and administrator enforcement.
 
-[CI](../.github/workflows/ci.yml) runs the full phase and an unprivileged
-read-only PR-size check. The [target guard](../.github/workflows/pr-policy.yml)
-uses only the immutable `github.workflow_sha` checkout with read-only permissions.
-Never execute PR-head or unreviewed base code in that privileged event.
-The size guard rejects metadata above 100 files before retrieval. An eligible PR
-fits one complete page; unexpected pagination, incomplete file metadata and
-changing head/base/count evidence fail closed.
+Request CodeRabbit only after the [exact-head zero-issue preflight](sonarqube.md#before-requesting-coderabbit), the repository cooldown and no in-flight duplicate. Automatic review remains disabled. A skipped result is not substantive review evidence.
 
-Use native CodeRabbit/Sonar/CI and one approving review with resolved
-conversations. CodeRabbit automatic review is disabled; request a manual review
-only after the [strict preflight](sonarqube.md#before-requesting-coderabbit) passes
-for the current head. All required non-CodeRabbit checks and zero OPEN/unresolved
-Sonar issues of every severity are mandatory under the approved non-runnable
-check set. Recheck after head changes, respect quotas and avoid duplicate
-in-flight requests. See [Contributing](../CONTRIBUTING.md),
-[branch protection](branch-protection.md) and [Sonar](sonarqube.md).
-
-Under the non-runnable publication policy, app build/e2e/visual
-jobs are not required. The five native contexts, including the trusted
-`PR file limit`, are listed in
-[branch protection](branch-protection.md); the closed inventory and
-applicationReady:false remain unchanged. No fake jobs or skipped required checks
-are used. Before any runnable-app merge, introduce complete UI build, HTTP/auth,
-browser/CSP, accessibility and reviewed visual validation against a separately
-published synthetic API fixture; observe real build/e2e/visual jobs pass, add
-them to required checks and expand the full canonical gate. Preserve every other
-branch protection.
-
-The complete website application has fifteen required checks. Their actual
-source and fixtures must arrive through focused publication PRs before this
-non-runnable publication can become a runnable application. Once introduced, the
-entire application gate runs on every PR regardless of changed paths; the
-100-file PR cap is independent of test scope.
+Before any runnable-app merge, publish all fifteen application checks with independently installed synthetic API fixtures, observe real build/e2e/visual jobs pass and require them. Current tests establish no Next.js rendering, browser, accessibility, visual or deployment readiness.

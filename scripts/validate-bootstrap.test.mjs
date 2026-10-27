@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   inspectBootstrap,
@@ -416,4 +424,65 @@ test("server-boundary inspects its exact non-runnable snapshot", async (context)
   assert.match(result.scope, /pure CSP helpers/);
   await rm(path.join(root, "src/shared/api/proxy.test.ts"));
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
+});
+
+test("client-document requires its complete support, font assets and owner tests while remaining non-runnable", async () => {
+  const declared = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(declared.phase, "client-document");
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 111);
+  const older = new Set(serverBoundaryPolicy().allowedFiles);
+  const added = declared.allowedFiles.filter(
+    (file) =>
+      !older.has(file) &&
+      (file.startsWith("src/") ||
+        file.startsWith("public/") ||
+        file.startsWith("font-source/") ||
+        file === "performance-budget.json" ||
+        file === "scripts/subset-website-fonts.py" ||
+        file.startsWith("docs/client-document.") ||
+        file.startsWith("docs/fonts.")),
+  );
+  assert.equal(added.length, 37);
+  for (const file of added)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+    );
+  for (const file of [
+    "src/app/layout.tsx",
+    "src/proxy.ts",
+    "src/shared/settings/server.ts",
+    "src/shared/security/nonce.ts",
+    "src/i18n/request.ts",
+    "src/website/home/Home.tsx",
+    "deploy/docker/Dockerfile",
+  ]) {
+    assert.throws(() =>
+      validateBootstrapPolicy({
+        ...declared,
+        allowedFiles: [...declared.allowedFiles, file],
+      }),
+    );
+  }
+  assert.throws(() =>
+    validateBootstrapPolicy({ ...declared, applicationReady: true }),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy({ ...declared, phase: "server-boundary" }),
+  );
+  const result = await inspectBootstrap(
+    fileURLToPath(new URL("../", import.meta.url)),
+  );
+  assert.equal(result.phase, "client-document");
+  assert.equal(result.applicationReady, false);
 });

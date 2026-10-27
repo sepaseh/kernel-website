@@ -7,6 +7,8 @@ import { parseDocument } from "yaml";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const isRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
+const pythonAction =
+  "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0";
 
 const assertPullRequestTrigger = (workflow) => {
   if (!isRecord(workflow.on) || !Object.hasOwn(workflow.on, "pull_request"))
@@ -89,6 +91,59 @@ const assertCanonicalSteps = (job) => {
   }
 };
 
+const assertFontTooling = (job, command) => {
+  if (!isRecord(job) || !Array.isArray(job.steps))
+    throw new Error("Font verification requires an explicit job and steps.");
+  const entries = job.steps.map((step, index) => ({ step, index }));
+  const setups = entries.filter(({ step }) => step.uses === pythonAction);
+  const installs = entries.filter(
+    ({ step }) =>
+      step.run?.trim() ===
+      "python -m pip install --requirement font-source/requirements.txt",
+  );
+  const checks = entries.filter(({ step }) => step.run?.trim() === command);
+  if (
+    setups.length !== 1 ||
+    installs.length !== 1 ||
+    checks.length !== 1 ||
+    setups[0].step.with?.["python-version"] !== "3.14.4" ||
+    setups[0].index >= installs[0].index ||
+    installs[0].index >= checks[0].index
+  )
+    throw new Error(
+      "Pinned Python setup and font dependencies must precede required font verification.",
+    );
+  for (const { step } of [...setups, ...installs, ...checks]) {
+    assertUnconditional(step);
+    assertRunSettings(step);
+  }
+};
+
+export const validateSonarFontWorkflow = (content) => {
+  const document = parseDocument(content, { uniqueKeys: true });
+  if (document.errors.length)
+    throw new Error("Sonar workflow must be valid YAML.");
+  const workflow = document.toJS({ maxAliasCount: 0 });
+  const job = workflow?.jobs?.analysis;
+  assertRunSettings(workflow?.defaults?.run);
+  assertRunSettings(job?.defaults?.run);
+  assertFontTooling(job, "npm run check:fonts");
+  const font = job.steps.findIndex(
+    (step) => step.run?.trim() === "npm run check:fonts",
+  );
+  const scanners = job.steps.flatMap((step, index) =>
+    typeof step.uses === "string" &&
+    step.uses.startsWith("SonarSource/sonarqube-scan-action@")
+      ? [index]
+      : [],
+  );
+  if (scanners.length !== 1 || scanners[0] <= font)
+    throw new Error(
+      "Real Python coverage must be generated before the Sonar scanner.",
+    );
+  assertUnconditional(job.steps[scanners[0]]);
+};
+
 const assertCheckOwnership = (manifest) => {
   if (!Array.isArray(manifest?.checks))
     throw new Error("CI needs the canonical required-check inventory.");
@@ -115,15 +170,18 @@ export const validateCiWorkflow = (content, manifest) => {
   if (!isRecord(workflow)) throw new Error("CI must be a workflow mapping.");
   assertPullRequestTrigger(workflow);
   assertCanonicalSteps(assertCheckJob(workflow));
+  assertFontTooling(workflow.jobs.check, "npm run validate -- full");
   assertCheckOwnership(manifest);
 };
 
 export const inspectCi = async (root = repository) => {
-  const [workflow, manifest] = await Promise.all([
+  const [workflow, manifest, sonar] = await Promise.all([
     readFile(path.join(root, ".github/workflows/ci.yml"), "utf8"),
     readFile(path.join(root, ".agents/validation.json"), "utf8"),
+    readFile(path.join(root, ".github/workflows/sonar.yml"), "utf8"),
   ]);
   validateCiWorkflow(workflow, JSON.parse(manifest));
+  validateSonarFontWorkflow(sonar);
 };
 
 if (
