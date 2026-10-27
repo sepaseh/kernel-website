@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -40,12 +41,15 @@ export const SessionProvider = ({ children }: Props) => {
       })),
     [],
   );
-  const acceptAccount = (account: Account) =>
-    setSnapshot((current) =>
-      // A completed mutation cannot be cancelled retroactively. Only its own
-      // loaded session may accept the response; a later login keeps its state.
-      current.key === key ? { key, account } : current,
-    );
+  const acceptAccount = useCallback(
+    (account: Account) =>
+      setSnapshot((current) =>
+        // A completed mutation cannot be cancelled retroactively. Only its own
+        // loaded session may accept the response; a later login keeps its state.
+        current.key === key ? { key, account } : current,
+      ),
+    [key],
+  );
   useEffect(() => {
     const controller = new AbortController();
     getAccount(locale, controller.signal).then(
@@ -70,18 +74,19 @@ export const SessionProvider = ({ children }: Props) => {
     return () => window.removeEventListener("kernel:session-expired", refresh);
   }, [refresh]);
   const current = snapshot.key === key;
+  const value = useMemo<Session>(
+    () => ({
+      account: current ? snapshot.account : undefined,
+      loading: !current,
+      error: current ? snapshot.error : undefined,
+      refresh,
+      acceptAccount,
+    }),
+    [acceptAccount, current, refresh, snapshot],
+  );
+
   return (
-    <SessionContext.Provider
-      value={{
-        account: current ? snapshot.account : undefined,
-        loading: !current,
-        error: current ? snapshot.error : undefined,
-        refresh,
-        acceptAccount,
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
   );
 };
 export function useSession() {

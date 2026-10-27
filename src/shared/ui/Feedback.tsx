@@ -7,21 +7,24 @@ import { WebsiteApiError } from "@/shared/api/client";
 type Props = { error?: unknown; success?: string };
 export const Feedback = ({ error, success }: Props) => {
   const t = useTranslations();
-  if (error)
+  if (error) {
+    const isNetworkError =
+      error instanceof TypeError ||
+      (error instanceof WebsiteApiError && error.status >= 500);
+    const message =
+      error instanceof Error && !isNetworkError
+        ? error.message
+        : t("networkError");
+
     return (
       <Alert variant="destructive" role="alert">
         <CircleAlert size={16} color="currentColor" aria-hidden />
         <AlertTitle>{t("unexpectedError")}</AlertTitle>
-        <AlertDescription>
-          {error instanceof TypeError ||
-          (error instanceof WebsiteApiError && error.status >= 500)
-            ? t("networkError")
-            : error instanceof Error
-              ? error.message
-              : t("networkError")}
-        </AlertDescription>
+        <AlertDescription>{message}</AlertDescription>
       </Alert>
     );
+  }
+
   return success ? (
     <Alert role="status">
       <CircleCheck size={16} color="currentColor" aria-hidden />
