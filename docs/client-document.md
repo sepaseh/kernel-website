@@ -2,7 +2,7 @@
 
 [English](client-document.md) · [فارسی](client-document.fa.md)
 
-This phase prepares independently testable support for the future website. It publishes no application entry point, Next.js routes/server adapters, UI or browser fixture. applicationReady remains false.
+This guide owns independently testable HTTP/document support within the [client UI foundation](client-ui.md). Local primitives and providers are described there; application entry points, Next.js routes/server adapters, styled pages and browser fixtures remain unpublished. applicationReady remains false.
 
 ## HTTP ownership
 
@@ -14,9 +14,9 @@ Successful empty responses return undefined; malformed successful JSON fails. Er
 
 SEO reads an explicit WEBSITE_URL and exact boolean indexing flag from a supplied environment. Indexing requires production and a non-loopback HTTPS origin; it defaults off. Metadata uses validated page paths, self-canonical URLs and translated title/description. It does not emit HTML here. JSON-LD escapes every less-than character so a value cannot terminate a later script element.
 
-All 107 messages in every registered catalog are parsed and interpolated by installed next-intl. Root/auth/account client selections contain only their explicit flat keys, retain required shared keys and reject missing/nested values. No Next.js request adapter or provider is included; see [localization](localization.md).
+All 107 messages in every registered catalog are parsed and interpolated by installed next-intl. Root/auth/account client selections contain only their explicit flat keys, retain required shared keys and reject missing/nested values. Local UI tests use a real next-intl provider; the request-scoped Next.js adapter and application message provider remain unpublished. See [localization](localization.md).
 
-Web Vitals forwards only approved standard numeric fields to explicitly subscribed consumers. It stores no reports and has no default transport. A consumer exception cannot stop another consumer; dispatch uses a snapshot so unsubscribe/re-subscribe cannot loop the current metric. Next's Web Vitals and Metadata imports are erased types. React/React DOM satisfy the installed framework/ICU peer closure; no React component is published.
+Web Vitals forwards only approved standard numeric fields to explicitly subscribed consumers. It stores no reports and has no default transport. A consumer exception cannot stop another consumer; dispatch uses a snapshot so unsubscribe/re-subscribe cannot loop the current metric. This delivery helper's Web Vitals import and the Metadata import are erased types. The separate [WebVitals component](client-ui.md) registers the stable callback through Next's runtime hook; its mock-based owner test does not establish browser collection.
 
 The class helper uses the installed clsx and tailwind-merge libraries. [Fonts](fonts.md) describe licensed source, real binary verification and language-specific preload selection.
 
@@ -26,4 +26,4 @@ Node tests exercise real Requests/Responses/streams and installed library behavi
 
 The ten-check [full gate](../.agents/validation.json) includes actual Python font verification/coverage. Preserve all reviewed proxy, CSP, settings and catalog behavior, 90% unit thresholds, 80% governance thresholds and the narrow ten-catalog duplication exception.
 
-SSR metadata, nonce request integration, framework routes, components, browser font shaping/loading, session journeys, accessibility and visual baselines remain future owners' responsibilities. Before runnable publication add all fifteen application checks and real required build/e2e/visual jobs against an independent synthetic API fixture. None of this support-phase evidence establishes browser or deployment behavior.
+SSR metadata, nonce request integration, framework routes, styled pages, browser font shaping/loading, session journeys, accessibility and visual baselines remain future owners' responsibilities. Local [UI](client-ui.md) and [session](session.md) tests cover their documented state/DOM boundaries. Before runnable publication add all fifteen application checks and real required build/e2e/visual jobs against an independent synthetic API fixture. None of this support-phase evidence establishes browser or deployment behavior.

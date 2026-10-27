@@ -2,11 +2,11 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. This client-document snapshot has thirty-seven production modules and fifteen source test files. It remains non-runnable.
+Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. This client-ui snapshot has fifty production modules and twenty-four source test files. It remains non-runnable.
 
 Keep the exact source closure explicit. Pure wire contracts and catalog data have only their permitted local imports; catalog imports are erased types. Only the boundary guard's exact per-owner/package/type-only permissions admit the support libraries. Other packages, local links, test imports, computed imports and another checkout remain forbidden.
 
-Preserve all ten genuine flat catalogs, ICU interpolation, API-owned language/direction, cookie/no-store requests, original cancellation, scoped session notifications, explicit SEO origins and private optional metrics. Keep reviewed API forwarding and CSP behavior. Read [client/document support](docs/client-document.md), [localization](docs/localization.md), [server boundary](docs/server-boundary.md) and [fonts](docs/fonts.md).
+Preserve all ten genuine flat catalogs, ICU interpolation, API-owned language/direction, cookie/no-store requests, original cancellation, scoped session notifications, explicit SEO origins and private optional metrics. Keep reviewed API forwarding and CSP behavior. Type component parameters directly; use named Lucide icons with explicit size/currentColor and decorative aria-hidden. Retain native control props, unique label/description links, session stale-result guards and timer/listener cleanup. Read [client UI](docs/client-ui.md), [session ownership](docs/session.md), [client/document support](docs/client-document.md), [localization](docs/localization.md), [server boundary](docs/server-boundary.md) and [fonts](docs/fonts.md).
 
 Use Node from [.nvmrc](.nvmrc), its bundled npm and Python 3.14.4. Activate a fresh disposable Python environment outside the checkout, then run:
 

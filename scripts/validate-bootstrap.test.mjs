@@ -426,16 +426,16 @@ test("server-boundary inspects its exact non-runnable snapshot", async (context)
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
 });
 
-test("client-document requires its complete support, font assets and owner tests while remaining non-runnable", async () => {
+test("client-ui requires complete support, UI/provider owners, font assets and tests while remaining non-runnable", async () => {
   const declared = JSON.parse(
     await readFile(
       new URL("../.github/bootstrap-policy.json", import.meta.url),
       "utf8",
     ),
   );
-  assert.equal(declared.phase, "client-document");
+  assert.equal(declared.phase, "client-ui");
   assert.equal(declared.applicationReady, false);
-  assert.equal(validateBootstrapPolicy(declared).size, 111);
+  assert.equal(validateBootstrapPolicy(declared).size, 139);
   const older = new Set(serverBoundaryPolicy().allowedFiles);
   const added = declared.allowedFiles.filter(
     (file) =>
@@ -446,9 +446,11 @@ test("client-document requires its complete support, font assets and owner tests
         file === "performance-budget.json" ||
         file === "scripts/subset-website-fonts.py" ||
         file.startsWith("docs/client-document.") ||
-        file.startsWith("docs/fonts.")),
+        file.startsWith("docs/fonts.") ||
+        file.startsWith("docs/client-ui.") ||
+        file.startsWith("docs/session.")),
   );
-  assert.equal(added.length, 37);
+  assert.equal(added.length, 65);
   for (const file of added)
     assert.throws(
       () =>
@@ -460,6 +462,9 @@ test("client-document requires its complete support, font assets and owner tests
     );
   for (const file of [
     "src/app/layout.tsx",
+    "src/app/providers/unpublished.tsx",
+    "src/components/ui/dialog.tsx",
+    "src/test/unlisted.ts",
     "src/proxy.ts",
     "src/shared/settings/server.ts",
     "src/shared/security/nonce.ts",
@@ -483,6 +488,6 @@ test("client-document requires its complete support, font assets and owner tests
   const result = await inspectBootstrap(
     fileURLToPath(new URL("../", import.meta.url)),
   );
-  assert.equal(result.phase, "client-document");
+  assert.equal(result.phase, "client-ui");
   assert.equal(result.applicationReady, false);
 });
