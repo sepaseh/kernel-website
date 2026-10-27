@@ -45,3 +45,5 @@ Use temporary files and resources owned by the test. Verify the resolved target
 before cleanup, include failure paths, and never delete or move another checkout,
 private state, shared Docker resources or unrelated source. No production
 endpoints, databases, storage or credentials belong in a fixture.
+
+Independent quality-helper tests belong in required governance coverage. Use owned synthetic directories/build graphs, explicit API fixture paths and metadata/lock fixtures. Do not import deferred launchers or rely on sibling checkouts. Read [testing](../../docs/testing.md) and [validation](../../docs/validation.md); no browser or application execution is established by these Node cases.

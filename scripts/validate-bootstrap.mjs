@@ -256,6 +256,58 @@ const guidanceFiles = [
   "scripts/check-guidance.mjs",
   "scripts/guidance.test.mjs",
 ];
+const maintainedSupportFiles = [
+  ".coderabbit.yaml",
+  ".gitattributes",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/workflows/sonar.yml",
+  ".gitignore",
+  ".nvmrc",
+  ".prettierignore",
+  ".prettierrc.json",
+  "AGENTS.md",
+  "CONTRIBUTING.fa.md",
+  "CONTRIBUTING.md",
+  "README.fa.md",
+  "README.md",
+  "docs/bootstrap.fa.md",
+  "docs/bootstrap.md",
+  "docs/branch-protection.fa.md",
+  "docs/branch-protection.md",
+  "docs/sonarqube.fa.md",
+  "docs/sonarqube.md",
+  "eslint.config.mjs",
+  "scripts/boundaries.test.mjs",
+  "scripts/check-boundaries.mjs",
+  "scripts/run-audit.mjs",
+  "scripts/run-audit.test.mjs",
+  "sonar-project.properties",
+  "vitest.config.ts",
+];
+const integrationToolingFiles = [
+  "docs/accessibility.fa.md",
+  "docs/accessibility.md",
+  "docs/test-reliability.fa.md",
+  "docs/test-reliability.md",
+  "docs/testing.fa.md",
+  "docs/testing.md",
+  "docs/validation.fa.md",
+  "docs/validation.md",
+  "docs/visual-regression.fa.md",
+  "docs/visual-regression.md",
+  "docs/website-csp.fa.md",
+  "docs/website-csp.md",
+  "docs/website-performance.fa.md",
+  "docs/website-performance.md",
+  "scripts/api-repository.mjs",
+  "scripts/api-repository.test.mjs",
+  "scripts/check-bundle-website.mjs",
+  "scripts/visual-environment.mjs",
+  "scripts/visual-environment.test.mjs",
+  "scripts/website-performance-environment.mjs",
+  "scripts/website-performance.test.mjs",
+];
+const integrationToolingPaths = new Set(integrationToolingFiles);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
   ([
@@ -275,6 +327,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "integration-tooling":
+    "Published deterministic bundle, fixture-location, performance-environment and visual-environment helpers with owned synthetic tests and phase-accurate guidance over unchanged local feature/UI support. No application build, API fixture, browser, screenshot, Lighthouse, accessibility or deployment execution is established.",
   guidance:
     "Published portable guidance, source navigation, optional host hooks and architecture/design records over the unchanged local feature/UI support. This is not a runnable application or proof of assistant discovery, browser behavior, deployment or model comprehension.",
   "feature-ui":
@@ -293,6 +347,39 @@ const publicationScopes = {
     "Published contracts, input helpers, API-authoritative settings-language loading and complete local catalogs; Next.js UI, rendering, browser behavior and deployment are not published or validated.",
 };
 
+const requiredPublicationFiles = (phase, sourcePhase) => [
+  ...coreFiles,
+  ...(sourcePhase === "governance"
+    ? [".github/workflows/bootstrap.yml"]
+    : foundationFiles),
+  ...([
+    "localization",
+    "server-boundary",
+    "client-document",
+    "client-ui",
+    "feature-ui",
+  ].includes(sourcePhase)
+    ? localizationFiles
+    : []),
+  ...([
+    "server-boundary",
+    "client-document",
+    "client-ui",
+    "feature-ui",
+  ].includes(sourcePhase)
+    ? serverBoundaryFiles
+    : []),
+  ...(["client-document", "client-ui", "feature-ui"].includes(sourcePhase)
+    ? clientDocumentFiles
+    : []),
+  ...(["client-ui", "feature-ui"].includes(sourcePhase) ? clientUiFiles : []),
+  ...(sourcePhase === "feature-ui" ? featureUiFiles : []),
+  ...(["guidance", "integration-tooling"].includes(phase) ? guidanceFiles : []),
+  ...(phase === "integration-tooling"
+    ? [...maintainedSupportFiles, ...integrationToolingFiles]
+    : []),
+];
+
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
@@ -303,7 +390,9 @@ export const validateBootstrapPolicy = (policy) => {
     !policy.allowedFiles.length
   )
     throw new Error("An explicit non-runnable publication phase is required.");
-  const sourcePhase = policy.phase === "guidance" ? "feature-ui" : policy.phase;
+  const sourcePhase = ["guidance", "integration-tooling"].includes(policy.phase)
+    ? "feature-ui"
+    : policy.phase;
   const files = new Set();
   for (const file of policy.allowedFiles) {
     if (
@@ -323,6 +412,8 @@ export const validateBootstrapPolicy = (policy) => {
         /^package(?:-lock)?\.json$/.test(file)) ||
       /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
+      (policy.phase !== "integration-tooling" &&
+        integrationToolingPaths.has(file)) ||
       files.has(file)
     )
       throw new Error(
@@ -330,39 +421,18 @@ export const validateBootstrapPolicy = (policy) => {
       );
     files.add(file);
   }
-  const requiredFiles = [
-    ...coreFiles,
-    ...(sourcePhase === "governance"
-      ? [".github/workflows/bootstrap.yml"]
-      : foundationFiles),
-    ...([
-      "localization",
-      "server-boundary",
-      "client-document",
-      "client-ui",
-      "feature-ui",
-    ].includes(sourcePhase)
-      ? localizationFiles
-      : []),
-    ...([
-      "server-boundary",
-      "client-document",
-      "client-ui",
-      "feature-ui",
-    ].includes(sourcePhase)
-      ? serverBoundaryFiles
-      : []),
-    ...(["client-document", "client-ui", "feature-ui"].includes(sourcePhase)
-      ? clientDocumentFiles
-      : []),
-    ...(["client-ui", "feature-ui"].includes(sourcePhase) ? clientUiFiles : []),
-    ...(sourcePhase === "feature-ui" ? featureUiFiles : []),
-    ...(policy.phase === "guidance" ? guidanceFiles : []),
-  ];
+  const requiredFiles = requiredPublicationFiles(policy.phase, sourcePhase);
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
       "The bootstrap policy cannot omit its mandatory guard files.",
     );
+  if (policy.phase === "integration-tooling") {
+    const declaredClosure = new Set(requiredFiles);
+    if ([...files].some((file) => !declaredClosure.has(file)))
+      throw new Error(
+        "Integration tooling files must match the closed published inventory.",
+      );
+  }
   return files;
 };
 

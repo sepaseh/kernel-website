@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "validate": "node scripts/validate.mjs",
     "test:unit": "vitest run --coverage",
-    "test:governance": "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs scripts/check-ci.test.mjs scripts/guidance.test.mjs scripts/ai-hooks.portable.test.mjs",
+    "test:governance": "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs scripts/check-ci.test.mjs scripts/guidance.test.mjs scripts/ai-hooks.portable.test.mjs scripts/api-repository.test.mjs scripts/website-performance.test.mjs scripts/visual-environment.test.mjs",
     "check:guidance": "node scripts/check-guidance.mjs",
     "test:guidance": "node --test scripts/guidance.test.mjs scripts/ai-hooks.portable.test.mjs"
   },

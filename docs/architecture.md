@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The guidance phase publishes one independently installable root TypeScript package,
+The integration-tooling phase publishes one independently installable root TypeScript package,
 local feature/UI support and its maintained instructions. It is not a runnable
 Next.js application: routes, root layout, request adapter, global CSS, browser
 fixture and deployment are deferred. The accepted runtime direction remains
@@ -61,3 +61,7 @@ is their only consumer. Theme preference remains independent from language.
 [contribution policy](../CONTRIBUTING.md) define current checks. Real build,
 browser/CSP, visual, SSR and deployment verification must accompany later runnable
 integration; support tests and static guidance checks do not establish it.
+
+## Deterministic quality tooling
+
+The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects; production source remains unchanged. No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.

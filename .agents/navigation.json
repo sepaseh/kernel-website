@@ -201,6 +201,37 @@
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
     {
+      "id": "integration-tooling",
+      "when": "Change deterministic bundle measurements, explicit synthetic API-location validation, performance environment isolation, visual metadata or owned lock/port helpers. Browser/API launchers and runtime activation remain deferred.",
+      "owners": [
+        "scripts/api-repository.mjs",
+        "scripts/check-bundle-website.mjs",
+        "scripts/website-performance-environment.mjs",
+        "scripts/visual-environment.mjs"
+      ],
+      "contracts": [
+        "performance-budget.json",
+        "docs/testing.md",
+        "docs/validation.md",
+        "docs/website-performance.md",
+        "docs/visual-regression.md",
+        ".agents/rules/testing.md"
+      ],
+      "tests": [
+        "scripts/api-repository.test.mjs",
+        "scripts/website-performance.test.mjs",
+        "scripts/visual-environment.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
       "id": "guidance",
       "when": "Change portable instructions, optional hooks, source navigation, canonical validation, ADRs or evaluation templates.",
       "owners": [
