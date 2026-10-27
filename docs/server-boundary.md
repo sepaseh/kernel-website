@@ -3,7 +3,7 @@
 [English](server-boundary.md) · [فارسی](server-boundary.fa.md)
 
 This phase publishes framework-independent API forwarding and document CSP policy
-helpers with synthetic Node tests. The wider [feature UI phase](bootstrap.md) contains sixty-six production modules, thirty-four source test files and three test-support modules; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
+helpers with synthetic Node tests. The wider [guidance phase](bootstrap.md) contains sixty-six production modules, thirty-four source test files and three test-support modules; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
 mandatory. No Next.js route, request nonce generator, renderer or browser behavior
 is provided or verified by these helpers.
 
@@ -45,7 +45,7 @@ attach headers or establish that a browser enforces CSP.
 
 ## Validation and remaining publication
 
-Run the entire ten-check `npm run validate -- full` gate on this exact isolated
+Run the entire eleven-check `npm run validate -- full` gate on this exact isolated
 snapshot before commit, push or PR handoff. It includes measured unit/governance
 coverage, strict inventory and closed imports, without contacting an existing API or loading dotenv.
 Tests mock fetch and use synthetic Web streams; they never contact an existing API.

@@ -1,12 +1,14 @@
-# Feature UI publication phase
+# Guidance publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This non-runnable publication contains sixty-six production modules, thirty-four source test files, three test-support modules and an exact 168-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
+This non-runnable publication contains sixty-six production modules, thirty-four source test files, three test-support modules and an exact 233-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
+
+The guidance phase adds portable rules/skills, explicit source/check navigation, nine English evaluation cases with an unexecuted run template, optional host hooks and bilingual architecture/design/security records. The checker validates local paths, maintained links, canonical command projection and standalone ownership; it does not evaluate model answers, semantic completeness or whether a host loaded instructions. Component-generator/CSS configuration remains deferred.
 
 The [forms guide](forms.md), [client UI guide](client-ui.md), [session guide](session.md), [client/document guide](client-document.md), [fonts](fonts.md), [localization](localization.md) and [server boundary](server-boundary.md) describe ownership. Login, registration, recovery and account forms compose the reviewed primitives, HTTP modules and session provider. A shared OTP form retains the two feature contracts; mount-operation and document-navigation adapters keep their narrow owners. Next.js supplies exact feature-local link/router boundaries, erased document types and the isolated Web Vitals hook adapter; real next-intl tests exercise ICU. src/app contains only a composite provider and its owner test. No pages, root layout, server-only request adapter, CSS pipeline, application entry point, browser fixture or deployment is present.
 
-The [canonical manifest](../.agents/validation.json) has ten required checks: snapshot, semantic CI policy, audit, source boundaries, types, lint, formatting, measured unit tests, measured governance tests and real font integrity. Run npm ci, install [pinned Python requirements](../font-source/requirements.txt) under Python3.14.4, then npm run validate -- full before every authorized commit/push/handoff on the exact isolated tree.
+The [canonical manifest](../.agents/validation.json) has eleven required checks: snapshot, semantic CI policy, guidance consistency, audit, source boundaries, types, lint, formatting, measured unit tests, measured governance tests and real font integrity. Run npm ci, install [pinned Python requirements](../font-source/requirements.txt) under Python3.14.4, then npm run validate -- full before every authorized commit/push/handoff on the exact isolated tree.
 
 Every PR, including drafts, runs that complete profile without changed-path filtering. The runner rejects duplicate IDs, omitted required checks and manual/advisory entries before executing commands. CI requires unconditional root npm installation and full execution plus pinned Python setup/dependency installation. The scanner must generate real Python font coverage before analysis; semantic tests reject missing, conditional, reordered or advisory steps.
 
@@ -21,3 +23,5 @@ Native [branch protection](branch-protection.md) still requires check, trusted P
 Request CodeRabbit only after the [exact-head zero-issue preflight](sonarqube.md#before-requesting-coderabbit), the repository cooldown and no in-flight duplicate. Automatic review remains disabled. A skipped result is not substantive review evidence.
 
 Before any runnable-app merge, publish all fifteen application checks with independently installed synthetic API fixtures, observe real build/e2e/visual jobs pass and require them. Current tests establish no Next.js rendering, browser, accessibility, visual or deployment readiness.
+
+Optional safety and post-edit hooks are host-dependent helpers. The safety hook checks known command/path patterns, not every shell syntax or prior user authorization. Scoped post-edit formatting affects only a verified file inside its own checkout. The quality helper runs types/lint; only the canonical full profile establishes handoff evidence. Bash-based portability tests use synthetic owned temporary projects.

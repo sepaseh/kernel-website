@@ -2,7 +2,7 @@
 
 [English](client-ui.md) · [فارسی](client-ui.fa.md)
 
-The [feature-ui phase](bootstrap.md) retains thirteen independently testable foundation support
+The [guidance phase](bootstrap.md) retains thirteen independently testable foundation support
 modules: five local shadcn/Radix primitives, FormField and Feedback, session and
 theme/motion providers, preferences, a bounded countdown, Reveal and a Web Vitals
 hook adapter. There are no pages, root layout, CSS build, Next.js request adapter
@@ -65,7 +65,7 @@ events, label/description links, localized safe feedback and theme-only storage.
 Node static-markup tests check content visibility, provider composition and nonce
 forwarding. Synthetic media-query fixtures are test support, not browser evidence.
 Feature tests use real HTTP/session behavior and only the explicit auth/account messages; framework router and document navigation are mocked. These tests do not establish browser navigation, native constraint validation or hydration. All executable production modules remain in measured coverage and Sonar analysis.
-Hooks recommended lint rules join the existing required lint command; all ten
+Hooks recommended lint rules join the existing required lint command; all eleven
 canonical checks, font verification and existing thresholds remain required.
 
 Read [session and cooldown ownership](session.md), [client/document support](client-document.md)

@@ -1,0 +1,58 @@
+{
+  "name": "kernel-website-ai-guidance",
+  "description": "Portable local instructions and source navigation for the non-runnable website guidance phase; optional adapters do not establish host discovery.",
+  "rules": [
+    ".agents/rules/api-collection.md",
+    ".agents/rules/branches.md",
+    ".agents/rules/code-quality.md",
+    ".agents/rules/code-review.md",
+    ".agents/rules/commits.md",
+    ".agents/rules/git.md",
+    ".agents/rules/guidance.md",
+    ".agents/rules/imports.md",
+    ".agents/rules/issues.md",
+    ".agents/rules/localization.md",
+    ".agents/rules/ordering.md",
+    ".agents/rules/pull-requests.md",
+    ".agents/rules/safety.md",
+    ".agents/rules/testing.md",
+    ".agents/rules/typescript.md",
+    ".agents/rules/website.md",
+    "DESIGN.md"
+  ],
+  "skills": [
+    ".agents/skills/commit/SKILL.md",
+    ".agents/skills/create-issue/SKILL.md",
+    ".agents/skills/create-pr/SKILL.md",
+    ".agents/skills/design-ui/SKILL.md",
+    ".agents/skills/review-pr/SKILL.md",
+    ".agents/skills/start-issue/SKILL.md",
+    ".agents/skills/validate-change/SKILL.md"
+  ],
+  "optionalHooks": [
+    ".agents/hooks/block-dangerous.mjs",
+    ".agents/hooks/block-dangerous.sh",
+    ".agents/hooks/post-edit-format.sh",
+    ".agents/hooks/quality-gate.sh"
+  ],
+  "navigation": ".agents/navigation.json",
+  "validation": ".agents/validation.json",
+  "evaluation": ".agents/evaluation/cases.json",
+  "recommendedChecks": [
+    "npm run check:snapshot",
+    "npm run check:ci",
+    "npm run check:guidance",
+    "npm run audit",
+    "npm run check:boundaries",
+    "npm run typecheck",
+    "npm run lint",
+    "npm run format:check",
+    "npm run test:unit",
+    "npm run test:governance",
+    "npm run check:fonts"
+  ],
+  "recommendedChecksSource": {
+    "path": ".agents/validation.json",
+    "profile": "full"
+  }
+}

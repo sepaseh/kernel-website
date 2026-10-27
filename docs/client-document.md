@@ -2,7 +2,7 @@
 
 [English](client-document.md) · [فارسی](client-document.fa.md)
 
-This guide owns independently testable HTTP/document support within the [feature UI phase](bootstrap.md). The [forms](forms.md) compose these reviewed helpers and preserve their wire contracts. Local primitives and providers are described there; application entry points, Next.js routes/server adapters, styled pages and browser fixtures remain unpublished. applicationReady remains false.
+This guide owns independently testable HTTP/document support within the [guidance phase](bootstrap.md). The [forms](forms.md) compose these reviewed helpers and preserve their wire contracts. Local primitives and providers are described there; application entry points, Next.js routes/server adapters, styled pages and browser fixtures remain unpublished. applicationReady remains false.
 
 ## HTTP ownership
 
@@ -24,6 +24,6 @@ The class helper uses the installed clsx and tailwind-merge libraries. [Fonts](f
 
 Node tests exercise real Requests/Responses/streams and installed library behavior using synthetic fetch data. They verify twelve wire operations, cache/cookie/signal policy, stream and envelope failures, all-language ICU, SEO rejection/escaping, metric privacy/delivery and font integrity. Boundary tests require exact package owner, identity and runtime/type-only permissions; pure contracts/catalog data remain isolated.
 
-The ten-check [full gate](../.agents/validation.json) includes actual Python font verification/coverage. Preserve all reviewed proxy, CSP, settings and catalog behavior, 90% unit thresholds, 80% governance thresholds and the narrow ten-catalog duplication exception.
+The eleven-check [full gate](../.agents/validation.json) includes actual Python font verification/coverage. Preserve all reviewed proxy, CSP, settings and catalog behavior, 90% unit thresholds, 80% governance thresholds and the narrow ten-catalog duplication exception.
 
 SSR metadata, nonce request integration, framework routes, styled pages, browser font shaping/loading, session journeys, accessibility and visual baselines remain future owners' responsibilities. Local [UI](client-ui.md) and [session](session.md) tests cover their documented state/DOM boundaries. Before runnable publication add all fifteen application checks and real required build/e2e/visual jobs against an independent synthetic API fixture. None of this support-phase evidence establishes browser or deployment behavior.

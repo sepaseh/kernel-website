@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. This feature-ui snapshot has sixty-six production modules, thirty-four source test files and three test-support modules. It remains non-runnable.
+Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. Read the [local guidance index](.agents/README.md), [source navigation](docs/source-navigation.md) and [guidance evidence rule](.agents/rules/guidance.md) for instruction/index changes. This guidance snapshot has sixty-six production modules, thirty-four source test files and three test-support modules. It remains non-runnable.
 
 Keep the exact source closure explicit. Pure wire contracts and catalog data have only their permitted local imports; catalog imports are erased types. Only the boundary guard's exact per-owner/package/type-only permissions admit the support libraries. Other packages, local links, test imports, computed imports and another checkout remain forbidden.
 
@@ -16,9 +16,11 @@ python -m pip install --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
-Before every authorized commit, push or PR handoff, pass the entire ten-check [canonical full profile](.agents/validation.json) on the exact isolated proposed tree. A focused development command or a primary checkout cannot replace it. Preserve 90% unit coverage for all four metrics and 80% governance coverage. Required font verification opens real binaries and imports measured Python coverage into Sonar. Never fabricate reports, suppress findings or weaken a required check.
+Before every authorized commit, push or PR handoff, pass the entire eleven-check [canonical full profile](.agents/validation.json) on the exact isolated proposed tree. A focused development command or a primary checkout cannot replace it. Preserve 90% unit coverage for all four metrics and 80% governance coverage. Required font verification opens real binaries and imports measured Python coverage into Sonar. Never fabricate reports, suppress findings or weaken a required check.
 
 Every PR, including drafts and documentation changes, runs that same complete profile without path filters. Keep each PR at 100 or fewer GitHub changed-file entries, including additions, deletions, renames and binaries. A rename is one entry; the repository inventory may exceed 100.
+
+Create authorized PRs ready for review unless the user explicitly requests a draft. Report pending provider checks accurately; this state does not waive validation, approval or protected merge checks.
 
 Use codex/ branches, Conventional Commit titles and the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Preserve user changes, private state and credentials. Tests use synthetic data and owned temporary resources; never load real dotenv or contact an existing API. Clean owned Docker resources after tests. Git mutations and provider messages require explicit authorization.
 

@@ -2,7 +2,7 @@
 
 [English](forms.md) · [فارسی](forms.fa.md)
 
-مرحلهٔ **feature-ui** مؤلفهٔ محلی [ورود](../src/features/login/Login.tsx)،
+مرحلهٔ **guidance** مؤلفهٔ محلی [ورود](../src/features/login/Login.tsx)،
 [ثبت‌نام](../src/features/register/Register.tsx)،
 [بازیابی](../src/features/recovery/Recovery.tsx) و
 [حساب](../src/features/account/Account.tsx) را منتشر می‌کند. ثبت‌نام و بازیابی از

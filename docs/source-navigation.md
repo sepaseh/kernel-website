@@ -1,0 +1,38 @@
+# Website task navigation
+
+[English](source-navigation.md) · [فارسی](source-navigation.fa.md)
+
+Start with [root instructions](../AGENTS.md), [settings](../.agents/settings.json)
+and the matching task in [navigation](../.agents/navigation.json). The machine map
+owns concrete local source, contracts, tests, rules and check IDs. Read the full
+owning functions; an index is not proof of semantic completeness or automatic
+instruction loading.
+
+This map covers the published non-runnable support and feature scope. It must not
+point to deferred routes, layout/CSS, browser suites or deployment as if they were
+present. [Architecture](architecture.md) and [ADRs](adr/README.md) distinguish
+accepted design from delivered integration.
+
+- For forms and session races, inspect feature owners, HTTP modules/types and
+  [form](forms.md)/[session](session.md) behavior. Trace cancellation, generation
+  replacement, feedback, OTP destinations and stale navigation.
+- For wire ownership, inspect feature types.ts, settings contracts and the shared
+  wire module. The independent API owns real authentication, data and storage.
+- For language/messages, inspect the API language loader, one locales/code.ts
+  object per language, English-derived key type, literal loaders and explicit
+  root/auth/account client groups. API direction is not derived from a language code.
+- For design, begin with [DESIGN](../DESIGN.md), the
+  [design skill](../.agents/skills/design-ui/SKILL.md) and actual local primitives.
+  Semantic classes are not computed CSS, screenshots or browser evidence.
+- For HTTP/CSP/SEO/font/performance support, open the linked source owner and its
+  direct tests. Those helpers do not establish live route or document integration.
+- For Git and review work, use the git-workflow task, [Git router](../.agents/rules/git.md),
+  [branches](../.agents/rules/branches.md), [commit](../.agents/skills/commit/SKILL.md)
+  and [issue startup](../.agents/skills/start-issue/SKILL.md) workflows. Preserve
+  work and verify the actual base; preparation does not publish remote metadata.
+
+Select checks from the [canonical manifest](../.agents/validation.json) and
+[contribution policy](../CONTRIBUTING.md). Record source freshness, actual execution,
+failures, skips and limits. A matching search line or past green result is not fresh
+verification. [Evaluation](comprehension-evaluation.md) separately addresses static
+navigation, observed instruction discovery and measured source understanding.

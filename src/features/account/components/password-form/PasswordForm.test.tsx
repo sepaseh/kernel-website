@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { useSession } from "@/features/auth/SessionProvider";
@@ -58,14 +64,15 @@ describe("password change ownership", () => {
     await screen.findByLabelText("Current password");
     fill();
     fireEvent.click(screen.getByRole("button", { name: "Change password" }));
-    await act(async () => {});
+    await waitFor(() =>
+      expect(replaceDocument).toHaveBeenCalledExactlyOnceWith(
+        "/login?password=changed",
+      ),
+    );
     expect(JSON.parse(String(writes[0].body))).toEqual({
       current_password: "  current value  ",
       new_password: "  secret value  ",
     });
-    expect(replaceDocument).toHaveBeenCalledExactlyOnceWith(
-      "/login?password=changed",
-    );
   });
 
   it("rejects a mismatched confirmation without sending a request", async () => {
