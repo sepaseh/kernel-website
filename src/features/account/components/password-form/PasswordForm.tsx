@@ -1,6 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { changePassword } from "@/features/account/api";
@@ -26,7 +26,7 @@ function PasswordFields() {
   const captureOperation = useOperationScope();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
@@ -49,8 +49,8 @@ function PasswordFields() {
       // Password changes revoke the session. Start a fresh document so the
       // account guard cannot replace this success destination during refresh.
       if (isCurrent()) replaceDocument("/login?password=changed");
-    } catch (problem) {
-      if (isCurrent()) setError(problem);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (isCurrent()) setBusy(false);
     }

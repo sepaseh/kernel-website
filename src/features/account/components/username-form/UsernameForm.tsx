@@ -1,6 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { updateUsername } from "@/features/account/api";
@@ -33,7 +33,7 @@ const UsernameFields = ({ account }: UsernameFormProps) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [notice, setNotice] = useState<string>();
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
@@ -50,8 +50,8 @@ const UsernameFields = ({ account }: UsernameFormProps) => {
       acceptAccount(updated);
       setUsername(updated.username ?? "");
       setNotice(t("accountUsernameUpdated"));
-    } catch (problem) {
-      if (isCurrent()) setError(problem);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (isCurrent()) setBusy(false);
     }

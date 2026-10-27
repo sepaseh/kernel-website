@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useRef, useState } from "react";
+import { type SubmitEvent, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/SessionProvider";
@@ -31,7 +31,7 @@ function LoginForm() {
   const pending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending.current) return;
     const data = new FormData(event.currentTarget);
@@ -52,8 +52,8 @@ function LoginForm() {
       if (!isCurrent()) return;
       refresh();
       router.replace("/account");
-    } catch (problem) {
-      if (isCurrent()) setError(problem);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       pending.current = false;
       if (isCurrent()) setBusy(false);

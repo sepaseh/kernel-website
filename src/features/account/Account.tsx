@@ -43,8 +43,8 @@ function AccountView() {
       if (!isCurrent()) return;
       refresh();
       router.replace("/login");
-    } catch (problem) {
-      if (isCurrent()) setLogoutError(problem);
+    } catch (error_) {
+      if (isCurrent()) setLogoutError(error_);
     } finally {
       if (isCurrent()) setBusy(false);
     }
@@ -54,9 +54,9 @@ function AccountView() {
   }, [loading, account, error, router]);
   if (loading || (!account && !error))
     return (
-      <div className="site-container py-24" role="status">
+      <output className="site-container block py-24">
         {t("accountSessionLoading")}
-      </div>
+      </output>
     );
   if (error || !account)
     return (

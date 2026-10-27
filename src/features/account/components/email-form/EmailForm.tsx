@@ -1,6 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from "next-intl";
-import { type FormEvent, useRef, useState } from "react";
+import { type SubmitEvent, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -59,13 +59,13 @@ const EmailFields = ({ account }: EmailFormProps) => {
       setRequestedEmail(destination);
       cooldown.start(response.remaining_seconds);
       setNotice(t("codeRequested"));
-    } catch (problem) {
-      if (isCurrent()) setError(problem);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (isCurrent()) setSending(false);
     }
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (
       busy ||
@@ -92,8 +92,8 @@ const EmailFields = ({ account }: EmailFormProps) => {
       setEmail(updated.email ?? requestedEmail);
       setRequestedEmail(undefined);
       setNotice(t("accountEmailVerified"));
-    } catch (problem) {
-      if (isCurrent()) setError(problem);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (isCurrent()) setBusy(false);
     }

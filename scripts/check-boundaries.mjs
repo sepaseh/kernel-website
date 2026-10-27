@@ -73,14 +73,28 @@ const publishedProductionFiles = new Set([
   "src/i18n/catalogs.ts",
   "src/shared/settings/language.ts",
 ]);
+const reactRuntimeImport = {
+  specifier: "react",
+  package: "@types/react",
+  typeOnly: false,
+};
+const intlRuntimeImport = {
+  specifier: "next-intl",
+  package: "next-intl",
+  typeOnly: false,
+};
+const localizedFormImports = [intlRuntimeImport, reactRuntimeImport];
+const reactImports = [
+  { specifier: "react", package: "@types/react", typeOnly: true },
+  reactRuntimeImport,
+];
 const ownerPackages = new Map([
   [
     "src/features/account/Account.tsx",
     [
       { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
       { specifier: "next/navigation", package: "next", typeOnly: false },
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
+      ...localizedFormImports,
     ],
   ],
   [
@@ -89,39 +103,26 @@ const ownerPackages = new Map([
   ],
   [
     "src/features/account/components/email-form/EmailForm.tsx",
-    [
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
+    localizedFormImports,
   ],
   [
     "src/features/account/components/password-form/PasswordForm.tsx",
-    [
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
+    localizedFormImports,
   ],
   [
     "src/features/account/components/profile-form/ProfileForm.tsx",
-    [
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
+    localizedFormImports,
   ],
   [
     "src/features/account/components/username-form/UsernameForm.tsx",
-    [
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
+    localizedFormImports,
   ],
   [
     "src/features/auth/OtpForm.tsx",
     [
       { specifier: "next/link", package: "next", typeOnly: false },
       { specifier: "next/navigation", package: "next", typeOnly: false },
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
+      ...localizedFormImports,
     ],
   ],
   [
@@ -130,8 +131,7 @@ const ownerPackages = new Map([
       { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
       { specifier: "next/link", package: "next", typeOnly: false },
       { specifier: "next/navigation", package: "next", typeOnly: false },
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-      { specifier: "react", package: "@types/react", typeOnly: false },
+      ...localizedFormImports,
     ],
   ],
   [
@@ -186,13 +186,7 @@ const ownerPackages = new Map([
       { specifier: "radix-ui", package: "radix-ui", typeOnly: false },
     ],
   ],
-  [
-    "src/shared/ui/FormField.tsx",
-    [
-      { specifier: "react", package: "@types/react", typeOnly: true },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
-  ],
+  ["src/shared/ui/FormField.tsx", reactImports],
   [
     "src/shared/ui/Feedback.tsx",
     [
@@ -202,11 +196,7 @@ const ownerPackages = new Map([
   ],
   [
     "src/features/auth/SessionProvider.tsx",
-    [
-      { specifier: "react", package: "@types/react", typeOnly: true },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-    ],
+    [...reactImports, intlRuntimeImport],
   ],
   [
     "src/shared/hooks/use-cooldown.ts",
