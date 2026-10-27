@@ -1,8 +1,8 @@
-# Kernel Website localization instructions
+# Kernel Website server-boundary instructions
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the [phase guide](docs/bootstrap.md), [validation manifest](.agents/validation.json) and [snapshot policy](.github/bootstrap-policy.json) before changes.
 
-This standalone TypeScript localization phase owns pure wire definitions, form-input helpers, API-origin validation, public-settings language loading and complete local catalogs. Its twenty-two production modules have only local production imports. Read [localization](docs/localization.md) before message changes. Keep the source closure explicit; no runtime dependencies, React/Next implementation, UI, browser fixtures or deployment are included. applicationReady remains false. Never import another checkout or add workspaces/local-package links.
+This standalone TypeScript server-boundary phase owns pure wire definitions, form-input helpers, API-origin validation, public-settings language loading, complete local catalogs, Web API forwarding and pure CSP policy helpers. Its twenty-four production modules have only local production imports. Read [server boundary](docs/server-boundary.md) before HTTP or CSP changes. Read [localization](docs/localization.md) before message changes. Keep the source closure explicit; no runtime dependencies, React/Next implementation, UI, browser fixtures or deployment are included. applicationReady remains false. Never import another checkout or add workspaces/local-package links.
 
 Keep one flat 107-key string catalog per registered language under src/i18n/catalog-data/locales. Preserve genuine translations, ICU {variable} names and intentional newlines in all ten languages; no nested common objects, English fallback spreads or duplicate aliases. Data imports are erased local types only. The plain local registry does not select language or infer direction; rendering adapters and their owner tests arrive with runnable source.
 

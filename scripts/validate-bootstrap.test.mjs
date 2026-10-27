@@ -351,3 +351,69 @@ test("maintained links cannot reference omitted source or private paths", async 
     );
   }
 });
+
+const serverBoundaryFiles = [
+  "src/shared/api/proxy.ts",
+  "src/shared/api/proxy.test.ts",
+  "src/shared/security/csp.ts",
+  "src/shared/security/csp.test.ts",
+  "docs/server-boundary.md",
+  "docs/server-boundary.fa.md",
+];
+const serverBoundaryPolicy = (overrides = {}) =>
+  localizationPolicy({
+    allowedFiles: [
+      ...foundationFiles,
+      ...localizationFiles,
+      ...serverBoundaryFiles,
+    ],
+    phase: "server-boundary",
+    ...overrides,
+  });
+test("server-boundary requires its complete source, owner tests and bilingual guidance", () => {
+  const complete = [
+    ...foundationFiles,
+    ...localizationFiles,
+    ...serverBoundaryFiles,
+  ];
+  assert.equal(
+    validateBootstrapPolicy(serverBoundaryPolicy()).size,
+    complete.length,
+  );
+  for (const file of [...localizationFiles, ...serverBoundaryFiles])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          serverBoundaryPolicy({
+            allowedFiles: complete.filter((value) => value !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(localizationPolicy({ allowedFiles: complete })),
+  );
+  for (const file of [
+    "src/proxy.ts",
+    "src/shared/security/nonce.ts",
+    "src/app/layout.tsx",
+    "src/shared/api/client.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        serverBoundaryPolicy({ allowedFiles: [...complete, file] }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(serverBoundaryPolicy({ applicationReady: true })),
+  );
+});
+test("server-boundary inspects its exact non-runnable snapshot", async (context) => {
+  const { root } = await fixture(context, serverBoundaryPolicy());
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "server-boundary");
+  assert.equal(result.applicationReady, false);
+  assert.match(result.scope, /pure CSP helpers/);
+  await rm(path.join(root, "src/shared/api/proxy.test.ts"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+});

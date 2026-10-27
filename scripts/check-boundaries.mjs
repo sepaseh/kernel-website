@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/shared/api/proxy.ts",
+  "src/shared/security/csp.ts",
   "src/shared/contracts/index.ts",
   "src/shared/settings/contracts.ts",
   "src/features/account/types.ts",
