@@ -8,7 +8,7 @@
 
 ## بررسی الزامی
 
-Python3.14.4 را در محیط موقت تازهٔ فعال‌شده‌ای خارج از checkout استفاده کنید. font-source/requirements.txt شامل fonttools4.67.0، Brotli1.2.0 و coverage7.17.0 را نصب کنید. گیت معمول npm run validate -- full شامل npm run check:fonts است؛ CI و scanner همین وابستگی‌ها را بی‌شرط نصب می‌کنند.
+Python3.14.4 را در محیط موقت تازهٔ فعال‌شده‌ای خارج از checkout استفاده کنید. font-source/requirements.txt شامل fonttools4.67.0، Brotli1.2.1 و coverage7.17.0 را نصب کنید. گیت معمول npm run validate -- full شامل npm run check:fonts است؛ CI و scanner همین وابستگی‌ها را بی‌شرط نصب می‌کنند.
 
 check:fonts منبع کامل واقعی را با fontTools باز می‌کند، بخش‌بندی cmap را می‌سازد، با recalcTimestamp:false زیرمجموعه می‌گیرد، باقی‌ماندن کدپوینت تعیین‌شده و برابری محور وزن و متادیتای copyright/مجوز منبع را می‌سنجد و سه بافر WOFF2 و CSS و JSON را در حافظه بازتولید می‌کند. حالت --check بایت دقیق فایل commitشده را مقایسه می‌کند و خروجی قدیمی را شکست می‌دهد؛ فایل را بازنویسی نمی‌کند.
 

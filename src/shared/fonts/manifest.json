@@ -16,7 +16,7 @@
   },
   "tools": {
     "fonttools": "4.67.0",
-    "brotli": "1.2.0"
+    "brotli": "1.2.1"
   },
   "layout": {
     "policy": "fonttools-standard",

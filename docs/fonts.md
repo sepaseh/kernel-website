@@ -8,7 +8,7 @@ The generated subsets are 32,392, 44,188 and 24,168 bytes. The manifest records 
 
 ## Required verification
 
-Use Python3.14.4 in a fresh activated disposable environment outside the checkout. Install font-source/requirements.txt: fonttools4.67.0, Brotli1.2.0 and coverage7.17.0. The normal npm run validate -- full gate includes npm run check:fonts; CI and the scanner install the same dependencies unconditionally.
+Use Python3.14.4 in a fresh activated disposable environment outside the checkout. Install font-source/requirements.txt: fonttools4.67.0, Brotli1.2.1 and coverage7.17.0. The normal npm run validate -- full gate includes npm run check:fonts; CI and the scanner install the same dependencies unconditionally.
 
 check:fonts opens the real full source with fontTools, computes its cmap partition, subsets it with fixed recalcTimestamp:false, verifies every assigned codepoint remains, compares weight axes and source copyright/license metadata, and regenerates all three WOFF2 buffers, CSS and JSON in memory. The --check mode compares exact committed bytes and fails for a stale output. It does not rewrite assets.
 
