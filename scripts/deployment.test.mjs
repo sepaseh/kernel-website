@@ -299,6 +299,139 @@ test("renderer CLI refuses overwrites unless explicitly requested", async () => 
   }
 });
 
+test("renderer CLI refuses paths outside its owned repository before reading or overwriting", async (context) => {
+  const directory = await temporaryFixture(context);
+  const root = path.join(directory, "website");
+  await mkdir(root);
+  await markedCliFixture(root);
+  const template = path.join(root, "nginx.template");
+  const environment = path.join(root, "public.env");
+  const output = path.join(root, "nginx.conf");
+  const outside = path.join(directory, "outside.conf");
+  await writeFile(template, "server_name ${WEBSITE_HOST};");
+  await writeFile(environment, "WEBSITE_HOST=kernel.test\n");
+  await writeFile(outside, "preserve owned outside sentinel");
+  const command = path.join(root, "scripts/render-deployment.mjs");
+  const driveRelative =
+    process.platform === "win32"
+      ? `${path.parse(root).root.slice(0, 2)}drive-relative.conf`
+      : "C:drive-relative.conf";
+  const run = (templatePath, environmentPath, outputPath) =>
+    spawnSync(
+      process.execPath,
+      [
+        command,
+        "--template",
+        templatePath,
+        "--public-values-file",
+        environmentPath,
+        "--output",
+        outputPath,
+        "--force",
+      ],
+      {
+        cwd: root,
+        env: commandEnvironment(),
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+  for (const args of [
+    [template, environment, outside],
+    [template, environment, "../outside.conf"],
+    [template, environment, "generated/../nginx.conf"],
+    [template, environment, "generated/%2e%2e/nginx.conf"],
+    [template, environment, "generated/%252e%252e/nginx.conf"],
+    [template, environment, "generated/nginx.conf:stream"],
+    [template, environment, "generated/line\nbreak.conf"],
+    [template, environment, driveRelative],
+    [template, environment, root],
+    [template, environment, path.join(directory, "website-sibling/out.conf")],
+    [outside, environment, output],
+    [template, outside, output],
+    [path.join(directory, "missing-template"), environment, output],
+    [template, path.join(directory, "missing-public-values"), output],
+    ["inputs/%2e%2e/nginx.template", environment, output],
+    [template, "inputs/%2fpublic.env", output],
+  ]) {
+    const result = run(...args);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /owned repository/);
+    assert.doesNotMatch(result.stderr, /ENOENT/);
+    assert.equal(
+      await readFile(outside, "utf8"),
+      "preserve owned outside sentinel",
+    );
+  }
+  await assert.rejects(readFile(output), { code: "ENOENT" });
+});
+
+test("renderer resolves relative and absolute repository paths and creates nested output", async (context) => {
+  const directory = await temporaryFixture(context);
+  const root = path.join(directory, "website");
+  await mkdir(root);
+  await markedCliFixture(root);
+  await mkdir(path.join(root, "inputs"));
+  await writeFile(
+    path.join(root, "inputs/nginx.template"),
+    "server_name ${WEBSITE_HOST};",
+  );
+  await writeFile(
+    path.join(root, "inputs/public.env"),
+    "WEBSITE_HOST=kernel.test\n",
+  );
+  const absolutePaths = [
+    path.join(root, "inputs/nginx.template"),
+    path.join(root, "inputs/public.env"),
+    path.join(root, "generated/absolute/nginx.conf"),
+  ].map((filename) =>
+    process.platform === "win32" ? filename.toUpperCase() : filename,
+  );
+  for (const [templatePath, environmentPath, outputPath] of [
+    [
+      "inputs/nginx.template",
+      "./inputs/public.env",
+      "generated/nested/nginx.conf",
+    ],
+    absolutePaths,
+  ]) {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(root, "scripts/render-deployment.mjs"),
+        "--template",
+        templatePath,
+        "--public-values-file",
+        environmentPath,
+        "--output",
+        outputPath,
+      ],
+      {
+        cwd: directory,
+        env: commandEnvironment(),
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+  }
+  for (const name of ["nested", "absolute"])
+    assert.equal(
+      await readFile(path.join(root, "generated", name, "nginx.conf"), "utf8"),
+      "server_name kernel.test;",
+    );
+  await assert.rejects(
+    readFile(path.join(directory, "generated/nested/nginx.conf")),
+    {
+      code: "ENOENT",
+    },
+  );
+});
+
 test("renderer refuses linked inputs and outputs without changing owned targets", async (context) => {
   const directory = await temporaryFixture(context);
   await markedCliFixture(directory);

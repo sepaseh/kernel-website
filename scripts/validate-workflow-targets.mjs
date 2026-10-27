@@ -6,7 +6,7 @@ const hostnameLabelPattern = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 export const parseConfiguredHostname = (name, rawValue) => {
   if (
     typeof rawValue !== "string" ||
-    !rawValue ||
+    !rawValue?.trim() ||
     rawValue !== rawValue.trim()
   ) {
     throw new Error(`${name} must be a hostname without whitespace`);
@@ -35,7 +35,7 @@ export const parseTarget = (name, rawValue) => {
     rawValue.includes("\\") ||
     rawValue !== rawValue.trim() ||
     [...rawValue].some((character) => {
-      const code = character.charCodeAt(0);
+      const code = character.codePointAt(0);
       return code <= 0x20 || code === 0x7f;
     })
   ) {
@@ -92,7 +92,8 @@ export const validateSmokeTargets = (env) => {
   );
   if (
     [env.SMOKE_DEPLOYMENT_ID, env.SMOKE_EXPECTED_DEPLOYMENT_ID].some(
-      (value) => typeof value !== "string" || !value || value !== value.trim(),
+      (value) =>
+        typeof value !== "string" || !value?.trim() || value !== value.trim(),
     )
   ) {
     throw new Error(

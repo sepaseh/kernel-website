@@ -62,6 +62,30 @@ export function renderDeploymentTemplate(template, environment) {
   });
 }
 
+function validateLocalPath(value) {
+  const root = path.parse(value).root;
+  const hasControlCharacter = Array.from(value).some((character) => {
+    const point = character.codePointAt(0);
+    return point < 32 || point === 127;
+  });
+  if (
+    !value.trim() ||
+    hasControlCharacter ||
+    value.includes("%") ||
+    /^[\\/]{2}/.test(value) ||
+    value.split(/[\\/]/).includes("..") ||
+    value.slice(root.length).includes(":") ||
+    (/^[A-Za-z]:/.test(value) && !path.isAbsolute(value)) ||
+    (path.sep !== "\\" && value.includes("\\")) ||
+    (path.sep === "\\" &&
+      path.isAbsolute(value) &&
+      !/^[A-Za-z]:[\\/]/.test(value))
+  )
+    throw new Error(
+      "Renderer paths must be local files inside the owned repository.",
+    );
+}
+
 await runDeliveryCommand(import.meta.main, repository, async () => {
   const { values } = parseArgs({
     options: {
@@ -75,15 +99,50 @@ await runDeliveryCommand(import.meta.main, repository, async () => {
     throw new Error(
       "Use --template PATH --public-values-file PATH --output PATH [--force].",
     );
+  for (const value of [
+    values.template,
+    values["public-values-file"],
+    values.output,
+  ])
+    validateLocalPath(value);
+  const root = path.resolve(repository);
+  const templateRelative = path.relative(
+    root,
+    path.resolve(root, values.template),
+  );
+  const publicValuesRelative = path.relative(
+    root,
+    path.resolve(root, values["public-values-file"]),
+  );
+  const outputRelative = path.relative(root, path.resolve(root, values.output));
+  if (
+    [templateRelative, publicValuesRelative, outputRelative].some(
+      (relative) =>
+        !relative ||
+        relative === ".." ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative),
+    )
+  )
+    throw new Error("Renderer paths must stay inside the owned repository.");
+  const templatePath = path.resolve(root, templateRelative);
+  const publicValuesPath = path.resolve(root, publicValuesRelative);
+  const output = path.resolve(root, outputRelative);
+  const rootPrefix = `${root}${path.sep}`;
+  if (
+    !templatePath.startsWith(rootPrefix) ||
+    !publicValuesPath.startsWith(rootPrefix) ||
+    !output.startsWith(rootPrefix)
+  )
+    throw new Error("Renderer paths must stay inside the owned repository.");
   const [template, publicValues] = await Promise.all([
-    readArtifactFile(path.resolve(values.template)),
-    readArtifactFile(path.resolve(values["public-values-file"])),
+    readArtifactFile(templatePath),
+    readArtifactFile(publicValuesPath),
   ]);
   const rendered = renderDeploymentTemplate(
     template.toString("utf8"),
     parseEnv(publicValues.toString("utf8")),
   );
-  const output = path.resolve(values.output);
   await ensureArtifactDirectory(path.dirname(output));
   try {
     const entry = await lstat(output);

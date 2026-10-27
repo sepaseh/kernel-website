@@ -366,7 +366,7 @@ const publicDeliveryExamples = new Set([
   "deploy/native/hosts.env.example",
   "deploy/native/website.env.example",
 ]);
-const toolingPhases = ["integration-tooling", "delivery-tooling"];
+const toolingPhases = new Set(["integration-tooling", "delivery-tooling"]);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
   ([
@@ -436,7 +436,7 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(["client-ui", "feature-ui"].includes(sourcePhase) ? clientUiFiles : []),
   ...(sourcePhase === "feature-ui" ? featureUiFiles : []),
   ...(["guidance", ...toolingPhases].includes(phase) ? guidanceFiles : []),
-  ...(toolingPhases.includes(phase)
+  ...(toolingPhases.has(phase)
     ? [...maintainedSupportFiles, ...integrationToolingFiles]
     : []),
   ...(phase === "delivery-tooling" ? deliveryToolingFiles : []),
@@ -481,10 +481,8 @@ export const validateBootstrapPolicy = (policy) => {
         (policy.phase !== "delivery-tooling" ||
           !publicDeliveryExamples.has(file))) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
-      (!toolingPhases.includes(policy.phase) &&
-        integrationToolingPaths.has(file)) ||
-      (!toolingPhases.includes(policy.phase) &&
-        deliveryToolingPaths.has(file)) ||
+      (!toolingPhases.has(policy.phase) && integrationToolingPaths.has(file)) ||
+      (!toolingPhases.has(policy.phase) && deliveryToolingPaths.has(file)) ||
       files.has(file)
     )
       throw new Error(
@@ -497,7 +495,7 @@ export const validateBootstrapPolicy = (policy) => {
     throw new Error(
       "The bootstrap policy cannot omit its mandatory guard files.",
     );
-  if (toolingPhases.includes(policy.phase)) {
+  if (toolingPhases.has(policy.phase)) {
     const declaredClosure = new Set(requiredFiles);
     if ([...files].some((file) => !declaredClosure.has(file)))
       throw new Error(

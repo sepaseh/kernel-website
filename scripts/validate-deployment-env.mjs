@@ -52,7 +52,7 @@ const validateWebsiteSeo = (environment) => {
     !/^https?:\/\/[^/?#\\]+\/?$/i.test(value) ||
     /\s/.test(value) ||
     [...value].some((character) => {
-      const code = character.charCodeAt(0);
+      const code = character.codePointAt(0);
       return code <= 0x20 || code === 0x7f;
     })
   )

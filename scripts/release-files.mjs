@@ -179,6 +179,48 @@ async function physicalOutputPath(value, directory = false) {
   return realpath(filename);
 }
 
+async function copyDirectoryEntry(
+  source,
+  destination,
+  sourceRoot,
+  ancestors,
+  skip,
+  overwrite,
+  destinationRoot,
+) {
+  if (ancestors.has(source))
+    throw new Error("Cannot package a circular directory link.");
+  assertCopySeparation(source, await physicalOutputPath(destinationRoot));
+  const nested = new Set(ancestors).add(source);
+  await ensureArtifactDirectory(destination);
+  await completeArtifactWork(
+    (await readdir(source)).map((name) =>
+      copyEntry(
+        path.join(source, name),
+        path.join(destination, name),
+        sourceRoot,
+        nested,
+        skip,
+        overwrite,
+        destinationRoot,
+      ),
+    ),
+  );
+}
+
+async function copyFileEntry(source, destination, overwrite, destinationRoot) {
+  assertCopySeparation(source, destinationRoot);
+  await ensureArtifactDirectory(path.dirname(destination));
+  try {
+    const existing = await lstat(destination);
+    if (existing.isSymbolicLink() || !existing.isFile())
+      throw new Error("Artifact destination must be an unlinked regular file.");
+  } catch (error_) {
+    if (error_.code !== "ENOENT") throw error_;
+  }
+  await copyFile(source, destination, overwrite ? 0 : constants.COPYFILE_EXCL);
+}
+
 async function copyEntry(
   source,
   destination,
@@ -198,41 +240,17 @@ async function copyEntry(
   if (excludedArtifactPath(path.relative(sourceRoot, resolved))) return;
   const entry = await lstat(resolved);
   if (entry.isDirectory()) {
-    if (ancestors.has(resolved))
-      throw new Error("Cannot package a circular directory link.");
-    assertCopySeparation(resolved, await physicalOutputPath(destinationRoot));
-    const nested = new Set(ancestors).add(resolved);
-    await ensureArtifactDirectory(destination);
-    await completeArtifactWork(
-      (await readdir(resolved)).map((name) =>
-        copyEntry(
-          path.join(resolved, name),
-          path.join(destination, name),
-          sourceRoot,
-          nested,
-          skip,
-          overwrite,
-          destinationRoot,
-        ),
-      ),
-    );
-  } else if (entry.isFile()) {
-    assertCopySeparation(resolved, destinationRoot);
-    await ensureArtifactDirectory(path.dirname(destination));
-    try {
-      const existing = await lstat(destination);
-      if (existing.isSymbolicLink() || !existing.isFile())
-        throw new Error(
-          "Artifact destination must be an unlinked regular file.",
-        );
-    } catch (error_) {
-      if (error_.code !== "ENOENT") throw error_;
-    }
-    await copyFile(
+    await copyDirectoryEntry(
       resolved,
       destination,
-      overwrite ? 0 : constants.COPYFILE_EXCL,
+      sourceRoot,
+      ancestors,
+      skip,
+      overwrite,
+      destinationRoot,
     );
+  } else if (entry.isFile()) {
+    await copyFileEntry(resolved, destination, overwrite, destinationRoot);
   } else throw new Error("Unsupported release file.");
 }
 export async function copyArtifactTree({

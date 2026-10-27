@@ -33,6 +33,15 @@ an owned loopback listener, never an existing API. Public example files contain
 source placeholders only; real operator environments, keys and data stay outside
 source and artifacts.
 
+The renderer's `--template`, `--public-values-file` and `--output` paths must stay
+inside the repository that owns the script. Relative paths resolve from that
+repository, independent of the command's working directory; absolute local paths
+inside it are also accepted. All three paths are checked before template/public
+value reads or output creation. Traversal segments, URL-encoded filenames,
+drive-relative paths, network paths, links and non-directory ancestors are refused.
+`--force` allows replacing only a validated regular output file inside that root;
+it does not grant access to outside operator files or installed service paths.
+
 The [Docker](../deploy/docker/README.md) and
 [native](../deploy/native/README.md) references describe proposed service/edge
 boundaries. They are not deployment instructions for this snapshot. Read
