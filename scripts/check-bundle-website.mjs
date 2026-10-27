@@ -50,7 +50,7 @@ export function clientAssetPath(value) {
   const normalized =
     typeof value === "string" ? value.replace(/^\/_next\//, "") : "";
   if (
-    !/^static\/[a-zA-Z0-9_./-]+\.(?:js|css)$/.test(normalized) ||
+    !/^static\/[a-zA-Z0-9_./~-]+\.(?:js|css)$/.test(normalized) ||
     normalized.split("/").some((part) => !part || part === ".." || part === ".")
   )
     throw new Error(`Not a browser JS/CSS asset: ${value}`);

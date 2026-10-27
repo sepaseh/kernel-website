@@ -106,6 +106,11 @@ test("concurrent locks have one owner and release is idempotent", async (t) => {
   assert.equal(owners.length, 1);
   assert.equal(failures.length, 1);
   assert.match(failures[0].reason.message, /Another visual run/);
+  assert.ok(
+    failures[0].reason.message.includes(
+      path.join(directory, ".visual-run.lock"),
+    ),
+  );
   assert.equal(
     await readFile(path.join(directory, ".visual-run.lock"), "utf8"),
     `${process.pid}\n`,

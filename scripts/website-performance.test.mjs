@@ -104,6 +104,49 @@ test("only emitted browser assets count, shared graph chunks deduplicate and fut
   assert.ok(result.routes["/"].javaScriptGzipBytes > 0);
 });
 
+test("bundle manifests measure emitted JavaScript and CSS names containing tildes", async (t) => {
+  const { build, write } = await fixture(t);
+  const javaScript = "static/chunks/0259pyb8~2v.js";
+  const css = "static/chunks/style~2v.css";
+  await Promise.all([
+    rename(
+      path.join(build, "static/chunks/page.js"),
+      path.join(build, javaScript),
+    ),
+    rename(path.join(build, "static/chunks/style.css"), path.join(build, css)),
+  ]);
+  const graph = {
+    clientModules: {
+      a: { chunks: [`/_next/${javaScript}`] },
+      b: { chunks: [javaScript] },
+    },
+    entryCSSFiles: {
+      layout: [{ path: `/_next/${css}` }],
+      legacy: [css],
+    },
+  };
+  await Promise.all(
+    ["page", "nested/page"].map((name) =>
+      write(
+        `server/app/${name}_client-reference-manifest.js`,
+        assignment(graph),
+      ),
+    ),
+  );
+
+  const result = await measureWebsiteBundle(build);
+
+  assert.equal(result.javaScriptBytes, 150);
+  assert.equal(result.largestJavaScriptBytes, 100);
+  assert.equal(result.cssBytes, 20);
+  assert.deepEqual(result.files, [javaScript, "static/chunks/shared.js", css]);
+  for (const route of ["/", "/nested"]) {
+    assert.equal(result.routes[route].javaScriptBytes, 150);
+    assert.equal(result.routes[route].cssBytes, 20);
+    assert.deepEqual(result.routes[route].files, result.files);
+  }
+});
+
 test("bundle output preserves UTF-16 lexical order without locale-dependent sorting", async (t) => {
   const { build, write } = await fixture(t);
   await mkdir(path.join(build, "server/app/page(foo)"));
@@ -207,6 +250,7 @@ test("client graphs are parsed as data and malformed shapes cannot become execut
     undefined,
     "server/large.js",
     "static/../private.js",
+    "static/~/../private.js",
     "static/./x.js",
     "static//a.js",
     "https://external.test/a.js",
