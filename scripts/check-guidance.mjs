@@ -30,19 +30,26 @@ export const isSafeGuidancePath = (filename) => {
   );
 };
 
+const inspectGuidanceAncestors = async (cursor, parts, filename, index = 0) => {
+  if (index === parts.length) return cursor;
+  const next = path.join(cursor, parts[index]);
+  if ((await lstat(next)).isSymbolicLink())
+    throw new Error(
+      "Maintained guidance must not follow symbolic links: " + filename,
+    );
+  // A child is inspected only after its parent has passed the link check.
+  return inspectGuidanceAncestors(next, parts, filename, index + 1);
+};
+
 const resolveGuidancePath = async (root, filename) => {
   if (!isSafeGuidancePath(filename))
     throw new Error("Unsafe maintained guidance path: " + filename);
   const actualRoot = await realpath(root);
-  let cursor = actualRoot;
-  for (const part of filename.replaceAll("\\", "/").split("/")) {
-    cursor = path.join(cursor, part);
-    if ((await lstat(cursor)).isSymbolicLink())
-      throw new Error(
-        "Maintained guidance must not follow symbolic links: " + filename,
-      );
-  }
-  return cursor;
+  return inspectGuidanceAncestors(
+    actualRoot,
+    filename.replaceAll("\\", "/").split("/"),
+    filename,
+  );
 };
 
 export const readGuidanceFile = async (root, filename) =>
@@ -116,6 +123,36 @@ const duplicates = (values) => new Set(values).size !== values.length;
 // Only a verified canonical runner may project the full manifest into CI.
 // Other npm steps remain explicit, so an extra or advisory command cannot hide
 // behind the projection. This inspects configuration without running workflows.
+const ciPolicyValue = (value) => {
+  if (value === undefined || value === false) return false;
+  if (value === true) return true;
+  return "unsupported";
+};
+
+const ciStepCommands = (step, jobPolicy, manifest) => {
+  if (typeof step.run !== "string") return [];
+  const command = step.run.trim();
+  if (!command.startsWith("npm run ")) return [];
+  const stepPolicy = ciPolicyValue(step["continue-on-error"]);
+  let advisory = "unsupported";
+  if (jobPolicy !== "unsupported" && stepPolicy !== "unsupported")
+    advisory = jobPolicy || stepPolicy;
+  if (command !== "npm run validate -- full" || manifest === undefined)
+    return [{ command, advisory }];
+  const inventory = new Map(manifest.checks.map((check) => [check.id, check]));
+  return manifest.profiles.full.map((checkId) => ({
+    command: inventory.get(checkId)?.command,
+    advisory,
+  }));
+};
+
+const ciJobCommands = (job, manifest) => {
+  const policy = ciPolicyValue(job["continue-on-error"]);
+  return (job.steps ?? []).flatMap((step) =>
+    ciStepCommands(step, policy, manifest),
+  );
+};
+
 export const ciCommands = (content, manifest) => {
   const document = parseDocument(content, { uniqueKeys: true });
   if (document.errors.length)
@@ -123,32 +160,8 @@ export const ciCommands = (content, manifest) => {
   const workflow = document.toJS({ maxAliasCount: 0 });
   if (manifest !== undefined) validateCiWorkflow(content, manifest);
   const result = new Map();
-  const policyValue = (value) =>
-    value === undefined || value === false
-      ? false
-      : value === true
-        ? true
-        : "unsupported";
   for (const [id, job] of Object.entries(workflow?.jobs ?? {})) {
-    const checks = [];
-    for (const step of job.steps ?? []) {
-      if (typeof step.run !== "string" || !/^npm run /.test(step.run.trim()))
-        continue;
-      const jobPolicy = policyValue(job["continue-on-error"]);
-      const stepPolicy = policyValue(step["continue-on-error"]);
-      const advisory =
-        jobPolicy === "unsupported" || stepPolicy === "unsupported"
-          ? "unsupported"
-          : jobPolicy || stepPolicy;
-      const command = step.run.trim();
-      if (command === "npm run validate -- full" && manifest !== undefined) {
-        const inventory = new Map(
-          manifest.checks.map((check) => [check.id, check]),
-        );
-        for (const checkId of manifest.profiles.full)
-          checks.push({ command: inventory.get(checkId)?.command, advisory });
-      } else checks.push({ command, advisory });
-    }
+    const checks = ciJobCommands(job, manifest);
     if (checks.length) result.set(id, checks);
   }
   return result;
@@ -193,7 +206,16 @@ const validateProfiles = (manifest, checks) => {
     .map((check) => check.id);
   if (
     !isStrings(full) ||
-    JSON.stringify([...full].sort()) !== JSON.stringify(required.sort())
+    JSON.stringify(
+      [...full].sort((left, right) =>
+        String(left).localeCompare(String(right)),
+      ),
+    ) !==
+      JSON.stringify(
+        required.sort((left, right) =>
+          String(left).localeCompare(String(right)),
+        ),
+      )
   )
     errors.push(
       "Full profile must contain every required check and no advisory/manual checks",
@@ -344,7 +366,6 @@ export const validateNavigation = (navigation, evaluation, checks, exists) => {
 };
 
 const markdownFiles = async (directory) => {
-  const files = [];
   let entries;
   try {
     if ((await lstat(directory)).isSymbolicLink())
@@ -356,59 +377,72 @@ const markdownFiles = async (directory) => {
     if (error.code === "ENOENT") return [];
     throw error;
   }
-  for (const entry of entries) {
-    const filename = path.join(directory, entry.name);
-    if (entry.isSymbolicLink())
-      throw new Error(
-        "Guidance inventory must not contain symbolic links: " + filename,
-      );
-    if (entry.isDirectory()) files.push(...(await markdownFiles(filename)));
-    else if (entry.name.endsWith(".md")) files.push(filename);
-  }
-  return files;
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const filename = path.join(directory, entry.name);
+      if (entry.isSymbolicLink())
+        throw new Error(
+          "Guidance inventory must not contain symbolic links: " + filename,
+        );
+      if (entry.isDirectory()) return markdownFiles(filename);
+      return entry.name.endsWith(".md") ? [filename] : [];
+    }),
+  );
+  return files.flat();
 };
 
-export const checkGuideLinks = async (root, filename, content) => {
-  const errors = [];
+const guideLinkReferences = (filename, content) => {
   const source = content.replace(/```[\s\S]*?```/g, "");
   const links = [...source.matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]);
   // Claude memory imports are file references, not Markdown links.
-  if (path.basename(filename) === "CLAUDE.md")
+  if (path.basename(filename) === "CLAUDE.md") {
+    const imports = source.split(/\r?\n/).map((line) => line.trim());
     links.push(
-      ...[...source.matchAll(/^\s*@([^\s]+)\s*$/gm)].map((match) => match[1]),
+      ...imports
+        .filter(
+          (line) => line.startsWith("@") && line.length > 1 && !/\s/.test(line),
+        )
+        .map((line) => line.slice(1)),
     );
-  const actualRoot = await realpath(root);
-  for (const link of links) {
-    if (/^(?:https?:|mailto:|codex:|#)/.test(link)) continue;
-    let target;
-    try {
-      target = decodeURI(link.split("#")[0].replace(/^<|>$/g, ""));
-    } catch {
-      errors.push(`Malformed guide link: ${filename}: ${link}`);
-      continue;
-    }
-    const resolved = path.resolve(path.dirname(filename), target);
-    const relative = path.relative(root, resolved);
-    if (!isSafeGuidancePath(relative.replaceAll(path.sep, "/"))) {
-      errors.push(`Unsafe guide link: ${filename}: ${link}`);
-      continue;
-    }
-    try {
-      const actual = await realpath(resolved);
-      const actualRelative = path.relative(actualRoot, actual);
-      if (
-        actualRelative === ".." ||
-        actualRelative.startsWith(".." + path.sep) ||
-        path.isAbsolute(actualRelative)
-      )
-        errors.push(`Guide link escapes repository: ${filename}: ${link}`);
-    } catch {
-      errors.push(
-        `Missing guide link: ${path.relative(root, filename)}: ${link}`,
-      );
-    }
   }
-  return errors;
+  return links;
+};
+
+const inspectGuideLink = async (root, actualRoot, filename, link) => {
+  if (/^(?:https?:|mailto:|codex:|#)/.test(link)) return [];
+  let target;
+  try {
+    target = decodeURI(link.split("#")[0].replace(/^<|>$/g, ""));
+  } catch {
+    return [`Malformed guide link: ${filename}: ${link}`];
+  }
+  const resolved = path.resolve(path.dirname(filename), target);
+  const relative = path.relative(root, resolved);
+  if (!isSafeGuidancePath(relative.replaceAll(path.sep, "/")))
+    return [`Unsafe guide link: ${filename}: ${link}`];
+  try {
+    const actual = await realpath(resolved);
+    const actualRelative = path.relative(actualRoot, actual);
+    if (
+      actualRelative === ".." ||
+      actualRelative.startsWith(".." + path.sep) ||
+      path.isAbsolute(actualRelative)
+    )
+      return [`Guide link escapes repository: ${filename}: ${link}`];
+  } catch {
+    return [`Missing guide link: ${path.relative(root, filename)}: ${link}`];
+  }
+  return [];
+};
+
+export const checkGuideLinks = async (root, filename, content) => {
+  const actualRoot = await realpath(root);
+  const results = await Promise.all(
+    guideLinkReferences(filename, content).map((link) =>
+      inspectGuideLink(root, actualRoot, filename, link),
+    ),
+  );
+  return results.flat();
 };
 
 const loadGuidanceDocuments = async (root) => {
@@ -428,16 +462,18 @@ const loadGuidanceDocuments = async (root) => {
 };
 
 const obsoleteProjectContainers = async (root) => {
-  const errors = [];
-  for (const obsolete of ["apps", "packages"]) {
-    try {
-      await stat(path.join(root, obsolete));
-      errors.push("Obsolete project container must be removed: " + obsolete);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-  }
-  return errors;
+  const results = await Promise.all(
+    ["apps", "packages"].map(async (obsolete) => {
+      try {
+        await stat(path.join(root, obsolete));
+        return ["Obsolete project container must be removed: " + obsolete];
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      return [];
+    }),
+  );
+  return results.flat();
 };
 
 const guidanceReferences = (settings, navigation, evaluation, manifest) => {
@@ -462,17 +498,19 @@ const guidanceReferences = (settings, navigation, evaluation, manifest) => {
 };
 
 const existingGuidanceReferences = async (root, referencedPaths) => {
-  const found = new Set();
-  for (const filename of new Set(referencedPaths)) {
-    if (!isSafeGuidancePath(filename)) continue;
-    try {
-      await resolveGuidancePath(root, filename);
-      found.add(filename);
-    } catch {
-      /* Report with the owning reference below. */
-    }
-  }
-  return found;
+  const results = await Promise.all(
+    [...new Set(referencedPaths)].map(async (filename) => {
+      if (!isSafeGuidancePath(filename)) return undefined;
+      try {
+        await resolveGuidancePath(root, filename);
+        return filename;
+      } catch {
+        /* Report with the owning reference below. */
+      }
+      return undefined;
+    }),
+  );
+  return new Set(results.filter((filename) => filename !== undefined));
 };
 
 const validateManifestScripts = (manifest, pkg) => {
@@ -522,17 +560,18 @@ const validateMaintainedMarkdown = async (root, markdown) => {
   const errors = validateAssistantLanguageFiles(
     markdown.map((filename) => path.relative(root, filename)),
   );
-  for (const filename of markdown) {
-    let content;
-    try {
-      content = await readGuidanceFile(root, path.relative(root, filename));
-    } catch {
-      errors.push(`Missing maintained guide: ${path.relative(root, filename)}`);
-      continue;
-    }
-    errors.push(...(await checkGuideLinks(root, filename, content)));
-  }
-  return errors;
+  const results = await Promise.all(
+    markdown.map(async (filename) => {
+      let content;
+      try {
+        content = await readGuidanceFile(root, path.relative(root, filename));
+      } catch {
+        return [`Missing maintained guide: ${path.relative(root, filename)}`];
+      }
+      return checkGuideLinks(root, filename, content);
+    }),
+  );
+  return [...errors, ...results.flat()];
 };
 
 export const checkGuidance = async (root = repository) => {

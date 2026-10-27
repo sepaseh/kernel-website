@@ -3,7 +3,7 @@
 # A successful run validates only the edited file, not the canonical full gate.
 
 NODE_BIN=$(command -v node 2>/dev/null || command -v node.exe 2>/dev/null || true)
-if [ -z "$NODE_BIN" ]; then
+if [[ -z "$NODE_BIN" ]]; then
   echo "Post-edit helper requires Node.js." >&2
   exit 2
 fi
@@ -15,6 +15,9 @@ case "$NODE_BIN" in
     elif command -v cygpath >/dev/null 2>&1; then
       PROJECT_DIR=$(cygpath -w "$PROJECT_DIR") || exit 2
     fi
+    ;;
+  *)
+    : # Native Node paths need no conversion.
     ;;
 esac
 NODE_SCRIPT=$(cat <<'NODE'

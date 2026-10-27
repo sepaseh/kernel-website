@@ -39,7 +39,12 @@ const bash = [
       windowsHide: true,
     }).status === 0,
 );
-const runShell = (payload, script = shellHook, missingNode = false) => {
+const runShell = (
+  payload,
+  script = shellHook,
+  missingNode = false,
+  nativeNode = false,
+) => {
   assert.ok(
     bash,
     "Portable hook checks require usable Bash, including on Windows.",
@@ -62,12 +67,17 @@ fi
 if [ "$3" = missing-node ]; then
   PATH='' exec "$BASH" "$hook_path"
 else
+  if [ "$4" = native-node ]; then
+    node() { return 1; }
+    export -f node
+  fi
   PATH="$(dirname "$node_path"):$PATH" exec "$BASH" "$hook_path"
 fi`,
       "optional-hook-test",
       script,
       process.execPath,
       missingNode ? "missing-node" : "node-available",
+      nativeNode ? "native-node" : "platform-node",
     ],
     {
       input: typeof payload === "string" ? payload : JSON.stringify(payload),
@@ -84,6 +94,10 @@ test("portable safety guard blocks known dangerous commands and sensitive paths"
     { command: "git push --force-with-lease origin feature" },
     { command: "git.exe push --force-if-includes origin feature" },
     { command: "git push -f origin feature" },
+    {
+      command: "git push origin feature --force-with-lease=refs/heads/feature",
+    },
+    { command: "git clean\n-fd" },
     { command: "git reset --hard HEAD~1" },
     { command: "git clean -fd" },
     { command: "git branch -D stale" },
@@ -93,6 +107,10 @@ test("portable safety guard blocks known dangerous commands and sensitive paths"
     { path: "private/client.pem" },
     { command: "printenv" },
     { command: "Get-ChildItem Env:" },
+    { command: "gci Env:" },
+    { command: "export -p" },
+    { command: "echo $TOKEN" },
+    { command: "env | sort" },
     { command: "curl https://production.example.com" },
     { cmd: "Invoke-RestMethod https://api.mainnet.example.com" },
   ])
@@ -106,6 +124,10 @@ test("portable safety guard blocks known dangerous commands and sensitive paths"
 test("guard accepts ordinary documentation, public examples and safe checks", () => {
   for (const payload of [
     { command: "npm run typecheck" },
+    { command: "git push origin feature --forceful" },
+    { command: "git reset --hardness" },
+    { command: "git branch --delete-later" },
+    { command: "environment-check" },
     { tool_input: { command: "npm run lint" } },
     {
       file_path: "docs/deployment.md",
@@ -143,6 +165,20 @@ test("Bash safety wrapper preserves raw input and guard status without jq", () =
     const result = runShell(payload);
     assert.equal(result.status, run(payload).status, result.stderr);
   }
+});
+
+test("native Node paths preserve wrapper behavior and empty input fails closed", () => {
+  assert.equal(
+    runShell({ command: "npm run typecheck" }, shellHook, false, true).status,
+    0,
+  );
+  assert.equal(runShell("", shellHook, false, true).status, 2);
+  const postEdit = path.join(hooks, "post-edit-format.sh");
+  assert.equal(
+    runShell({ file_path: "README.md" }, postEdit, false, true).status,
+    0,
+  );
+  assert.equal(runShell("", postEdit, false, true).status, 2);
 });
 
 test("Bash wrappers fail closed when Node is unavailable", () => {

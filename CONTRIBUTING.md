@@ -20,6 +20,8 @@ Before every authorized commit, push or PR handoff, pass the entire eleven-check
 
 Every PR, including drafts and documentation changes, runs that same complete profile without path filters. Keep each PR at 100 or fewer GitHub changed-file entries, including additions, deletions, renames and binaries. A rename is one entry; the repository inventory may exceed 100.
 
+Create authorized PRs ready for review unless the user explicitly requests a draft. Report pending provider checks accurately; this state does not waive validation, approval or protected merge checks.
+
 Use codex/ branches, Conventional Commit titles and the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Preserve user changes, private state and credentials. Tests use synthetic data and owned temporary resources; never load real dotenv or contact an existing API. Clean owned Docker resources after tests. Git mutations and provider messages require explicit authorization.
 
 Before requesting CodeRabbit, enforce the [current-head preflight](docs/sonarqube.md#before-requesting-coderabbit): all required non-CodeRabbit contexts, scanner and native Sonar quality gate pass, with zero OPEN/unresolved issues of every severity in the complete applicable report. A new head invalidates evidence. Respect one hour since both the latest request and substantive review, provider retry limits and one in-flight request. Skipped or conversational replies are not completed reviews.

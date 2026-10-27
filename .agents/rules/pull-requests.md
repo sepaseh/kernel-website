@@ -30,7 +30,9 @@ it. Use the repository's pull-request conventions in `CONTRIBUTING.md`.
 - Include screenshots or recordings for visible runnable UI changes. A phase
   with no page or CSS pipeline must state that limit rather than fabricate an
   image or claim browser verification.
-- Keep the pull request as draft while required work or evidence is incomplete.
+- Create authorized pull requests ready for review (`draft: false`), unless the
+  user explicitly requests a draft. Report pending provider checks accurately;
+  readiness does not waive local validation, review or protected merge checks.
 
 ## Provider evidence and required checks
 

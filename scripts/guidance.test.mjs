@@ -59,6 +59,29 @@ test("host skill links and memory imports resolve safely to canonical local file
   );
 });
 
+test("memory imports are standalone trimmed lines outside code fences and link errors keep their order", async (t) => {
+  const root = await mkdtemp(
+    path.join(os.tmpdir(), "website-guide-memory-lines-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, "AGENTS.md"), "Owned guidance\n");
+  const filename = path.join(root, "CLAUDE.md");
+  const content = `${" ".repeat(20_000)}not a memory import\r\n\t @AGENTS.md \t\r\ntext @missing.md\r\n@missing.md extra\r\n@\r\n\`\`\`\r\n@missing.md\r\n\`\`\`\r\n`;
+  assert.deepEqual(await checkGuideLinks(root, filename, content), []);
+  const errors = await checkGuideLinks(
+    root,
+    filename,
+    "[First](first-missing.md)\n[Second](second-missing.md)\n@third-missing.md\n",
+  );
+  assert.equal(errors.length, 3);
+  for (const [index, target] of [
+    "first-missing.md",
+    "second-missing.md",
+    "third-missing.md",
+  ].entries())
+    assert.ok(errors[index].endsWith(target), errors[index]);
+});
+
 const fixture = () => {
   const manifest = {
     schemaVersion: 1,
@@ -184,6 +207,17 @@ test("rejects duplicate IDs and unknown profile checks", () => {
   const errors = validateManifest(manifest, settings, ci).join("\n");
   assert.ok(errors.includes("unique"));
   assert.ok(errors.includes("Unknown check ghost"));
+});
+
+test("malformed check IDs retain diagnostics while comparing the required full inventory", () => {
+  const { manifest, settings, ci } = fixture();
+  manifest.checks.push(
+    { ...manifest.checks[0], id: undefined },
+    { ...manifest.checks[0], id: null },
+  );
+  const errors = validateManifest(manifest, settings, ci).join("\n");
+  assert.match(errors, /unique nonempty strings/);
+  assert.match(errors, /every required check/);
 });
 
 test("rejects stale instruction-discovery pointers", () => {
@@ -380,7 +414,11 @@ test("maintained JSON and Markdown reads reject linked ancestors before loading 
   );
   await writeFile(path.join(outside, "guide.md"), "synthetic private marker");
   await symlink(outside, path.join(root, ".agents"), "junction");
-  for (const filename of [".agents/settings.json", ".agents/guide.md"])
+  for (const filename of [
+    ".agents/settings.json",
+    ".agents/guide.md",
+    ".agents/missing.json",
+  ])
     await assert.rejects(
       readGuidanceFile(root, filename),
       /must not follow symbolic links/,
