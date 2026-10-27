@@ -4,7 +4,7 @@ Describe the concrete problem, resulting behavior and focused scope.
 
 ## Publication phase
 
-- Phase: foundation; applicationReady:false.
+- Phase: client-ui; applicationReady:false.
 - Exact head/base or isolated snapshot:
 - GitHub changed-file entries (maximum 100):
 
@@ -12,7 +12,7 @@ Describe the concrete problem, resulting behavior and focused scope.
 
 List actual commands/results for the exact proposed tree, coverage scope and
 remaining blockers. No app build, browser, visual or hosted provider pass is
-implied by foundation checks.
+implied by support-phase checks.
 
 ## Review
 

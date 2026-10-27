@@ -5,6 +5,19 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/components/ui/alert.tsx",
+  "src/components/ui/button.tsx",
+  "src/components/ui/card.tsx",
+  "src/components/ui/input.tsx",
+  "src/components/ui/label.tsx",
+  "src/shared/ui/FormField.tsx",
+  "src/shared/ui/Feedback.tsx",
+  "src/features/auth/SessionProvider.tsx",
+  "src/shared/hooks/use-cooldown.ts",
+  "src/website/shared/Preferences.tsx",
+  "src/app/providers/Providers.tsx",
+  "src/website/home/Reveal.tsx",
+  "src/shared/performance/WebVitals.tsx",
   "src/shared/api/client.ts",
   "src/features/auth/api.ts",
   "src/features/account/api.ts",
@@ -45,6 +58,107 @@ const publishedProductionFiles = new Set([
 ]);
 const ownerPackages = new Map([
   [
+    "src/components/ui/alert.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      {
+        specifier: "class-variance-authority",
+        package: "class-variance-authority",
+        typeOnly: true,
+      },
+      {
+        specifier: "class-variance-authority",
+        package: "class-variance-authority",
+        typeOnly: false,
+      },
+    ],
+  ],
+  [
+    "src/components/ui/button.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      {
+        specifier: "class-variance-authority",
+        package: "class-variance-authority",
+        typeOnly: true,
+      },
+      {
+        specifier: "class-variance-authority",
+        package: "class-variance-authority",
+        typeOnly: false,
+      },
+      { specifier: "radix-ui", package: "radix-ui", typeOnly: false },
+    ],
+  ],
+  [
+    "src/components/ui/card.tsx",
+    [{ specifier: "react", package: "@types/react", typeOnly: true }],
+  ],
+  [
+    "src/components/ui/input.tsx",
+    [{ specifier: "react", package: "@types/react", typeOnly: true }],
+  ],
+  [
+    "src/components/ui/label.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      { specifier: "radix-ui", package: "radix-ui", typeOnly: false },
+    ],
+  ],
+  [
+    "src/shared/ui/FormField.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/shared/ui/Feedback.tsx",
+    [
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+    ],
+  ],
+  [
+    "src/features/auth/SessionProvider.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      { specifier: "react", package: "@types/react", typeOnly: false },
+      { specifier: "next-intl", package: "next-intl", typeOnly: false },
+    ],
+  ],
+  [
+    "src/shared/hooks/use-cooldown.ts",
+    [{ specifier: "react", package: "@types/react", typeOnly: false }],
+  ],
+  [
+    "src/website/shared/Preferences.tsx",
+    [
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+      { specifier: "next-themes", package: "next-themes", typeOnly: false },
+    ],
+  ],
+  [
+    "src/app/providers/Providers.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      { specifier: "next-themes", package: "next-themes", typeOnly: false },
+      { specifier: "motion/react", package: "motion", typeOnly: false },
+    ],
+  ],
+  [
+    "src/website/home/Reveal.tsx",
+    [
+      { specifier: "react", package: "@types/react", typeOnly: true },
+      { specifier: "motion/react", package: "motion", typeOnly: false },
+      { specifier: "motion/react-m", package: "motion", typeOnly: false },
+    ],
+  ],
+  [
+    "src/shared/performance/WebVitals.tsx",
+    [{ specifier: "next/web-vitals", package: "next", typeOnly: false }],
+  ],
+  [
     "src/shared/seo/metadata.ts",
     [{ specifier: "next", package: "next", typeOnly: true }],
   ],
@@ -69,13 +183,18 @@ const ownerPackages = new Map([
   ],
 ]);
 const runtimePackages = [
+  "class-variance-authority",
+  "lucide-react",
+  "motion",
+  "next-themes",
+  "radix-ui",
   "clsx",
   "next",
   "next-intl",
   "react",
   "react-dom",
   "tailwind-merge",
-];
+].sort((left, right) => left.localeCompare(right));
 const inside = (root, file) => {
   const relative = path.relative(root, file);
   return (
@@ -194,7 +313,7 @@ export const boundaryViolation = ({
       );
     return allowed &&
       resolved &&
-      inside(path.join(root, "node_modules"), resolved)
+      inside(path.join(root, "node_modules", resolvedPackage), resolved)
       ? undefined
       : "Package imports require an exact owner, installed package and runtime/type-only permission";
   }
@@ -245,7 +364,7 @@ export const checkBoundaries = async (root = repository) => {
     )
   )
     violations.push(
-      "This publication requires exactly its declared client/document packages",
+      "This publication requires exactly its declared client UI foundation packages",
     );
   if (
     Object.values(manifest.devDependencies ?? {}).some(

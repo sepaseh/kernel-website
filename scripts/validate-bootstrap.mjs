@@ -122,14 +122,53 @@ const clientDocumentFiles = [
 const clientDocumentSource = new Set(
   clientDocumentFiles.filter((file) => file.startsWith("src/")),
 );
+const clientUiFiles = [
+  "src/app/providers/Providers.test.ts",
+  "src/app/providers/Providers.tsx",
+  "src/components/ui/alert.tsx",
+  "src/components/ui/button.tsx",
+  "src/components/ui/card.tsx",
+  "src/components/ui/input.tsx",
+  "src/components/ui/label.tsx",
+  "src/components/ui/primitives.test.tsx",
+  "src/features/auth/SessionProvider.test.tsx",
+  "src/features/auth/SessionProvider.tsx",
+  "src/shared/hooks/use-cooldown.test.ts",
+  "src/shared/hooks/use-cooldown.ts",
+  "src/shared/performance/WebVitals.test.ts",
+  "src/shared/performance/WebVitals.tsx",
+  "src/shared/ui/Feedback.test.tsx",
+  "src/shared/ui/Feedback.tsx",
+  "src/shared/ui/FormField.test.tsx",
+  "src/shared/ui/FormField.tsx",
+  "src/test/intl.ts",
+  "src/test/setup.ts",
+  "src/website/home/Reveal.test.ts",
+  "src/website/home/Reveal.tsx",
+  "src/website/shared/Preferences.test.tsx",
+  "src/website/shared/Preferences.tsx",
+  "docs/client-ui.md",
+  "docs/client-ui.fa.md",
+  "docs/session.md",
+  "docs/session.fa.md",
+];
+const clientUiSource = new Set(
+  clientUiFiles.filter((file) => file.startsWith("src/")),
+);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
-  (["localization", "server-boundary", "client-document"].includes(phase) &&
+  (["localization", "server-boundary", "client-document", "client-ui"].includes(
+    phase,
+  ) &&
     localizationSource.has(file)) ||
-  (["server-boundary", "client-document"].includes(phase) &&
+  (["server-boundary", "client-document", "client-ui"].includes(phase) &&
     serverBoundarySource.has(file)) ||
-  (phase === "client-document" && clientDocumentSource.has(file));
+  (["client-document", "client-ui"].includes(phase) &&
+    clientDocumentSource.has(file)) ||
+  (phase === "client-ui" && clientUiSource.has(file));
 const publicationScopes = {
+  "client-ui":
+    "Published client HTTP/document support and independently tested local UI primitives, session/theme providers, countdown and motion adapters; Next.js pages/routes, styled browser journeys, full framework rendering and deployment are not published or validated.",
   "client-document":
     "Published client HTTP and document support, explicit client message selection and catalogs verified with the real ICU engine, SEO, private Web Vitals delivery and verified local fonts; Next.js routes/UI, server rendering, browser behavior and deployment are not published or validated.",
   "server-boundary":
@@ -160,7 +199,7 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
+      /^(?:apps|packages|drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
       file === "drizzle.config.ts" ||
@@ -183,15 +222,23 @@ export const validateBootstrapPolicy = (policy) => {
     ...(policy.phase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
-    ...(["localization", "server-boundary", "client-document"].includes(
-      policy.phase,
-    )
+    ...([
+      "localization",
+      "server-boundary",
+      "client-document",
+      "client-ui",
+    ].includes(policy.phase)
       ? localizationFiles
       : []),
-    ...(["server-boundary", "client-document"].includes(policy.phase)
+    ...(["server-boundary", "client-document", "client-ui"].includes(
+      policy.phase,
+    )
       ? serverBoundaryFiles
       : []),
-    ...(policy.phase === "client-document" ? clientDocumentFiles : []),
+    ...(["client-document", "client-ui"].includes(policy.phase)
+      ? clientDocumentFiles
+      : []),
+    ...(policy.phase === "client-ui" ? clientUiFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(

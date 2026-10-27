@@ -19,8 +19,11 @@ The workflow validates the declared snapshot, installs the locked toolchain and
 runs the real TypeScript/governance coverage commands and required Python font verification before scanning. The
 [properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
 `coverage/governance/lcov.info` plus measured Python `coverage/fonts/coverage.xml` from that same checkout/revision. They cover
-published helpers, local catalogs and governance scripts, not Next.js UI, HTTP routes, browser
-journeys or deployment. Type-only DTO declarations have no executable behavior.
+all fifty published production modules, including local UI/session/theme adapters,
+catalogs and governance scripts. Test/support TS/TSX files are classified as tests;
+production modules have no new source, security or coverage exclusions. Framework
+routes, styled pages, browser journeys and deployment remain outside this phase.
+Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
 
 ## Static catalog findings

@@ -2,9 +2,8 @@
 
 [English](localization.md) · [فارسی](localization.fa.md)
 
-The current [client-document phase](bootstrap.md) publishes complete local website catalogs, a plain lazy loader registry and explicit client message selection. It remains non-runnable with
-`applicationReady:false`: Next.js request adapters, providers, screens and
-rendered translation behavior are not included.
+The current [client UI phase](bootstrap.md) publishes complete local website catalogs, a plain lazy loader registry and explicit client message selection. Local components use real next-intl in isolated tests. It remains non-runnable with
+`applicationReady:false`: request-scoped Next.js adapters, application message providers, screens and browser-rendered translation behavior are not included.
 
 ## Catalog ownership
 
@@ -59,6 +58,6 @@ imports, foreign packages, omitted adapters and cross-checkout dependencies.
 All ten checks in the [canonical full gate](../.agents/validation.json) run on
 every PR and produce real unit/governance coverage for the published scope.
 
-[Client message selections](../src/i18n/client-messages.ts) and their owner tests cover explicit root/auth/account key boundaries, shared-key retention and missing/nested-value rejection across all ten languages. Request-scoped Next.js integration, provider rendering and bootstrap error-page use belong to the later runtime owners.
+[Client message selections](../src/i18n/client-messages.ts) and their owner tests cover explicit root/auth/account key boundaries, shared-key retention and missing/nested-value rejection across all ten languages. [Local UI/session tests](client-ui.md) exercise a real next-intl provider with synthetic EN/FA data. Request-scoped Next.js integration, application provider rendering and bootstrap error-page use belong to the later runtime owners.
 Browser, accessibility and reviewed visual validation still require the runnable
 application and its independently published synthetic API fixture.

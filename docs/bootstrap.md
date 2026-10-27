@@ -1,16 +1,18 @@
-# Client/document publication phase
+# Client UI foundation publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This non-runnable publication contains thirty-seven production modules, fifteen source test files and an exact 111-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
+This non-runnable publication contains fifty production modules, twenty-four source test files, two test-support modules and an exact 139-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
 
-The [client/document guide](client-document.md), [fonts](fonts.md), [localization](localization.md) and [server boundary](server-boundary.md) describe ownership. Next.js supplies erased framework types; actual next-intl tests exercise ICU. No src/app, server-only request adapter, UI, entry point, browser fixture or deployment is present.
+The [client UI guide](client-ui.md), [session guide](session.md), [client/document guide](client-document.md), [fonts](fonts.md), [localization](localization.md) and [server boundary](server-boundary.md) describe ownership. Local UI primitives, session/theme providers, countdown and motion adapters are independently testable. Next.js supplies erased document types and the isolated Web Vitals hook adapter; real next-intl tests exercise ICU. src/app contains only a composite provider and its owner test. No pages, root layout, server-only request adapter, CSS pipeline, application entry point, browser fixture or deployment is present.
 
 The [canonical manifest](../.agents/validation.json) has ten required checks: snapshot, semantic CI policy, audit, source boundaries, types, lint, formatting, measured unit tests, measured governance tests and real font integrity. Run npm ci, install [pinned Python requirements](../font-source/requirements.txt) under Python3.14.4, then npm run validate -- full before every authorized commit/push/handoff on the exact isolated tree.
 
 Every PR, including drafts, runs that complete profile without changed-path filtering. The runner rejects duplicate IDs, omitted required checks and manual/advisory entries before executing commands. CI requires unconditional root npm installation and full execution plus pinned Python setup/dependency installation. The scanner must generate real Python font coverage before analysis; semantic tests reject missing, conditional, reordered or advisory steps.
 
 Unit thresholds remain 90% for statements, branches, functions and lines. Governance thresholds remain 80% for lines, functions and branches. Font tooling has measured branch/line coverage and an 80% combined required minimum. Actual reports are coverage/unit/lcov.info, coverage/governance/lcov.info and coverage/fonts/coverage.xml. Do not commit or fabricate them.
+
+All fifty production TS/TSX modules remain explicitly included in coverage and source analysis. Test/support files are classified as tests. Real React/RTL, Radix, next-intl and next-themes run in isolated jsdom; synthetic fetch and media-query fixtures remain local. Motion/framework-hook owner tests use documented mocks and static markup, so their results do not establish browser integration. Hooks recommended lint rules join the required lint command; exact owner/package boundaries include TSX and forbid unpublished entry points and test imports.
 
 Native [branch protection](branch-protection.md) still requires check, trusted PR file limit, SonarQube Cloud analysis, SonarCloud Code Analysis and CodeRabbit. The target size guard executes only its immutable workflow checkout with read-only permissions. Keep strict/up-to-date checks, current approval, resolved conversations and administrator enforcement.
 

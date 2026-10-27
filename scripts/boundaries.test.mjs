@@ -266,9 +266,9 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the client-document phase has thirty-seven explicitly owned production modules", async () => {
+test("the client-ui phase has fifty explicitly owned production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 37);
+  assert.equal(result.files, 50);
   assert.deepEqual(result.violations, []);
 });
 
@@ -328,6 +328,59 @@ test("the font manifest belongs only to its preload helper", () => {
   assert.ok(check("./manifest.json", manifest, owner, true));
 });
 
+test("UI dependencies remain exact per owner, package location and erased/runtime phase", () => {
+  const button = path.join(root, "src/components/ui/button.tsx");
+  const session = path.join(root, "src/features/auth/SessionProvider.tsx");
+  const types = path.join(root, "node_modules/@types/react/index.d.ts");
+  assert.equal(check("react", types, button, true, "@types/react"), undefined);
+  assert.ok(check("react", types, button, false, "@types/react"));
+  assert.equal(
+    check("react", types, session, false, "@types/react"),
+    undefined,
+  );
+  assert.ok(check("react", types, session, false, "react"));
+  assert.ok(
+    check(
+      "react",
+      path.join(root, "node_modules/other/index.d.ts"),
+      session,
+      false,
+      "@types/react",
+    ),
+  );
+  const radix = path.join(root, "node_modules/radix-ui/dist/index.d.ts");
+  assert.equal(check("radix-ui", radix, button, false, "radix-ui"), undefined);
+  assert.ok(check("radix-ui", radix, session, false, "radix-ui"));
+  assert.ok(check("radix-ui", radix, button, true, "radix-ui"));
+  const vitals = path.join(root, "node_modules/next/web-vitals.d.ts");
+  assert.equal(
+    check(
+      "next/web-vitals",
+      vitals,
+      path.join(root, "src/shared/performance/WebVitals.tsx"),
+      false,
+      "next",
+    ),
+    undefined,
+  );
+  assert.ok(
+    check(
+      "next/web-vitals",
+      vitals,
+      path.join(root, "src/shared/performance/web-vitals.ts"),
+      false,
+      "next",
+    ),
+  );
+  for (const target of [
+    "src/test/setup.ts",
+    "src/test/intl.ts",
+    "src/app/layout.tsx",
+    "src/components/ui/dialog.tsx",
+  ])
+    assert.ok(check("./target", path.join(root, target), session));
+});
+
 test("package names cannot conceal local links, aliases or repository dependencies", async (context) => {
   const parent = path.resolve(os.tmpdir());
   const fixture = await mkdtemp(path.join(parent, "kernel-package-boundary-"));
@@ -346,6 +399,11 @@ test("package names cannot conceal local links, aliases or repository dependenci
   );
   await writeFile(path.join(fixture, "src/unpublished.ts"), "export {};\n");
   const dependencies = {
+    "class-variance-authority": "0.7.1",
+    "lucide-react": "1.62.0",
+    motion: "14.6.0",
+    "next-themes": "0.4.6",
+    "radix-ui": "1.8.1",
     clsx: "2.1.1",
     next: "16.4.3",
     "next-intl": "4.14.9",
@@ -353,6 +411,16 @@ test("package names cannot conceal local links, aliases or repository dependenci
     "react-dom": "19.3.1",
     "tailwind-merge": "3.7.0",
   };
+  await writeFile(
+    path.join(fixture, "package.json"),
+    JSON.stringify({ dependencies }),
+  );
+  assert.equal(
+    (await checkBoundaries(fixture)).violations.some((value) =>
+      value.includes("exactly its declared"),
+    ),
+    false,
+  );
   for (const version of [
     "file:../other",
     "link:../other",
