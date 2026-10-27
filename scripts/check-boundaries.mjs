@@ -5,6 +5,23 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/features/account/Account.tsx",
+  "src/features/account/components/account-section/AccountSection.tsx",
+  "src/features/account/components/email-form/EmailForm.tsx",
+  "src/features/account/components/password-form/PasswordForm.tsx",
+  "src/features/account/components/profile-form/ProfileForm.tsx",
+  "src/features/account/components/username-form/UsernameForm.tsx",
+  "src/features/account/index.ts",
+  "src/features/auth/OtpForm.tsx",
+  "src/features/login/Login.tsx",
+  "src/features/login/index.ts",
+  "src/features/recovery/Recovery.tsx",
+  "src/features/recovery/index.ts",
+  "src/features/register/Register.tsx",
+  "src/features/register/index.ts",
+  "src/shared/hooks/use-operation-scope.ts",
+  "src/shared/navigation/document.ts",
+
   "src/components/ui/alert.tsx",
   "src/components/ui/button.tsx",
   "src/components/ui/card.tsx",
@@ -56,7 +73,71 @@ const publishedProductionFiles = new Set([
   "src/i18n/catalogs.ts",
   "src/shared/settings/language.ts",
 ]);
+const reactRuntimeImport = {
+  specifier: "react",
+  package: "@types/react",
+  typeOnly: false,
+};
+const intlRuntimeImport = {
+  specifier: "next-intl",
+  package: "next-intl",
+  typeOnly: false,
+};
+const localizedFormImports = [intlRuntimeImport, reactRuntimeImport];
+const reactImports = [
+  { specifier: "react", package: "@types/react", typeOnly: true },
+  reactRuntimeImport,
+];
 const ownerPackages = new Map([
+  [
+    "src/features/account/Account.tsx",
+    [
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      ...localizedFormImports,
+    ],
+  ],
+  [
+    "src/features/account/components/account-section/AccountSection.tsx",
+    [{ specifier: "react", package: "@types/react", typeOnly: true }],
+  ],
+  [
+    "src/features/account/components/email-form/EmailForm.tsx",
+    localizedFormImports,
+  ],
+  [
+    "src/features/account/components/password-form/PasswordForm.tsx",
+    localizedFormImports,
+  ],
+  [
+    "src/features/account/components/profile-form/ProfileForm.tsx",
+    localizedFormImports,
+  ],
+  [
+    "src/features/account/components/username-form/UsernameForm.tsx",
+    localizedFormImports,
+  ],
+  [
+    "src/features/auth/OtpForm.tsx",
+    [
+      { specifier: "next/link", package: "next", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      ...localizedFormImports,
+    ],
+  ],
+  [
+    "src/features/login/Login.tsx",
+    [
+      { specifier: "lucide-react", package: "lucide-react", typeOnly: false },
+      { specifier: "next/link", package: "next", typeOnly: false },
+      { specifier: "next/navigation", package: "next", typeOnly: false },
+      ...localizedFormImports,
+    ],
+  ],
+  [
+    "src/shared/hooks/use-operation-scope.ts",
+    [{ specifier: "react", package: "@types/react", typeOnly: false }],
+  ],
   [
     "src/components/ui/alert.tsx",
     [
@@ -105,13 +186,7 @@ const ownerPackages = new Map([
       { specifier: "radix-ui", package: "radix-ui", typeOnly: false },
     ],
   ],
-  [
-    "src/shared/ui/FormField.tsx",
-    [
-      { specifier: "react", package: "@types/react", typeOnly: true },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-    ],
-  ],
+  ["src/shared/ui/FormField.tsx", reactImports],
   [
     "src/shared/ui/Feedback.tsx",
     [
@@ -121,11 +196,7 @@ const ownerPackages = new Map([
   ],
   [
     "src/features/auth/SessionProvider.tsx",
-    [
-      { specifier: "react", package: "@types/react", typeOnly: true },
-      { specifier: "react", package: "@types/react", typeOnly: false },
-      { specifier: "next-intl", package: "next-intl", typeOnly: false },
-    ],
+    [...reactImports, intlRuntimeImport],
   ],
   [
     "src/shared/hooks/use-cooldown.ts",
@@ -364,7 +435,7 @@ export const checkBoundaries = async (root = repository) => {
     )
   )
     violations.push(
-      "This publication requires exactly its declared client UI foundation packages",
+      "This publication requires exactly its declared feature UI packages",
     );
   if (
     Object.values(manifest.devDependencies ?? {}).some(

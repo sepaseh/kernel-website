@@ -3,7 +3,7 @@
 [English](server-boundary.md) · [فارسی](server-boundary.fa.md)
 
 This phase publishes framework-independent API forwarding and document CSP policy
-helpers with synthetic Node tests. The wider [client UI phase](client-ui.md) contains fifty production modules and twenty-four source test files; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
+helpers with synthetic Node tests. The wider [feature UI phase](bootstrap.md) contains sixty-six production modules, thirty-four source test files and three test-support modules; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
 mandatory. No Next.js route, request nonce generator, renderer or browser behavior
 is provided or verified by these helpers.
 

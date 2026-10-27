@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "client-ui",
+  "phase": "feature-ui",
   "applicationReady": false,
   "checks": [
     {
@@ -8,70 +8,70 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui"]
+      "scopes": ["feature-ui"]
     },
     {
       "id": "font-integrity",
       "command": "npm run check:fonts",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["client-ui", "fonts"]
+      "scopes": ["feature-ui", "fonts"]
     }
   ],
   "profiles": {

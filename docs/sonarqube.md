@@ -19,7 +19,7 @@ The workflow validates the declared snapshot, installs the locked toolchain and
 runs the real TypeScript/governance coverage commands and required Python font verification before scanning. The
 [properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
 `coverage/governance/lcov.info` plus measured Python `coverage/fonts/coverage.xml` from that same checkout/revision. They cover
-all fifty published production modules, including local UI/session/theme adapters,
+all sixty-six published production modules, including local forms, operation/document adapters, UI/session/theme support,
 catalogs and governance scripts. Test/support TS/TSX files are classified as tests;
 production modules have no new source, security or coverage exclusions. Framework
 routes, styled pages, browser journeys and deployment remain outside this phase.

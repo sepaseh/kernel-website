@@ -2,9 +2,9 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **client-ui** phase.
-`applicationReady` is **false**. The published scope contains fifty production
-modules and twenty-four source test files:
+This standalone TypeScript project is in its **feature-ui** phase.
+`applicationReady` is **false**. The published scope contains sixty-six production
+modules, thirty-four source test files and three test-support modules:
 
 - Six pure wire-contract modules under `src/shared/contracts`, feature-owned
   `types.ts` files and `src/shared/settings/contracts.ts`.
@@ -23,17 +23,19 @@ modules and twenty-four source test files:
 - Five local shadcn/Radix primitives, associated form fields and localized feedback,
   session/theme providers, theme preference, a bounded countdown, visible-first
   motion and a Web Vitals hook adapter.
+- Login, shared registration/recovery OTP forms and account profile, username, email
+  verification, password-change and logout controls; mount/session ownership
+  protects local feedback and navigation from late results.
 
-Read [client UI](docs/client-ui.md), [session ownership](docs/session.md),
+Read [forms](docs/forms.md), [client UI](docs/client-ui.md), [session ownership](docs/session.md),
 [client/document support](docs/client-document.md), [fonts](docs/fonts.md) and
 [server boundary](docs/server-boundary.md) for behavior and remaining integration.
 Next.js pages, root layout, request/translation adapters, a CSS pipeline, browser
 journeys and deployment are not included. The installed support libraries are
 explicitly declared in [package.json](package.json); production package imports
-have exact owner, identity and runtime/type-only permissions. Next.js supplies
-erased document types and the isolated Web Vitals hook adapter, without a framework
-entry point. Read [localization](docs/localization.md) and the exact
-[139-file snapshot inventory](.github/bootstrap-policy.json).
+have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
+feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
+[168-file snapshot inventory](.github/bootstrap-policy.json).
 
 ## Install and validate
 
@@ -49,7 +51,9 @@ npm run validate -- full
 The [canonical manifest](.agents/validation.json) defines all ten required phase
 checks. Unit tests run in Node or isolated jsdom with real React/RTL, Radix,
 next-intl and next-themes, synthetic fetch responses and dotenv loading disabled.
-Motion/framework-hook owner tests document their mocks and static-markup limits.
+Feature tests use scoped auth/account messages and the real HTTP/session stack;
+router and document navigation are mocked. Motion/framework-hook owner tests
+document their mocks and static-markup limits.
 They produce `coverage/unit/lcov.info`; Node governance tests produce
 `coverage/governance/lcov.info`. These are real measurements of the published source
 and its tooling, not coverage of a running website. Reports are not committed.

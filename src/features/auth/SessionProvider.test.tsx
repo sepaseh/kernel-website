@@ -35,6 +35,36 @@ function Root({ children }: { children?: ReactNode }) {
 }
 
 describe("session ownership", () => {
+  it("exposes a generation for form ownership that changes on refresh and locale transitions", async () => {
+    let locale: "en" | "fa" = "en";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json(account("current")))),
+    );
+    const wrapper = ({ children }: { children?: ReactNode }) => (
+      <TestIntlProvider locale={locale}>
+        <SessionProvider>{children}</SessionProvider>
+      </TestIntlProvider>
+    );
+    const { result, rerender } = renderHook(() => useSession(), { wrapper });
+    expect(result.current.generation).toBe(0);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.acceptAccount(account("accepted")));
+    expect(result.current.generation).toBe(0);
+    act(() => result.current.refresh());
+    expect(result.current.generation).toBe(1);
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    locale = "fa";
+    rerender();
+    expect(result.current.generation).toBe(2);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    locale = "en";
+    rerender();
+    expect(result.current.generation).toBe(3);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
   it("requires a provider", () => {
     expect(() => renderHook(() => useSession())).toThrow(
       "The session provider is missing.",

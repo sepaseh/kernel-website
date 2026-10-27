@@ -2,7 +2,7 @@
 
 [English](client-ui.md) · [فارسی](client-ui.fa.md)
 
-The [client-ui phase](bootstrap.md) adds thirteen independently testable support
+The [feature-ui phase](bootstrap.md) retains thirteen independently testable foundation support
 modules: five local shadcn/Radix primitives, FormField and Feedback, session and
 theme/motion providers, preferences, a bounded countdown, Reveal and a Web Vitals
 hook adapter. There are no pages, root layout, CSS build, Next.js request adapter
@@ -33,6 +33,10 @@ Tailwind class strings and component semantics are published; the stylesheet and
 production CSS pipeline are not. DOM and static-markup tests do not establish
 visual layout, contrast, keyboard journeys or browser accessibility compliance.
 
+## Feature forms
+
+[Login, registration, recovery and account forms](forms.md) compose these same primitives and reviewed HTTP helpers. Submit controls keep their explicit type; resend, retry and logout controls cannot submit an enclosing form. Feature ownership, scoped translations, late-result guards and document navigation are described in [session ownership](session.md). The shared OTP form retains separate registration and recovery payload contracts without duplicating their UI.
+
 ## Theme, motion and metrics
 
 Preferences changes only the theme through installed next-themes. The composite
@@ -60,7 +64,7 @@ libraries in isolated jsdom. They cover Slot/disabled semantics, native input
 events, label/description links, localized safe feedback and theme-only storage.
 Node static-markup tests check content visibility, provider composition and nonce
 forwarding. Synthetic media-query fixtures are test support, not browser evidence.
-All executable production modules remain in measured coverage and Sonar analysis.
+Feature tests use real HTTP/session behavior and only the explicit auth/account messages; framework router and document navigation are mocked. These tests do not establish browser navigation, native constraint validation or hydration. All executable production modules remain in measured coverage and Sonar analysis.
 Hooks recommended lint rules join the existing required lint command; all ten
 canonical checks, font verification and existing thresholds remain required.
 
