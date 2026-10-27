@@ -463,6 +463,19 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(phase === "runner-foundation" ? runnerFoundationFiles : []),
 ];
 
+const rejectsProtectedPublicationPath = (file, phase) => {
+  const deliveryPhase = deliveryPhases.has(phase);
+  const deploymentPath = file === "deploy" || file.startsWith("deploy/");
+  const localSettingsPath =
+    /(?:^|\/)(?:\.env(?:\.|$)|[^/]+\.env(?:\.|$)|settings\.local\.json$)/i.test(
+      file,
+    );
+  return (
+    (deploymentPath && (!deliveryPhase || !deliveryToolingPaths.has(file))) ||
+    (localSettingsPath && (!deliveryPhase || !publicDeliveryExamples.has(file)))
+  );
+};
+
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
@@ -487,20 +500,13 @@ export const validateBootstrapPolicy = (policy) => {
       /^(?:apps|packages|drizzle|collection|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
-      ((file === "deploy" || file.startsWith("deploy/")) &&
-        (!deliveryPhases.has(policy.phase) ||
-          !deliveryToolingPaths.has(file))) ||
+      rejectsProtectedPublicationPath(file, policy.phase) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
         (policy.phase === "governance" ||
           !isPublishedSource(file, sourcePhase))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
-      (/(?:^|\/)(?:\.env(?:\.|$)|[^/]+\.env(?:\.|$)|settings\.local\.json$)/i.test(
-        file,
-      ) &&
-        (!deliveryPhases.has(policy.phase) ||
-          !publicDeliveryExamples.has(file))) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
       (!toolingPhases.has(policy.phase) && integrationToolingPaths.has(file)) ||
       (!toolingPhases.has(policy.phase) && deliveryToolingPaths.has(file)) ||

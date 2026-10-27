@@ -158,9 +158,14 @@ test("unexpected signals never become successful exits", async (t) => {
 test("stop is idempotent and drains only its owned direct child", async (t) => {
   const root = await fixture(t);
   const owned = await persistent(t, root);
+  let closeObserved = false;
+  owned.child.once("close", () => {
+    closeObserved = true;
+  });
   const stopping = owned.stop();
   assert.equal(owned.stop(), stopping);
   await stopping;
+  assert.equal(closeObserved, true);
   await assert.rejects(owned.completion, /was stopped/);
   assert.ok(owned.child.exitCode !== null || owned.child.signalCode !== null);
 });

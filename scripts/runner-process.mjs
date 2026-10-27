@@ -98,6 +98,7 @@ export function startOwnedProcess({
   let aborted = false;
   let stopped = false;
   let stopPromise;
+  let resolveStop;
   let gracefulTimer;
   let forceTimer;
 
@@ -137,6 +138,7 @@ export function startOwnedProcess({
       settle(new Error(`Owned process exited with code ${code}.`));
     else settle(undefined, { code, signal: exitSignal });
     resolveClosed();
+    resolveStop?.();
   });
 
   function stop() {
@@ -153,7 +155,7 @@ export function startOwnedProcess({
       }
     };
     stopPromise = new Promise((resolve, reject) => {
-      closed.then(resolve);
+      resolveStop = resolve;
       killOwnedChild("SIGTERM");
       gracefulTimer = setTimeout(
         () => killOwnedChild("SIGKILL"),
