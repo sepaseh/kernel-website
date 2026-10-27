@@ -12,8 +12,21 @@ import {
 
 const root = path.resolve("fixture");
 const file = path.join(root, "src/shared/settings/language.ts");
-const check = (specifier, resolved, owner = file, typeOnly = false) =>
-  boundaryViolation({ root, file: owner, specifier, resolved, typeOnly });
+const check = (
+  specifier,
+  resolved,
+  owner = file,
+  typeOnly = false,
+  resolvedPackage,
+) =>
+  boundaryViolation({
+    root,
+    file: owner,
+    specifier,
+    resolved,
+    typeOnly,
+    resolvedPackage,
+  });
 
 test("captures static, erased, re-export, dynamic and require dependencies", () => {
   const edges = inspectImports(`
@@ -192,7 +205,7 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   const result = await checkBoundaries(fixture);
   assert.ok(
     result.violations.some((message) =>
-      message.includes("no runtime dependencies"),
+      message.includes("exactly its declared"),
     ),
   );
   assert.ok(
@@ -253,8 +266,118 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the server-boundary phase has twenty-four closed production modules", async () => {
+test("the client-document phase has thirty-seven explicitly owned production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 24);
+  assert.equal(result.files, 37);
   assert.deepEqual(result.violations, []);
+});
+
+test("only exact owners can use their installed packages with the declared import phase", () => {
+  const metadata = path.join(root, "src/shared/seo/metadata.ts");
+  const framework = path.join(root, "node_modules/next/types/index.d.ts");
+  assert.equal(check("next", framework, metadata, true, "next"), undefined);
+  assert.ok(check("next", framework, metadata, false, "next"));
+  assert.ok(check("next", framework, file, true, "next"));
+  assert.ok(check("next/headers", framework, metadata, true, "next"));
+  assert.ok(check("next", framework, metadata, true, "other-package"));
+  assert.ok(
+    check(
+      "next",
+      path.resolve(root, "../other/node_modules/next/index.d.ts"),
+      metadata,
+      true,
+      "next",
+    ),
+  );
+  const util = path.join(root, "src/lib/utils.ts");
+  assert.equal(
+    check(
+      "clsx",
+      path.join(root, "node_modules/clsx/clsx.d.mts"),
+      util,
+      false,
+      "clsx",
+    ),
+    undefined,
+  );
+  assert.ok(
+    check(
+      "clsx",
+      path.join(root, "node_modules/clsx/clsx.d.mts"),
+      util,
+      true,
+      "clsx",
+    ),
+  );
+  assert.ok(
+    check(
+      "next",
+      framework,
+      path.join(root, "src/i18n/catalog-data/locales/fa.ts"),
+      true,
+      "next",
+    ),
+  );
+});
+
+test("the font manifest belongs only to its preload helper", () => {
+  const manifest = path.join(root, "src/shared/fonts/manifest.json");
+  const owner = path.join(root, "src/shared/fonts/preloads.ts");
+  assert.equal(check("./manifest.json", manifest, owner), undefined);
+  assert.ok(check("./manifest.json", manifest, file));
+  assert.ok(check("./manifest.json", manifest, owner, true));
+});
+
+test("package names cannot conceal local links, aliases or repository dependencies", async (context) => {
+  const parent = path.resolve(os.tmpdir());
+  const fixture = await mkdtemp(path.join(parent, "kernel-package-boundary-"));
+  context.after(async () => {
+    assert.equal(path.dirname(path.resolve(fixture)), parent);
+    assert.ok(path.basename(fixture).startsWith("kernel-package-boundary-"));
+    await rm(fixture, { recursive: true, force: true });
+  });
+  await mkdir(path.join(fixture, "src"));
+  await writeFile(
+    path.join(fixture, "tsconfig.json"),
+    JSON.stringify({
+      compilerOptions: { moduleResolution: "bundler", module: "esnext" },
+      include: ["src/**/*.ts"],
+    }),
+  );
+  await writeFile(path.join(fixture, "src/unpublished.ts"), "export {};\n");
+  const dependencies = {
+    clsx: "2.1.1",
+    next: "16.4.3",
+    "next-intl": "4.14.9",
+    react: "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwind-merge": "3.7.0",
+  };
+  for (const version of [
+    "file:../other",
+    "link:../other",
+    "workspace:*",
+    "npm:other@1.0.0",
+    "https://example.test/package.tgz",
+    "git+https://example.test/repo.git",
+  ]) {
+    await writeFile(
+      path.join(fixture, "package.json"),
+      JSON.stringify({ dependencies: { ...dependencies, next: version } }),
+    );
+    assert.ok(
+      (await checkBoundaries(fixture)).violations.some((value) =>
+        value.includes("exactly its declared"),
+      ),
+    );
+    await writeFile(
+      path.join(fixture, "package.json"),
+      JSON.stringify({ dependencies, devDependencies: { external: version } }),
+    );
+    assert.ok(
+      (await checkBoundaries(fixture)).violations.some((value) =>
+        value.includes("must not link"),
+      ),
+    );
+  }
 });

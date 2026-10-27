@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "server-boundary",
+  "phase": "client-document",
   "applicationReady": false,
   "checks": [
     {
@@ -8,63 +8,70 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["server-boundary"]
+      "scopes": ["client-document"]
+    },
+    {
+      "id": "font-integrity",
+      "command": "npm run check:fonts",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["client-document", "fonts"]
     }
   ],
   "profiles": {
@@ -77,7 +84,8 @@
       "lint",
       "format",
       "unit-coverage",
-      "governance-coverage"
+      "governance-coverage",
+      "font-integrity"
     ]
   },
   "externalWorkflows": [

@@ -16,9 +16,9 @@ project key. Never put token values in source, dotenv, variables, chat or logs.
 Missing credentials/project settings fail explicitly; no analysis is claimed.
 
 The workflow validates the declared snapshot, installs the locked toolchain and
-runs both real coverage commands before scanning. The
+runs the real TypeScript/governance coverage commands and required Python font verification before scanning. The
 [properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
-`coverage/governance/lcov.info` from that same checkout/revision. They cover
+`coverage/governance/lcov.info` plus measured Python `coverage/fonts/coverage.xml` from that same checkout/revision. They cover
 published helpers, local catalogs and governance scripts, not Next.js UI, HTTP routes, browser
 journeys or deployment. Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.

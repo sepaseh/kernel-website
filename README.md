@@ -2,9 +2,9 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **server-boundary** phase.
-`applicationReady` is **false**. The published scope contains twenty-four production
-modules and five source test files:
+This standalone TypeScript project is in its **client-document** phase.
+`applicationReady` is **false**. The published scope contains thirty-seven production
+modules and fifteen source test files:
 
 - Six pure wire-contract modules under `src/shared/contracts`, feature-owned
   `types.ts` files and `src/shared/settings/contracts.ts`.
@@ -16,25 +16,30 @@ modules and five source test files:
 
 - Web API forwarding with exact mutation-origin checks, bounded bodies, cookie-only
   sessions and safe uncached error responses; pure document CSP policy helpers.
+- A shared cookie/no-store HTTP client and five feature modules for twelve operations,
+  explicit client message selection and catalogs tested with the real ICU engine.
+- SEO data and safe JSON-LD, private optional Web Vitals delivery, class composition,
+  and licensed self-hosted font assets with real binary verification and preload selection.
 
-Read [server boundary](docs/server-boundary.md) for behavior and remaining integration.
+Read [client/document support](docs/client-document.md), [fonts](docs/fonts.md) and [server boundary](docs/server-boundary.md) for behavior and remaining integration.
 React/Next.js UI, routes, translation adapters, browser journeys and deployment
 are not included. Catalog loading does not establish ICU rendering or browser
-behavior. There are no runtime dependencies. Read [localization](docs/localization.md)
+behavior. The support packages are Next.js/React, next-intl, clsx and tailwind-merge. Next.js supplies erased framework types here; no framework route or entry point is published. Read [localization](docs/localization.md)
 and the exact
 [snapshot inventory](.github/bootstrap-policy.json).
 
 ## Install and validate
 
-Use Node.js from [.nvmrc](.nvmrc), within the [package](package.json) engine range,
+Use Python 3.14.4 in an activated disposable environment outside the checkout for font verification. CI installs the pinned requirements on its temporary runner. Use Node.js from [.nvmrc](.nvmrc), within the [package](package.json) engine range,
 and the npm bundled with that Node.js release, matching CI.
 
 ```sh
 npm ci
+python -m pip install --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) defines all nine required phase
+The [canonical manifest](.agents/validation.json) defines all ten required phase
 checks. Unit tests run in Node with synthetic fetch responses and dotenv loading
 disabled. They produce `coverage/unit/lcov.info`; Node governance tests produce
 `coverage/governance/lcov.info`. These are real measurements of the published source

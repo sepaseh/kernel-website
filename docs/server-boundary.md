@@ -3,8 +3,7 @@
 [English](server-boundary.md) · [فارسی](server-boundary.fa.md)
 
 This phase publishes framework-independent API forwarding and document CSP policy
-helpers with synthetic Node tests. The exact source inventory contains twenty-four
-production modules and five source test files. `applicationReady:false` remains
+helpers with synthetic Node tests. The wider [client-document phase](client-document.md) contains thirty-seven production modules and fifteen source test files; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
 mandatory. No Next.js route, request nonce generator, renderer or browser behavior
 is provided or verified by these helpers.
 
@@ -46,13 +45,13 @@ attach headers or establish that a browser enforces CSP.
 
 ## Validation and remaining publication
 
-Run the entire nine-check `npm run validate -- full` gate on this exact isolated
+Run the entire ten-check `npm run validate -- full` gate on this exact isolated
 snapshot before commit, push or PR handoff. It includes measured unit/governance
-coverage, strict inventory and closed imports, without runtime packages or dotenv.
+coverage, strict inventory and closed imports, without contacting an existing API or loading dotenv.
 Tests mock fetch and use synthetic Web streams; they never contact an existing API.
 
 Later focused PRs must publish Next.js routes, the server-only nonce adapter and
-request-header replacement, translation rendering, actual UI, SEO and browser
+request-header replacement, translation rendering, actual UI, framework metadata integration and browser
 fixtures. Before any runnable-app merge, introduce the complete fifteen-check
 application gate, observe real build/e2e/visual jobs pass and make their contexts
 required. This phase's pass cannot establish those results. The [branch policy](branch-protection.md)

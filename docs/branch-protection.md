@@ -2,8 +2,8 @@
 
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
-The **foundation**, **localization** and **server-boundary** phases remain non-runnable with
-`applicationReady:false` and explicit source inventories. All three phases require
+The **foundation**, **localization**, **server-boundary** and **client-document** phases remain non-runnable with
+`applicationReady:false` and explicit source inventories. All these phases require
 these native checks:
 
 | Required published-phase check | Expected GitHub App         |

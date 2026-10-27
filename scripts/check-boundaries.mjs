@@ -5,6 +5,19 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/shared/api/client.ts",
+  "src/features/auth/api.ts",
+  "src/features/account/api.ts",
+  "src/features/login/api.ts",
+  "src/features/register/api.ts",
+  "src/features/recovery/api.ts",
+  "src/shared/seo/config.ts",
+  "src/shared/seo/metadata.ts",
+  "src/shared/seo/structured-data.ts",
+  "src/shared/performance/web-vitals.ts",
+  "src/shared/fonts/preloads.ts",
+  "src/i18n/client-messages.ts",
+  "src/lib/utils.ts",
   "src/shared/api/proxy.ts",
   "src/shared/security/csp.ts",
   "src/shared/contracts/index.ts",
@@ -30,6 +43,39 @@ const publishedProductionFiles = new Set([
   "src/i18n/catalogs.ts",
   "src/shared/settings/language.ts",
 ]);
+const ownerPackages = new Map([
+  [
+    "src/shared/seo/metadata.ts",
+    [{ specifier: "next", package: "next", typeOnly: true }],
+  ],
+  [
+    "src/shared/performance/web-vitals.ts",
+    [{ specifier: "next/web-vitals", package: "next", typeOnly: true }],
+  ],
+  [
+    "src/i18n/client-messages.ts",
+    [{ specifier: "next-intl", package: "next-intl", typeOnly: true }],
+  ],
+  [
+    "src/lib/utils.ts",
+    [
+      { specifier: "clsx", package: "clsx", typeOnly: false },
+      {
+        specifier: "tailwind-merge",
+        package: "tailwind-merge",
+        typeOnly: false,
+      },
+    ],
+  ],
+]);
+const runtimePackages = [
+  "clsx",
+  "next",
+  "next-intl",
+  "react",
+  "react-dom",
+  "tailwind-merge",
+];
 const inside = (root, file) => {
   const relative = path.relative(root, file);
   return (
@@ -100,13 +146,32 @@ export const boundaryViolation = ({
   specifier,
   resolved,
   typeOnly,
+  resolvedPackage,
 }) => {
   if (!specifier)
     return "Use explicit module entrypoints instead of computed imports";
-  if (!specifier.startsWith(".") && !specifier.startsWith("@/"))
-    return "Published imports must use local relative paths or the project alias";
+  const owner = path.relative(root, file).replaceAll(path.sep, "/");
+  if (!specifier.startsWith(".") && !specifier.startsWith("@/")) {
+    const allowed = ownerPackages
+      .get(owner)
+      ?.some(
+        (entry) =>
+          entry.specifier === specifier &&
+          entry.package === resolvedPackage &&
+          entry.typeOnly === typeOnly,
+      );
+    return allowed &&
+      resolved &&
+      inside(path.join(root, "node_modules"), resolved)
+      ? undefined
+      : "Package imports require an exact owner, installed package and runtime/type-only permission";
+  }
   const relativeTarget =
     resolved && path.relative(root, resolved).replaceAll(path.sep, "/");
+  if (relativeTarget === "src/shared/fonts/manifest.json")
+    return owner === "src/shared/fonts/preloads.ts" && !typeOnly
+      ? undefined
+      : "Only the font preload helper may load the published font manifest";
   if (!relativeTarget || !publishedProductionFiles.has(relativeTarget))
     return "Published imports must resolve only to published local production modules";
 
@@ -159,8 +224,29 @@ export const checkBoundaries = async (root = repository) => {
     await readFile(path.join(root, "package.json"), "utf8"),
   );
   const violations = [];
-  if (Object.keys(manifest.dependencies ?? {}).length)
-    violations.push("This publication has no runtime dependencies");
+  const dependencies = Object.keys(manifest.dependencies ?? {}).sort();
+  if (
+    JSON.stringify(dependencies) !== JSON.stringify(runtimePackages) ||
+    Object.values(manifest.dependencies ?? {}).some(
+      (version) =>
+        typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version),
+    )
+  )
+    violations.push(
+      "This publication requires exactly its declared client/document packages",
+    );
+  if (
+    Object.values(manifest.devDependencies ?? {}).some(
+      (version) =>
+        typeof version !== "string" ||
+        /^(?:npm:|file:|link:|workspace:|git|https?:|\.|\/|[a-z]:[\\/])/i.test(
+          version,
+        ),
+    )
+  )
+    violations.push(
+      "Development packages must not link local source, aliases or remote repositories",
+    );
   if (manifest.workspaces !== undefined)
     violations.push("A standalone project must not declare npm workspaces");
   for (const name of await readdir(root))
@@ -213,6 +299,7 @@ export const checkBoundaries = async (root = repository) => {
                 specifier: edge.specifier,
                 resolved: target,
                 typeOnly: edge.typeOnly,
+                resolvedPackage: resolved?.packageId?.name,
               });
           return violation
             ? path.relative(root, file) +
