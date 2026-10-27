@@ -38,3 +38,5 @@ verification. [Evaluation](comprehension-evaluation.md) separately addresses sta
 navigation, observed instruction discovery and measured source understanding.
 
 For deterministic quality tooling, start with the integration-tooling task in the machine navigation and [testing](testing.md). Inspect the explicit API resolver, bundle/budget parser, performance environment and visual metadata/lock helper plus their three Node owner-test files. Their required check is measured governance coverage; browser routes, launchers and historical image compatibility remain outside this phase.
+
+For delivery-tooling, inspect the published readiness/copy/package, public configuration, explicit health, scoped cleanup and target-validation owners through the delivery-tooling machine task. [Deployment preparation](deployment.md) and [release operations](release-operations.md) describe synthetic evidence and passive templates. The required check is measured governance coverage; core CLIs are unavailable in this false phase and remote workflows remain deferred.

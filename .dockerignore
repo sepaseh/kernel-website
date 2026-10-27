@@ -1,0 +1,16 @@
+.git
+node_modules
+**/node_modules
+**/.next
+dist
+coverage
+playwright-report
+test-results
+.lighthouseci
+.env*
+**/.env*
+**/*.local
+**/*.pem
+**/*.key
+docs
+.agents

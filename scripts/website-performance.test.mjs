@@ -13,6 +13,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { gzipSync } from "node:zlib";
 
 import {
   clientAssetPath,
@@ -144,6 +145,97 @@ test("bundle manifests measure emitted JavaScript and CSS names containing tilde
     assert.equal(result.routes[route].javaScriptBytes, 150);
     assert.equal(result.routes[route].cssBytes, 20);
     assert.deepEqual(result.routes[route].files, result.files);
+  }
+});
+
+test("entry JavaScript joins both route graphs, deduplicates and cannot bypass route budgets", async (t) => {
+  const { build, write } = await fixture(t);
+  const entry = "static/chunks/entry~route.js";
+  const contents = "entry".repeat(12);
+  await write(entry, contents);
+  const graph = {
+    ...clientGraph(),
+    entryJSFiles: {
+      layout: ["/_next/static/chunks/shared.js", entry],
+      page: [`/_next/${entry}`, "static/chunks/page.js"],
+    },
+  };
+  await Promise.all(
+    ["page", "nested/page"].map((name) =>
+      write(
+        `server/app/${name}_client-reference-manifest.js`,
+        assignment(graph),
+      ),
+    ),
+  );
+
+  const result = await measureWebsiteBundle(build);
+  const expectedBytes = 150 + Buffer.byteLength(contents);
+  const expectedGzipBytes = ["x".repeat(100), "y".repeat(50), contents].reduce(
+    (total, source) => total + gzipSync(source, { level: 9 }).length,
+    0,
+  );
+  const expectedFiles = [
+    entry,
+    "static/chunks/page.js",
+    "static/chunks/shared.js",
+    "static/chunks/style.css",
+  ];
+  assert.equal(result.javaScriptBytes, expectedBytes);
+  assert.equal(result.javaScriptGzipBytes, expectedGzipBytes);
+  assert.equal(result.largestJavaScriptBytes, 100);
+  for (const route of ["/", "/nested"]) {
+    assert.equal(result.routes[route].javaScriptBytes, expectedBytes);
+    assert.equal(result.routes[route].javaScriptGzipBytes, expectedGzipBytes);
+    assert.equal(result.routes[route].cssBytes, 20);
+    assert.deepEqual(result.routes[route].files, expectedFiles);
+  }
+  assert.deepEqual(
+    evaluateWebsiteBudget(result, {
+      ...budget,
+      totalJavaScriptBytes: expectedBytes,
+      routeJavaScriptGzipBytes: expectedGzipBytes,
+    }).sort(),
+    [
+      `/ client graph JavaScript: ${expectedBytes} bytes exceeds 150`,
+      `/nested client graph JavaScript: ${expectedBytes} bytes exceeds 150`,
+    ],
+  );
+});
+
+test("optional entry JavaScript accepts missing or empty maps and rejects malformed lists", () => {
+  assert.deepEqual(
+    parseClientManifest(assignment({ ...clientGraph(), entryJSFiles: {} })),
+    { ...clientGraph(), entryJSFiles: {} },
+  );
+  for (const entryJSFiles of [
+    null,
+    [],
+    "not-an-object",
+    0,
+    { page: "static/chunks/page.js" },
+    { page: [1] },
+    { page: [null] },
+    { page: [{}] },
+  ])
+    assert.throws(
+      () => parseClientManifest(assignment({ ...clientGraph(), entryJSFiles })),
+      /Invalid Next client entry JavaScript list/,
+    );
+});
+
+test("entry JavaScript rejects unsafe and missing assets through the common asset boundary", async (t) => {
+  const { build, write } = await fixture(t);
+  for (const [entry, error] of [
+    ["static/../private.js", /Not a browser JS\/CSS asset/],
+    ["https://external.test/entry.js", /Not a browser JS\/CSS asset/],
+    ["static/chunks/missing.js", /Missing browser asset/],
+  ]) {
+    await write(
+      "server/app/page_client-reference-manifest.js",
+      assignment({ ...clientGraph(), entryJSFiles: { page: [entry] } }),
+    );
+    await assert.rejects(measureWebsiteBundle(build), error);
   }
 });
 

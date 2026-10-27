@@ -1,11 +1,14 @@
-# Canonical validation for integration tooling
+# Canonical validation for delivery tooling
 
 [English](validation.md) · [فارسی](validation.fa.md)
 
 [.agents/validation.json](../.agents/validation.json) is the sole command/profile
-inventory. **integration-tooling** retains eleven required checks; three new
-tooling owner-test files join required governance coverage, not unexecuted advisory
-entries. settings.recommendedChecks is a checked full-profile projection.
+inventory. **delivery-tooling** retains eleven required checks over the exact
+303-file non-runnable inventory. Four retained integration helpers with three Node
+owner-test files and eight delivery helpers with six Node owner-test files stay in
+required governance coverage, not unexecuted advisory entries. The existing eleven
+audit regression cases remain in the Vitest unit suite; their runner and coverage
+owner are unchanged. settings.recommendedChecks is a checked full-profile projection.
 [Contributing](../CONTRIBUTING.md) owns installation, authorization and exact-tree
 handoff requirements.
 
@@ -26,11 +29,30 @@ is development evidence, not a replacement for full:
 node --test scripts/api-repository.test.mjs scripts/website-performance.test.mjs scripts/visual-environment.test.mjs
 ```
 
+Select matching delivery owner files from [testing](testing.md), for example:
+
+```sh
+node --test scripts/release-files.test.mjs scripts/prepare-standalone.test.mjs scripts/package-release.test.mjs
+```
+
+These focused Node commands do not run the Vitest audit regression or the entire
+gate. Use the canonical full profile for complete handoff evidence; never remove
+an existing selector or exclude source to make a runner pass.
+
 Keep production source in measured analysis/coverage, 90% unit and 80% governance
 thresholds, and required real font verification. Synthetic bundle fixtures and
 owned loopback listener probes measure tooling behavior only. They do not build
 an app, launch an API/browser or compare images. The phase registers no browser,
 Lighthouse, Knip or deployment execution command.
+
+Core delivery CLIs read the unlinked public readiness policy and refuse this
+applicationReady:false phase before configuration/network/artifact operations.
+Synthetic test roots may declare readiness to exercise actual local copying and
+immutable packaging; that marker does not establish a working application.
+Public configuration values, injected engine callbacks and owned health listeners
+keep evidence local. Passive native/Docker templates, release configuration and
+historical changelog entries do not activate a provider workflow or deployment.
+See [delivery acceptance](deployment.md) and [operations](release-operations.md).
 
 The API location helper requires KERNEL_SYNTHETIC_ENV=1 and an absolute explicit
 KERNEL_API_DIRECTORY; tests supply owned synthetic directories. Marker validation

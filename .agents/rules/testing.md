@@ -47,3 +47,5 @@ private state, shared Docker resources or unrelated source. No production
 endpoints, databases, storage or credentials belong in a fixture.
 
 Independent quality-helper tests belong in required governance coverage. Use owned synthetic directories/build graphs, explicit API fixture paths and metadata/lock fixtures. Do not import deferred launchers or rely on sibling checkouts. Read [testing](../../docs/testing.md) and [validation](../../docs/validation.md); no browser or application execution is established by these Node cases.
+
+Delivery tests must keep current applicationReady false. Only owned synthetic fixture roots may carry a true marker for real copy/archive/guard tests; inject Docker callbacks and bind fresh loopback health servers instead of using an engine or existing service. The existing audit regression remains in its measured Vitest unit suite, with the subprocess boundary mocked so unit tests do not contact the registry. Preserve first failure logs and distinguish these results from build/container/provider readiness.

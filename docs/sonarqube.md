@@ -120,3 +120,5 @@ request only after preflight passes and the remote action is explicitly
 authorized; a skipped or quota-limited review is not a completed review.
 
 The integration-tooling phase keeps all four independent quality helpers under scripts in the existing analysis scope. The three Node owner-test files produce genuine governance LCOV from the same source tree; no tooling source or coverage exclusion is added. Synthetic build, explicit fixture-location, environment, metadata and lock tests do not establish an application, API or browser run. See [testing](testing.md) and [validation](validation.md).
+
+All eight new delivery Node helpers stay under scripts in the existing analysis scope, with genuine coverage from the six Node owner files and the existing audit regression. Passive Docker/native shell/configuration templates have static and owned fixture contract checks; Node LCOV does not measure shell source or prove a container/service run. No source, rule, coverage or duplication exception is added. A locally prepared package has no new hosted analysis until it is separately authorized and published after the current PR merges.

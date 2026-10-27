@@ -232,6 +232,56 @@
       ]
     },
     {
+      "id": "delivery-tooling",
+      "when": "Change readiness-guarded artifact preparation, public configuration rendering, explicit health/target validation, owned cleanup or inert deployment references. No application build, API, Docker/browser launch, release or workflow activation is established.",
+      "owners": [
+        "scripts/release-files.mjs",
+        "scripts/prepare-standalone.mjs",
+        "scripts/package-release.mjs",
+        "scripts/validate-deployment-env.mjs",
+        "scripts/render-deployment.mjs",
+        "scripts/healthcheck.mjs",
+        "scripts/docker-smoke-cleanup.mjs",
+        "scripts/validate-workflow-targets.mjs",
+        "deploy/docker",
+        "deploy/native"
+      ],
+      "contracts": [
+        ".github/bootstrap-policy.json",
+        "docs/deployment.md",
+        "docs/release-operations.md",
+        "docs/releasing.md",
+        "docs/staging.md",
+        "docs/security/authentication-review.md",
+        "docs/security/reviews.md",
+        "docs/security/threat-model.md",
+        "release-please-config.json",
+        ".release-please-manifest.json",
+        "CHANGELOG.md",
+        ".env.example",
+        ".agents/rules/testing.md"
+      ],
+      "tests": [
+        "scripts/deployment.test.mjs",
+        "scripts/docker-smoke-cleanup.test.mjs",
+        "scripts/package-release.test.mjs",
+        "scripts/prepare-standalone.test.mjs",
+        "scripts/release-files.test.mjs",
+        "scripts/validate-workflow-targets.test.mjs",
+        "scripts/run-audit.test.mjs",
+        "scripts/validate-bootstrap.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "audit",
+        "lint",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
       "id": "guidance",
       "when": "Change portable instructions, optional hooks, source navigation, canonical validation, ADRs or evaluation templates.",
       "owners": [

@@ -30,6 +30,12 @@ export function parseClientManifest(text) {
     !record(manifest.entryCSSFiles)
   )
     throw new Error("Next client manifest has no client/CSS graph.");
+  if (
+    manifest.entryJSFiles !== undefined &&
+    (!record(manifest.entryJSFiles) ||
+      Object.values(manifest.entryJSFiles).some((items) => !assetList(items)))
+  )
+    throw new Error("Invalid Next client entry JavaScript list.");
   for (const item of Object.values(manifest.clientModules))
     if (!record(item) || !assetList(item.chunks))
       throw new Error("Invalid Next client chunk list.");
@@ -141,10 +147,11 @@ async function pageAssets(root, entry) {
   const chunks = Object.values(manifest.clientModules).flatMap(
     (item) => item.chunks,
   );
+  const entryJavaScript = Object.values(manifest.entryJSFiles ?? {}).flat();
   const css = Object.values(manifest.entryCSSFiles).flatMap((items) =>
     items.map((item) => (typeof item === "string" ? item : item.path)),
   );
-  return [...chunks, ...css];
+  return [...chunks, ...entryJavaScript, ...css];
 }
 
 function summarizeAssets(files, assets) {

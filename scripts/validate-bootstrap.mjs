@@ -308,6 +308,65 @@ const integrationToolingFiles = [
   "scripts/website-performance.test.mjs",
 ];
 const integrationToolingPaths = new Set(integrationToolingFiles);
+const deliveryToolingFiles = [
+  ".dockerignore",
+  ".env.example",
+  ".release-please-manifest.json",
+  "CHANGELOG.fa.md",
+  "CHANGELOG.md",
+  "deploy/docker/.env.example",
+  "deploy/docker/15-validate-configuration.sh",
+  "deploy/docker/compose.yaml",
+  "deploy/docker/Dockerfile",
+  "deploy/docker/nginx.conf.template",
+  "deploy/docker/README.fa.md",
+  "deploy/docker/README.md",
+  "deploy/docker/website-entrypoint.sh",
+  "deploy/native/hosts.env.example",
+  "deploy/native/nginx/bootstrap.conf.template",
+  "deploy/native/nginx/kernel.conf.template",
+  "deploy/native/README.fa.md",
+  "deploy/native/README.md",
+  "deploy/native/systemd/kernel-website.service",
+  "deploy/native/website.env.example",
+  "docs/deployment.fa.md",
+  "docs/deployment.md",
+  "docs/release-operations.fa.md",
+  "docs/release-operations.md",
+  "docs/releasing.fa.md",
+  "docs/releasing.md",
+  "docs/security/authentication-review.fa.md",
+  "docs/security/authentication-review.md",
+  "docs/security/reviews.fa.md",
+  "docs/security/reviews.md",
+  "docs/security/threat-model.fa.md",
+  "docs/security/threat-model.md",
+  "docs/staging.fa.md",
+  "docs/staging.md",
+  "release-please-config.json",
+  "scripts/deployment.test.mjs",
+  "scripts/docker-smoke-cleanup.mjs",
+  "scripts/docker-smoke-cleanup.test.mjs",
+  "scripts/healthcheck.mjs",
+  "scripts/package-release.mjs",
+  "scripts/package-release.test.mjs",
+  "scripts/prepare-standalone.mjs",
+  "scripts/prepare-standalone.test.mjs",
+  "scripts/release-files.mjs",
+  "scripts/release-files.test.mjs",
+  "scripts/render-deployment.mjs",
+  "scripts/validate-deployment-env.mjs",
+  "scripts/validate-workflow-targets.mjs",
+  "scripts/validate-workflow-targets.test.mjs",
+];
+const deliveryToolingPaths = new Set(deliveryToolingFiles);
+const publicDeliveryExamples = new Set([
+  ".env.example",
+  "deploy/docker/.env.example",
+  "deploy/native/hosts.env.example",
+  "deploy/native/website.env.example",
+]);
+const toolingPhases = ["integration-tooling", "delivery-tooling"];
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
   ([
@@ -327,6 +386,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "delivery-tooling":
+    "Published local artifact preparation, public configuration/target validation and inert delivery templates with owned synthetic tests. The readiness guard refuses this non-runnable snapshot; no application build, API, browser, Docker engine, deployment, release or provider workflow activation is established.",
   "integration-tooling":
     "Published deterministic bundle, fixture-location, performance-environment and visual-environment helpers with owned synthetic tests and phase-accurate guidance over unchanged local feature/UI support. No application build, API fixture, browser, screenshot, Lighthouse, accessibility or deployment execution is established.",
   guidance:
@@ -374,10 +435,11 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
     : []),
   ...(["client-ui", "feature-ui"].includes(sourcePhase) ? clientUiFiles : []),
   ...(sourcePhase === "feature-ui" ? featureUiFiles : []),
-  ...(["guidance", "integration-tooling"].includes(phase) ? guidanceFiles : []),
-  ...(phase === "integration-tooling"
+  ...(["guidance", ...toolingPhases].includes(phase) ? guidanceFiles : []),
+  ...(toolingPhases.includes(phase)
     ? [...maintainedSupportFiles, ...integrationToolingFiles]
     : []),
+  ...(phase === "delivery-tooling" ? deliveryToolingFiles : []),
 ];
 
 export const validateBootstrapPolicy = (policy) => {
@@ -390,7 +452,7 @@ export const validateBootstrapPolicy = (policy) => {
     !policy.allowedFiles.length
   )
     throw new Error("An explicit non-runnable publication phase is required.");
-  const sourcePhase = ["guidance", "integration-tooling"].includes(policy.phase)
+  const sourcePhase = ["guidance", ...toolingPhases].includes(policy.phase)
     ? "feature-ui"
     : policy.phase;
   const files = new Set();
@@ -400,20 +462,29 @@ export const validateBootstrapPolicy = (policy) => {
       !file ||
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
-      /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:apps|packages|drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
+      /[*?[\]{}:\0\r\n]/.test(file) ||
+      /^(?:apps|packages|drizzle|collection|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
+      ((file === "deploy" || file.startsWith("deploy/")) &&
+        (policy.phase !== "delivery-tooling" ||
+          !deliveryToolingPaths.has(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
         (policy.phase === "governance" ||
           !isPublishedSource(file, sourcePhase))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
-      /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
+      (/(?:^|\/)(?:\.env(?:\.|$)|[^/]+\.env(?:\.|$)|settings\.local\.json$)/i.test(
+        file,
+      ) &&
+        (policy.phase !== "delivery-tooling" ||
+          !publicDeliveryExamples.has(file))) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
-      (policy.phase !== "integration-tooling" &&
+      (!toolingPhases.includes(policy.phase) &&
         integrationToolingPaths.has(file)) ||
+      (!toolingPhases.includes(policy.phase) &&
+        deliveryToolingPaths.has(file)) ||
       files.has(file)
     )
       throw new Error(
@@ -426,11 +497,11 @@ export const validateBootstrapPolicy = (policy) => {
     throw new Error(
       "The bootstrap policy cannot omit its mandatory guard files.",
     );
-  if (policy.phase === "integration-tooling") {
+  if (toolingPhases.includes(policy.phase)) {
     const declaredClosure = new Set(requiredFiles);
     if ([...files].some((file) => !declaredClosure.has(file)))
       throw new Error(
-        "Integration tooling files must match the closed published inventory.",
+        "Tooling files must match the closed published inventory.",
       );
   }
   return files;

@@ -10,12 +10,80 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   inspectBootstrap,
   validateBootstrapPolicy,
 } from "./validate-bootstrap.mjs";
+
+const deliveryPublishedFiles = [
+  ".dockerignore",
+  ".env.example",
+  ".release-please-manifest.json",
+  "CHANGELOG.fa.md",
+  "CHANGELOG.md",
+  "deploy/docker/.env.example",
+  "deploy/docker/15-validate-configuration.sh",
+  "deploy/docker/compose.yaml",
+  "deploy/docker/Dockerfile",
+  "deploy/docker/nginx.conf.template",
+  "deploy/docker/README.fa.md",
+  "deploy/docker/README.md",
+  "deploy/docker/website-entrypoint.sh",
+  "deploy/native/hosts.env.example",
+  "deploy/native/nginx/bootstrap.conf.template",
+  "deploy/native/nginx/kernel.conf.template",
+  "deploy/native/README.fa.md",
+  "deploy/native/README.md",
+  "deploy/native/systemd/kernel-website.service",
+  "deploy/native/website.env.example",
+  "docs/deployment.fa.md",
+  "docs/deployment.md",
+  "docs/release-operations.fa.md",
+  "docs/release-operations.md",
+  "docs/releasing.fa.md",
+  "docs/releasing.md",
+  "docs/security/authentication-review.fa.md",
+  "docs/security/authentication-review.md",
+  "docs/security/reviews.fa.md",
+  "docs/security/reviews.md",
+  "docs/security/threat-model.fa.md",
+  "docs/security/threat-model.md",
+  "docs/staging.fa.md",
+  "docs/staging.md",
+  "release-please-config.json",
+  "scripts/deployment.test.mjs",
+  "scripts/docker-smoke-cleanup.mjs",
+  "scripts/docker-smoke-cleanup.test.mjs",
+  "scripts/healthcheck.mjs",
+  "scripts/package-release.mjs",
+  "scripts/package-release.test.mjs",
+  "scripts/prepare-standalone.mjs",
+  "scripts/prepare-standalone.test.mjs",
+  "scripts/release-files.mjs",
+  "scripts/release-files.test.mjs",
+  "scripts/render-deployment.mjs",
+  "scripts/validate-deployment-env.mjs",
+  "scripts/validate-workflow-targets.mjs",
+  "scripts/validate-workflow-targets.test.mjs",
+];
+const readPublicationPolicy = async () =>
+  JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+const integrationPolicy = async () => {
+  const declared = await readPublicationPolicy();
+  return {
+    ...declared,
+    phase: "integration-tooling",
+    allowedFiles: declared.allowedFiles.filter(
+      (file) => !deliveryPublishedFiles.includes(file),
+    ),
+  };
+};
 
 const coreFiles = [
   ".github/bootstrap-policy.json",
@@ -426,13 +494,8 @@ test("server-boundary inspects its exact non-runnable snapshot", async (context)
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
 });
 
-test("integration tooling retains complete forms, support, owner tests and fonts while remaining non-runnable", async () => {
-  const declared = JSON.parse(
-    await readFile(
-      new URL("../.github/bootstrap-policy.json", import.meta.url),
-      "utf8",
-    ),
-  );
+test("integration tooling retains complete forms, support, owner tests and fonts while remaining non-runnable", async (context) => {
+  const declared = await integrationPolicy();
   assert.equal(declared.phase, "integration-tooling");
   assert.equal(declared.applicationReady, false);
   assert.equal(validateBootstrapPolicy(declared).size, 254);
@@ -486,20 +549,14 @@ test("integration tooling retains complete forms, support, owner tests and fonts
   assert.throws(() =>
     validateBootstrapPolicy({ ...declared, phase: "server-boundary" }),
   );
-  const result = await inspectBootstrap(
-    fileURLToPath(new URL("../", import.meta.url)),
-  );
+  const { root } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
   assert.equal(result.phase, "integration-tooling");
   assert.equal(result.applicationReady, false);
 });
 
 test("integration tooling requires its executable policy, optional hooks, indexes and bilingual architecture records", async () => {
-  const declared = JSON.parse(
-    await readFile(
-      new URL("../.github/bootstrap-policy.json", import.meta.url),
-      "utf8",
-    ),
-  );
+  const declared = await integrationPolicy();
   for (const file of [
     ".agents/README.md",
     ".agents/settings.json",
@@ -526,12 +583,7 @@ test("integration tooling requires its executable policy, optional hooks, indexe
 });
 
 test("integration tooling closes over every helper, owner test, guide pair and maintained support file", async () => {
-  const declared = JSON.parse(
-    await readFile(
-      new URL("../.github/bootstrap-policy.json", import.meta.url),
-      "utf8",
-    ),
-  );
+  const declared = await integrationPolicy();
   const toolingFiles = [
     "scripts/api-repository.mjs",
     "scripts/api-repository.test.mjs",
@@ -600,12 +652,7 @@ test("integration tooling closes over every helper, owner test, guide pair and m
 });
 
 test("integration tooling inspects exact owned files and rejects missing, private, linked or activating additions", async (context) => {
-  const declared = JSON.parse(
-    await readFile(
-      new URL("../.github/bootstrap-policy.json", import.meta.url),
-      "utf8",
-    ),
-  );
+  const declared = await integrationPolicy();
   const { root, put } = await fixture(context, declared);
   const result = await inspectBootstrap(root);
   assert.equal(result.files, 254);
@@ -630,6 +677,137 @@ test("integration tooling inspects exact owned files and rejects missing, privat
     path.join(root, "docs"),
     path.join(root, "linked-docs"),
     "junction",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+test("delivery tooling closes over exactly49 additions to the historical254-file integration phase", async () => {
+  const declared = await readPublicationPolicy();
+  const historical = await integrationPolicy();
+  assert.equal(declared.phase, "delivery-tooling");
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 303);
+  assert.equal(validateBootstrapPolicy(historical).size, 254);
+  assert.equal(deliveryPublishedFiles.length, 49);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !historical.allowedFiles.includes(file))
+      .sort(),
+    [...deliveryPublishedFiles].sort(),
+  );
+  for (const file of deliveryPublishedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+  for (const overrides of [
+    { applicationReady: true },
+    { maximumChangedFiles: 101 },
+    { phase: "application" },
+    { phase: "integration-tooling" },
+  ])
+    assert.throws(() => validateBootstrapPolicy({ ...declared, ...overrides }));
+});
+
+test("delivery tooling admits only its four exact public examples and rejects runtime, private or foreign paths", async () => {
+  const declared = await readPublicationPolicy();
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => /(?:^|\/)(?:\.env|[^/]+\.env)(?:\.|$)/.test(file))
+      .sort(),
+    [
+      ".env.example",
+      "deploy/docker/.env.example",
+      "deploy/native/hosts.env.example",
+      "deploy/native/website.env.example",
+    ],
+  );
+  for (const file of [
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".env.example/child",
+    "docs/.env.example",
+    "config/hosts.env.example",
+    "deploy/docker/.env",
+    "deploy/native/website.env",
+    "deploy/native/secret.env.example",
+    "deploy/native/WEBSITE.env.example",
+    "deploy/docker/id_rsa",
+    "deploy/docker/key.pem",
+    "deploy",
+    "deploy/unlisted.conf",
+    "deploy/docker/smoke.mjs",
+    "scripts/start-website.mjs",
+    "scripts/start-website.test.mjs",
+    "scripts/launch-delivery.mjs",
+    "scripts/foreign.env.example",
+    "playwright.smoke.config.ts",
+    "playwright.staging.config.ts",
+    "vitest.tooling.config.ts",
+    "e2e/operations/smoke.spec.ts",
+    "e2e/operations/staging.spec.ts",
+    ".github/workflows/codeql.yml",
+    ".github/workflows/dast.yml",
+    ".github/workflows/deployment-smoke.yml",
+    ".github/workflows/package-release.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/staging.yml",
+    "src/app/page.tsx",
+    "src/app/layout.tsx",
+    "src/proxy.ts",
+    "server/data/live.db",
+    "docs/foreign.md",
+    ".agents/settings.local.json",
+    "docs/invalid\0path.md",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  const foreign = {
+    ...declared,
+    allowedFiles: [...declared.allowedFiles, "docs/foreign.md"],
+  };
+  assert.throws(
+    () => validateBootstrapPolicy(foreign),
+    /closed published inventory/,
+  );
+});
+
+test("delivery tooling inspects303 files without activation and rejects missing, private or linked examples", async (context) => {
+  const declared = await readPublicationPolicy();
+  const { root, put } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "delivery-tooling");
+  assert.equal(result.files, 303);
+  assert.equal(result.applicationReady, false);
+  assert.match(result.scope, /readiness guard refuses/);
+  for (const file of [
+    ".env.local",
+    "deploy/native/website.env",
+    "deploy/docker/smoke.mjs",
+  ]) {
+    await put(file, "synthetic unexpected input; never load or execute\n");
+    await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+    await rm(path.join(root, file));
+  }
+  await rm(path.join(root, ".env.example"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, ".env.example"),
+    process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);
 });
