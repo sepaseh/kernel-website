@@ -6,7 +6,7 @@ maps published owners, contracts and tests. [validation.json](validation.json) o
 commands, profiles and CI execution. [evaluation/cases.json](evaluation/cases.json)
 supplies source-grounded questions and observable criteria.
 
-This guidance phase preserves the non-runnable feature snapshot. The source has
+This integration-tooling phase preserves the non-runnable feature snapshot. The source has
 local authentication/account forms and support modules; pages, a root layout, the
 CSS pipeline, browser journeys and deployment remain future integration work.
 Read [the phase guide](../docs/bootstrap.md) before selecting checks or claiming
@@ -41,3 +41,5 @@ Read [navigation](../docs/source-navigation.md),
 [contribution and validation policy](../CONTRIBUTING.md),
 [evaluation](../docs/comprehension-evaluation.md) and
 [source ownership](../docs/adr/0005-independent-repositories.md).
+
+The integration-tooling phase adds four independently tested quality helpers and three Node owner-test files while preserving the non-runnable product scope. [Testing](../docs/testing.md) and [validation](../docs/validation.md) explain their synthetic fixtures and actual evidence. Runtime launchers and browser activation remain deferred.

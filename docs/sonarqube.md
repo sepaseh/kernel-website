@@ -118,3 +118,5 @@ change invalidates this evidence. Recheck after fixes, respect review quotas and
 do not duplicate a request already in flight for the same head. Send one manual
 request only after preflight passes and the remote action is explicitly
 authorized; a skipped or quota-limited review is not a completed review.
+
+The integration-tooling phase keeps all four independent quality helpers under scripts in the existing analysis scope. The three Node owner-test files produce genuine governance LCOV from the same source tree; no tooling source or coverage exclusion is added. Synthetic build, explicit fixture-location, environment, metadata and lock tests do not establish an application, API or browser run. See [testing](testing.md) and [validation](validation.md).

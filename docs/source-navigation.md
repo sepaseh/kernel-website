@@ -36,3 +36,5 @@ Select checks from the [canonical manifest](../.agents/validation.json) and
 failures, skips and limits. A matching search line or past green result is not fresh
 verification. [Evaluation](comprehension-evaluation.md) separately addresses static
 navigation, observed instruction discovery and measured source understanding.
+
+For deterministic quality tooling, start with the integration-tooling task in the machine navigation and [testing](testing.md). Inspect the explicit API resolver, bundle/budget parser, performance environment and visual metadata/lock helper plus their three Node owner-test files. Their required check is measured governance coverage; browser routes, launchers and historical image compatibility remain outside this phase.

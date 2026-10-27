@@ -1,6 +1,6 @@
 {
   "name": "kernel-website-ai-guidance",
-  "description": "Portable local instructions and source navigation for the non-runnable website guidance phase; optional adapters do not establish host discovery.",
+  "description": "Guidance for project-owned contracts, catalogs, local feature/UI boundaries and deterministic integration tooling; application/API/browser activation remains deferred.",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

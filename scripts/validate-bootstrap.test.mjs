@@ -426,16 +426,16 @@ test("server-boundary inspects its exact non-runnable snapshot", async (context)
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
 });
 
-test("guidance retains complete forms, support, owner tests and fonts while remaining non-runnable", async () => {
+test("integration tooling retains complete forms, support, owner tests and fonts while remaining non-runnable", async () => {
   const declared = JSON.parse(
     await readFile(
       new URL("../.github/bootstrap-policy.json", import.meta.url),
       "utf8",
     ),
   );
-  assert.equal(declared.phase, "guidance");
+  assert.equal(declared.phase, "integration-tooling");
   assert.equal(declared.applicationReady, false);
-  assert.equal(validateBootstrapPolicy(declared).size, 233);
+  assert.equal(validateBootstrapPolicy(declared).size, 254);
   const older = new Set(serverBoundaryPolicy().allowedFiles);
   const added = declared.allowedFiles.filter(
     (file) =>
@@ -489,11 +489,11 @@ test("guidance retains complete forms, support, owner tests and fonts while rema
   const result = await inspectBootstrap(
     fileURLToPath(new URL("../", import.meta.url)),
   );
-  assert.equal(result.phase, "guidance");
+  assert.equal(result.phase, "integration-tooling");
   assert.equal(result.applicationReady, false);
 });
 
-test("guidance requires its executable policy, optional hooks, indexes and bilingual architecture records", async () => {
+test("integration tooling requires its executable policy, optional hooks, indexes and bilingual architecture records", async () => {
   const declared = JSON.parse(
     await readFile(
       new URL("../.github/bootstrap-policy.json", import.meta.url),
@@ -523,4 +523,113 @@ test("guidance requires its executable policy, optional hooks, indexes and bilin
       /mandatory/,
     );
   }
+});
+
+test("integration tooling closes over every helper, owner test, guide pair and maintained support file", async () => {
+  const declared = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const toolingFiles = [
+    "scripts/api-repository.mjs",
+    "scripts/api-repository.test.mjs",
+    "scripts/check-bundle-website.mjs",
+    "scripts/visual-environment.mjs",
+    "scripts/visual-environment.test.mjs",
+    "scripts/website-performance-environment.mjs",
+    "scripts/website-performance.test.mjs",
+    ...[
+      "accessibility",
+      "test-reliability",
+      "testing",
+      "validation",
+      "visual-regression",
+      "website-csp",
+      "website-performance",
+    ].flatMap((name) => [`docs/${name}.md`, `docs/${name}.fa.md`]),
+    "AGENTS.md",
+    "README.md",
+    "README.fa.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTING.fa.md",
+    "docs/bootstrap.md",
+    "docs/bootstrap.fa.md",
+    ".github/workflows/sonar.yml",
+    "scripts/run-audit.mjs",
+    "scripts/run-audit.test.mjs",
+  ];
+  for (const file of toolingFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+  for (const file of [
+    "scripts/test-website-api.mjs",
+    "scripts/test-website-server.mjs",
+    "scripts/run-visual.mjs",
+    "scripts/run-website-performance.mjs",
+    "scripts/prepare-standalone.mjs",
+    "playwright.website.config.ts",
+    "playwright.visual.config.ts",
+    "knip.json",
+    "vitest.tooling.config.ts",
+    "e2e/visual/baselines/win32/metadata.json",
+    ".github/workflows/browser.yml",
+    "docs/unlisted.md",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      /closed published inventory/,
+      file,
+    );
+  assert.throws(
+    () => validateBootstrapPolicy({ ...declared, phase: "guidance" }),
+    /declared phase/,
+  );
+});
+
+test("integration tooling inspects exact owned files and rejects missing, private, linked or activating additions", async (context) => {
+  const declared = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const { root, put } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
+  assert.equal(result.files, 254);
+  assert.equal(result.applicationReady, false);
+  assert.match(result.scope, /owned synthetic tests/);
+  for (const file of [
+    "scripts/test-website-api.mjs",
+    "src/app/page.tsx",
+    ".env.local",
+  ]) {
+    await put(
+      file,
+      "synthetic unexpected input; must not be loaded or executed\n",
+    );
+    await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+    await rm(path.join(root, file));
+  }
+  await rm(path.join(root, "scripts/api-repository.test.mjs"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await put("scripts/api-repository.test.mjs", "// synthetic fixture\n");
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, "linked-docs"),
+    "junction",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
 });
