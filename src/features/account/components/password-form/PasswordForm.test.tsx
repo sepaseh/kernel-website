@@ -57,22 +57,31 @@ function fill(password = "  secret value  ", confirmation = password) {
 describe("password change ownership", () => {
   it("preserves exact password whitespace and starts a new document after success", async () => {
     const writes: RequestInit[] = [];
-    setup(async (init) => {
+    let resolve!: (response: Response) => void;
+    setup((init) => {
       writes.push(init);
-      return new Response(null, { status: 204 });
+      return new Promise<Response>((yes) => {
+        resolve = yes;
+      });
     });
     await screen.findByLabelText("Current password");
     fill();
     fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+    expect(writes).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Please wait…" }).matches(":disabled"),
+    ).toBe(true);
+    expect(replaceDocument).not.toHaveBeenCalled();
+    expect(JSON.parse(String(writes[0].body))).toEqual({
+      current_password: "  current value  ",
+      new_password: "  secret value  ",
+    });
+    await act(async () => resolve(new Response(null, { status: 204 })));
     await waitFor(() =>
       expect(replaceDocument).toHaveBeenCalledExactlyOnceWith(
         "/login?password=changed",
       ),
     );
-    expect(JSON.parse(String(writes[0].body))).toEqual({
-      current_password: "  current value  ",
-      new_password: "  secret value  ",
-    });
   });
 
   it("rejects a mismatched confirmation without sending a request", async () => {

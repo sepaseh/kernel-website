@@ -1,6 +1,6 @@
 {
   "name": "kernel-website-ai-guidance",
-  "description": "Guidance for project-owned contracts, catalogs, local feature/UI boundaries and deterministic integration tooling; application/API/browser activation remains deferred.",
+  "description": "Guidance for local contracts, catalogs, feature/UI support, deterministic integration and delivery tooling; application/API/browser/deployment activation remains deferred.",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

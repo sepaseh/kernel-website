@@ -1,0 +1,63 @@
+# Future application template; current applicationReady:false refuses website startup/build.
+name: kernel-website
+services:
+  website:
+    image: ${IMAGE_PREFIX:-kernel-website}/website:${RELEASE_ID:?Set an immutable RELEASE_ID}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: website
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3001"
+      API_BASE_URL: ${API_BASE_URL:?Set the independent API origin}
+      WEBSITE_URL: ${WEBSITE_URL:-}
+      WEBSITE_INDEXING_ENABLED: ${WEBSITE_INDEXING_ENABLED:-false}
+      WEBSITE_CSP_MODE: ${WEBSITE_CSP_MODE-report-only}
+    expose: ["3001"]
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          scripts/healthcheck.mjs,
+          website,
+          "http://127.0.0.1:3001/login",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+  gateway:
+    image: ${IMAGE_PREFIX:-kernel-website}/gateway:${RELEASE_ID:?Set an immutable RELEASE_ID}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: gateway
+    environment:
+      WEBSITE_HOST: ${WEBSITE_HOST:?Set WEBSITE_HOST}
+      RELEASE_ID: ${RELEASE_ID:?Set an immutable RELEASE_ID}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+    volumes:
+      - type: bind
+        source: ${TLS_CERT_DIRECTORY:?Set absolute certificate directory}
+        target: /etc/kernel/tls
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      website:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped

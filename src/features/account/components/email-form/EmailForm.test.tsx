@@ -96,10 +96,18 @@ describe("email verification ownership", () => {
     });
     setup(write);
     await screen.findByLabelText("Email");
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Send code" })),
     );
+    await screen.findByText("Verification code requested.");
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Verify email",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
     fireEvent.change(email(), { target: { value: "other@example.test" } });
     expect(
       (
@@ -115,6 +123,7 @@ describe("email verification ownership", () => {
     await act(async () =>
       fireEvent.click(screen.getByRole("button", { name: "Send code" })),
     );
+    await screen.findByText("Verification code requested.");
     expect(write).toHaveBeenCalledTimes(2);
     expect(JSON.parse(String(writes[1].body))).toEqual({
       email: "other@example.test",

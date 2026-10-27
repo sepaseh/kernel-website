@@ -1,0 +1,38 @@
+[Unit]
+# Future application template; ExecStartPre requires the shipped ready phase marker.
+Description=Kernel website
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=kernel-web
+Group=kernel-web
+WorkingDirectory=/srv/kernel-website/current/website
+EnvironmentFile=/etc/kernel-website/website.env
+ExecStartPre=/usr/bin/node /srv/kernel-website/current/scripts/validate-deployment-env.mjs website
+ExecStart=/usr/bin/node /srv/kernel-website/current/website/server.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+UMask=0077
+CacheDirectory=kernel-website
+CacheDirectoryMode=0700
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/cache/kernel-website
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kernel-website
+
+[Install]
+WantedBy=multi-user.target

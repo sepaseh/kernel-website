@@ -4,6 +4,7 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rename,
   rm,
   symlink,
@@ -25,8 +26,8 @@ import {
 } from "./visual-environment.mjs";
 
 async function fixture(t) {
-  const root = await mkdtemp(
-    path.join(tmpdir(), "website-visual-environment-"),
+  const root = await realpath(
+    await mkdtemp(path.join(tmpdir(), "website-visual-environment-")),
   );
   t.after(() => rm(root, { recursive: true, force: true }));
   return root;

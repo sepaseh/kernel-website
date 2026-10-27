@@ -32,3 +32,5 @@ decision, destructive action, outside authority or a scope change. Preserve user
 authorization already provided; routine safe fixes need no repeated permission.
 
 For independent quality helpers, run their relevant Node owner tests first, then the required governance coverage check. Keep explicit fixture-location, bundle/budget, environment, metadata and locking failures observable in owned temporary projects. Read [testing](../../../docs/testing.md); deferred browser/API launchers are not part of this phase gate.
+
+For delivery tooling, run the matching registered Node owner cases with owned marked fixtures and injected engine callbacks. The current false source marker must never be toggled to run an operation. The complete canonical profile includes all delivery cases and the existing audit regression; static templates and synthetic archives do not establish an application build or deployment.

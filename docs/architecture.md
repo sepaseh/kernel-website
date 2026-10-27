@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The integration-tooling phase publishes one independently installable root TypeScript package,
+The delivery-tooling phase publishes one independently installable root TypeScript package,
 local feature/UI support and its maintained instructions. It is not a runnable
 Next.js application: routes, root layout, request adapter, global CSS, browser
 fixture and deployment are deferred. The accepted runtime direction remains
@@ -65,3 +65,7 @@ integration; support tests and static guidance checks do not establish it.
 ## Deterministic quality tooling
 
 The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects; production source remains unchanged. No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.
+
+## Delivery preparation boundary
+
+Eight Node delivery helpers own public configuration, explicit readiness checks, file/archive policy, packaging, cleanup and target validation. Their six owner-test files operate owned synthetic trees, injected Docker callbacks and owned loopback health servers. Operator templates remain passive. The source phase stays false; core CLIs read only the unlinked public readiness marker and refuse operations before configuration/network/artifact access. A synthetic ready marker is test data, not delivered application readiness. [Delivery](deployment.md), [operations](release-operations.md) and [security review](security/authentication-review.md) separate current local contracts from later runtime acceptance.
