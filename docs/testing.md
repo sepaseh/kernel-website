@@ -5,8 +5,11 @@
 Use the [canonical manifest](../.agents/validation.json) for commands and
 [validation](validation.md) for scope and sequencing. The **browser-foundation**
 phase has an exact 345-file inventory and remains non-runnable with
-applicationReady:false. Its 66 production modules, 34 source test files and three
-source test-support modules are unchanged. Four retained integration helpers with
+applicationReady:false. Its inventory retains 66 production modules, 34 source
+test files and three source test-support modules. The existing operation-scope
+hook now activates its mount token in layout setup, with a regression covering
+the earlier passive-activation gap; see [session ownership](session.md).
+Four retained integration helpers with
 three Node owner-test files and eight delivery helpers with six Node owner-test
 files retain their previous scope. The Node runner foundation adds six measured modules and six Node owner files; all actual runner operations reject the current false marker.
 

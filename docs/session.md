@@ -33,10 +33,14 @@ a new account read completes. Public login/register/OTP/recovery 401 responses d
 not emit session-expired; protected mutation 401 responses still do. This keeps
 a public form’s own error and values without weakening a genuine session refresh.
 
-[useOperationScope](../src/shared/hooks/use-operation-scope.ts) captures one active
-mount for an asynchronous operation. Effect cleanup permanently invalidates that
-capture, including StrictMode replay. A late completion cannot update that owner
-after replacement or unmount; it does not cancel or roll back an API write.
+[useOperationScope](../src/shared/hooks/use-operation-scope.ts) activates a fresh
+per-mount token in `useLayoutEffect` setup. A capture made after that owner's
+layout setup stays active through passive effects. Waiting until passive setup
+could leave committed work bound to the initial inactive token and suppress its
+successful feedback/navigation or busy-state cleanup. Layout cleanup permanently
+invalidates the captured token; StrictMode replay installs a new token rather
+than reviving an earlier capture. A late completion cannot update that owner
+after replacement or unmount; the guard does not cancel or roll back an API write.
 Accepted account mutations retain the provider’s separate key guard. OTP
 destination checks and pending guards remain owned by the form.
 
@@ -52,7 +56,8 @@ finite one-to-600-second bounds. Non-finite input becomes one second. Restarting
 replaces the prior timer; reaching zero or unmounting clears it. It does not own
 OTP rate limits or authorize retrying the server before its policy allows.
 
-Real React hook tests cover StrictMode effect replay, late reads/mutations,
+Real React hook tests cover committed-layout capture before passive effects,
+StrictMode effect replay, late reads/mutations,
 anonymous/error/retry, generation changes, locale round trips, event cleanup,
 countdown boundaries and timer cleanup. Form tests add pending operations,
 account replacement, scoped translations and late feedback/navigation checks. Requests use real local HTTP code with synthetic Responses and

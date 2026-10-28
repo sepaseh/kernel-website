@@ -64,7 +64,7 @@ integration; support tests and static guidance checks do not establish it.
 
 ## Deterministic quality tooling
 
-The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects; production source remains unchanged. No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.
+The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects and remain outside product-runtime composition. The current phase also corrects mount-token activation timing in the existing [operation owner](session.md). No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.
 
 ## Delivery preparation boundary
 

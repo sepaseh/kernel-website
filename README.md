@@ -27,7 +27,7 @@ modules, thirty-four source test files and three test-support modules:
   verification, password-change and logout controls; mount/session ownership
   protects local feedback and navigation from late results.
 
-Portable [guidance](.agents/README.md), [source navigation](docs/source-navigation.md), [architecture](docs/architecture.md), [design](DESIGN.md), [ADRs](docs/adr/README.md) and [evaluation templates](docs/comprehension-evaluation.md) now accompany that unchanged production scope. The indexes point only to published owners and tests. Optional host hooks/adapters do not establish automatic discovery, a benchmark result or runtime readiness.
+Portable [guidance](.agents/README.md), [source navigation](docs/source-navigation.md), [architecture](docs/architecture.md), [design](DESIGN.md), [ADRs](docs/adr/README.md) and [evaluation templates](docs/comprehension-evaluation.md) now accompany that existing production inventory. The current phase also corrects committed-mount activation of the existing operation guard; see [session ownership](docs/session.md). The indexes point only to published owners and tests. Optional host hooks/adapters do not establish automatic discovery, a benchmark result or runtime readiness.
 
 Read [forms](docs/forms.md), [client UI](docs/client-ui.md), [session ownership](docs/session.md),
 [client/document support](docs/client-document.md), [fonts](docs/fonts.md) and

@@ -73,7 +73,9 @@ node --test scripts/runner-process.test.mjs scripts/runner-inputs.test.mjs scrip
 
 An authorized commit, push or PR handoff still requires fresh Node and pinned
 Python installation plus `npm run validate -- full` on the exact isolated tree.
-The existing 66 product modules, source-test ownership and font checks are unchanged.
+The existing 66-module product inventory, source-test ownership and font checks
+are retained. The current phase also corrects operation-token activation timing;
+see [session ownership](session.md).
 
 There is no real Next.js build/start, independent API compatibility, browser/CSP,
 accessibility, visual comparison, Lighthouse, Docker or deployment result here.
