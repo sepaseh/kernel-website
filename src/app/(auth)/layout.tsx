@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { selectClientMessages } from "@/i18n/client-messages";
 import { getWebsiteLanguage } from "@/shared/settings/server";
 import { AuthLayout } from "@/website/layouts/AuthLayout";
-type Props = { children: ReactNode };
+type Props = Readonly<{ children: ReactNode }>;
 
 export default async function Layout({ children }: Props) {
   const [{ code: locale }, messages] = await Promise.all([

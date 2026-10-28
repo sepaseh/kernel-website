@@ -267,17 +267,12 @@ const applicationStepKind = (step) => {
     throw new Error(
       "Required application steps cannot override synthetic inputs.",
     );
-  if (
-    (kind === "checkout" &&
-      !sameRecord(step.with, { "persist-credentials": false })) ||
-    (kind === "node" &&
-      !sameRecord(step.with, {
-        "node-version-file": ".nvmrc",
-        cache: "npm",
-      })) ||
-    (kind === "python" &&
-      !sameRecord(step.with, { "python-version": "3.14.4" }))
-  )
+  const setupOptions = new Map([
+    ["checkout", { "persist-credentials": false }],
+    ["node", { "node-version-file": ".nvmrc", cache: "npm" }],
+    ["python", { "python-version": "3.14.4" }],
+  ]).get(kind);
+  if (setupOptions && !sameRecord(step.with, setupOptions))
     throw new Error(
       "Application actions must retain exact source and runtime setup.",
     );
@@ -334,7 +329,9 @@ const assertApplicationCi = (workflow, manifest) => {
       contents: "read",
       "pull-requests": "read",
     }) ||
-    Object.keys(workflow.jobs).sort().join(",") !== "build,check,e2e,visual" ||
+    Object.keys(workflow.jobs)
+      .sort((left, right) => left.localeCompare(right))
+      .join(",") !== "build,check,e2e,visual" ||
     manifest.checks
       .filter((check) => check.kind === "required")
       .map((check) => check.id)

@@ -2,10 +2,9 @@
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-type Props = {
-  error: unknown;
+type Props = Readonly<{
   retry: () => void;
-};
+}>;
 
 export default function ErrorPage({ retry }: Props) {
   const t = useTranslations();

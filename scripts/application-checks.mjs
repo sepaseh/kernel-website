@@ -47,11 +47,7 @@ async function knipCli(root) {
 }
 
 /** Execute one application check with explicit synthetic inputs and owned children. */
-export async function runApplicationCheck(
-  root = repository,
-  mode,
-  options = {},
-) {
+export async function runApplicationCheck(root, mode, options = {}) {
   const directory = await readyRunnerRoot(root);
   if (!modes.has(mode)) throw new Error("Unknown application check.");
   const signal = options.signal;

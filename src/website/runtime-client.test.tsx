@@ -79,9 +79,10 @@ describe("live client session and recovery controls", () => {
 
   it("renders a localized retry action and delegates to the framework retry callback", () => {
     const retry = vi.fn();
+    const frameworkError = { error: "private diagnostic", retry };
     render(
       <TestIntlProvider>
-        <ErrorPage error="private diagnostic" retry={retry} />
+        <ErrorPage {...frameworkError} />
       </TestIntlProvider>,
     );
     expect(

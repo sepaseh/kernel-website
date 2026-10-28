@@ -122,6 +122,7 @@
     width: calc(100% - 32px);
   }
 }
+/* Keep motion overrides unlayered so they outrank Tailwind utility layers. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -129,7 +130,7 @@
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms;
+    transition-duration: 0.01ms;
   }
 }

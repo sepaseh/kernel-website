@@ -464,6 +464,29 @@ const localSourceViolation = ({
   return undefined;
 };
 
+const packageSourceViolation = ({
+  root,
+  owner,
+  specifier,
+  resolved,
+  typeOnly,
+  resolvedPackage,
+}) => {
+  const allowed = ownerPackages
+    .get(owner)
+    ?.some(
+      (entry) =>
+        entry.specifier === specifier &&
+        entry.package === resolvedPackage &&
+        entry.typeOnly === typeOnly,
+    );
+  return allowed &&
+    resolved &&
+    inside(path.join(root, "node_modules", resolvedPackage), resolved)
+    ? undefined
+    : "Package imports require an exact owner, installed package and runtime/type-only permission";
+};
+
 export const boundaryViolation = ({
   root,
   file,
@@ -475,21 +498,15 @@ export const boundaryViolation = ({
   if (!specifier)
     return "Use explicit module entrypoints instead of computed imports";
   const owner = path.relative(root, file).replaceAll(path.sep, "/");
-  if (!specifier.startsWith(".") && !specifier.startsWith("@/")) {
-    const allowed = ownerPackages
-      .get(owner)
-      ?.some(
-        (entry) =>
-          entry.specifier === specifier &&
-          entry.package === resolvedPackage &&
-          entry.typeOnly === typeOnly,
-      );
-    return allowed &&
-      resolved &&
-      inside(path.join(root, "node_modules", resolvedPackage), resolved)
-      ? undefined
-      : "Package imports require an exact owner, installed package and runtime/type-only permission";
-  }
+  if (!specifier.startsWith(".") && !specifier.startsWith("@/"))
+    return packageSourceViolation({
+      root,
+      owner,
+      specifier,
+      resolved,
+      typeOnly,
+      resolvedPackage,
+    });
   const relativeTarget =
     resolved && path.relative(root, resolved).replaceAll(path.sep, "/");
   if (relativeTarget === "src/app/globals.css")

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { proxy } from "./proxy";
+import { config, proxy } from "./proxy";
 
 beforeEach(() => {
   vi.stubEnv("NODE_ENV", "production");
@@ -13,6 +13,25 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("document request security integration", () => {
+  it.each([
+    ["/_next/static/main.js", false],
+    ["/_next/static-document", true],
+    ["/_next/image", false],
+    ["/fonts/vazirmatn-latin.woff2", false],
+    ["/fonts-preview", true],
+    ["/favicon.ico", false],
+    ["/faviconXico", true],
+    ["/icon.svg", false],
+    ["/iconXsvg", true],
+    ["/login", true],
+    ["/api/account/me", true],
+  ] as const)(
+    "matches only the intended proxy path boundaries for %s",
+    (pathname, matched) => {
+      expect(new RegExp(`^${config.matcher[0]}$`).test(pathname)).toBe(matched);
+    },
+  );
+
   it("replaces caller CSP and nonce headers with one random document nonce", () => {
     const response = proxy(
       new NextRequest("https://website.example.test/", {

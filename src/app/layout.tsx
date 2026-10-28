@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-type Props = { children: ReactNode };
+type Props = Readonly<{ children: ReactNode }>;
 export default async function RootLayout({ children }: Props) {
   const [nonce, { code: locale, direction }, messages, t] = await Promise.all([
     getRequestNonce(),
