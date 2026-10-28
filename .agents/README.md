@@ -2,7 +2,7 @@
 
 [AGENTS.md](../AGENTS.md) is the entry point; [settings](settings.json) indexes local rules, skills and optional hooks. [Navigation](navigation.json) maps only published owners, contracts and tests. [Validation](validation.json) is the canonical command inventory; [evaluation](evaluation/cases.json) supplies source-grounded questions.
 
-Read the [source marker](../.github/bootstrap-policy.json) and [phase guide](../docs/bootstrap.md) before selecting checks or claiming readiness. [Application integration](../docs/application.md) defines future composition and acceptance separately from current source. A false marker keeps core operations guarded; a true marker alone proves no successful execution. Machine navigation must not invent unpublished owners.
+Read the [source marker](../.github/bootstrap-policy.json) and [phase guide](../docs/bootstrap.md) before selecting checks or claiming readiness. [Application integration](../docs/application.md) defines composition and exact-tree acceptance, separately from any claim of executed readiness. A false marker keeps core operations guarded; a true marker alone proves no successful execution. Machine navigation must not invent unpublished owners.
 
 Visual work starts with [DESIGN](../DESIGN.md) and the [design skill](skills/design-ui/SKILL.md). Source, executed tests, current browser/visual evidence and external design artifacts have separate scopes. Optional Claude adapters point to this guidance; files do not prove automatic loading, design-tool setup or model performance.
 

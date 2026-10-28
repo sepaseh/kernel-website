@@ -266,9 +266,9 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
-test("the feature-ui phase has sixty-six explicitly owned production modules", async () => {
+test("the application has ninety explicitly owned production modules", async () => {
   const result = await checkBoundaries();
-  assert.equal(result.files, 66);
+  assert.equal(result.files, 90);
   assert.deepEqual(result.violations, []);
 });
 
@@ -326,6 +326,55 @@ test("the font manifest belongs only to its preload helper", () => {
   assert.equal(check("./manifest.json", manifest, owner), undefined);
   assert.ok(check("./manifest.json", manifest, file));
   assert.ok(check("./manifest.json", manifest, owner, true));
+});
+
+test("runtime adapters have exact server, client and installed package permissions", () => {
+  const nonce = path.join(root, "src/shared/security/nonce.ts");
+  const serverLanguage = path.join(root, "src/shared/settings/server.ts");
+  const headers = path.join(root, "node_modules/next/headers.d.ts");
+  const server = path.join(root, "node_modules/next/server.d.ts");
+  const serverOnly = path.join(root, "node_modules/server-only/index.js");
+  assert.equal(check("next/headers", headers, nonce, false, "next"), undefined);
+  assert.equal(
+    check("next/server", server, serverLanguage, false, "next"),
+    undefined,
+  );
+  assert.equal(
+    check("server-only", serverOnly, nonce, false, "server-only"),
+    undefined,
+  );
+  assert.ok(check("next/headers", headers, serverLanguage, false, "next"));
+  assert.ok(check("next/headers", headers, nonce, true, "next"));
+  assert.ok(check("server-only", serverOnly, nonce, false, "next"));
+  assert.ok(check("server-only", serverOnly, file, false, "server-only"));
+  const home = path.join(root, "src/website/home/Home.tsx");
+  const serverIntl = path.join(root, "node_modules/next-intl/server.d.ts");
+  assert.equal(
+    check("next-intl/server", serverIntl, home, false, "next-intl"),
+    undefined,
+  );
+  assert.ok(check("next-intl/server", serverIntl, file, false, "next-intl"));
+  assert.ok(check("next-intl/server", serverIntl, home, true, "next-intl"));
+  assert.ok(
+    check(
+      "@/app/layout",
+      path.join(root, "src/app/layout.tsx"),
+      serverLanguage,
+    ),
+  );
+});
+
+test("only the root layout may load the exact global stylesheet at runtime", () => {
+  const layout = path.join(root, "src/app/layout.tsx");
+  const style = path.join(root, "src/app/globals.css");
+  assert.equal(check("./globals.css", style, layout), undefined);
+  assert.ok(check("./globals.css", style, layout, true));
+  assert.ok(check("@/app/globals.css", style, layout));
+  assert.ok(check("./globals.css", style, file));
+  assert.ok(
+    check("./foreign.css", path.join(root, "src/app/foreign.css"), layout),
+  );
+  assert.ok(check("./globals.css", undefined, layout));
 });
 
 test("UI dependencies remain exact per owner, package location and erased/runtime phase", () => {
@@ -451,6 +500,7 @@ test("package names cannot conceal local links, aliases or repository dependenci
     "next-intl": "4.14.9",
     react: "19.3.1",
     "react-dom": "19.3.1",
+    "server-only": "0.0.1",
     "tailwind-merge": "3.7.0",
   };
   await writeFile(

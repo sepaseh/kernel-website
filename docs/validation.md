@@ -12,9 +12,9 @@ npm run validate -- full
 
 The runner validates the whole plan, rejects duplicate/omitted required IDs or manual/advisory substitutions, executes sequentially and stops at failure. Every PR including docs/drafts runs the full declared profile without path filtering. Focused development tests do not replace it.
 
-## Current guidance snapshot
+## Current application snapshot
 
-The false-marker application-guidance phase retains eleven checks and the same66 product modules. Both product/tooling TypeScript projects are required; installed SDKs type-check authored suites and four configurations without launching a browser. Node governance measures every helper owner. The audit regression retains its measured Vitest unit owner.
+The application phase registers fifteen checks and measures all 90 product modules. Both product/tooling TypeScript projects are required. The retained eleven checks are followed by dead-code analysis, production build/bundle, browser/CSP journeys and visual comparison in the canonical order. Installed SDK type checks and Node governance remain separate from actual browser execution. The audit regression retains its measured Vitest unit owner.
 
 Preserve all production analysis/coverage, 90% unit thresholds for all four metrics, 80% governance thresholds and actual font integrity with measured Python coverage. CI must install pinned Python dependencies and run the full profile; scanner must generate actual font coverage before analysis. Synthetic bundles and owned health listeners measure helper behavior, not app builds or deployments.
 
@@ -22,7 +22,7 @@ Core entries require readiness before configuration, dependencies, network or ar
 
 ## Runnable transition and hosted evidence
 
-[Application integration](application.md) requires all fifteen checks, actual production build/budget, browser journeys in both CSP modes and compatible visual comparison. Add commands, source closure and semantic CI validation together. A ready marker cannot replace observed results.
+[Application integration](application.md) maps all fifteen registered checks and the delivered composition. The full runner uses actual production build/budget, browser journeys in both CSP modes and compatible visual comparison. Provide explicit synthetic inputs and the pinned independently installed API/browser described in [README](../README.md) and [the fixture contract](api-fixture.md). A ready marker and typed authored suite cannot replace observed execution results.
 
 Before runnable merge introduce genuine build/e2e/visual jobs, observe the proposed head pass and make their real contexts required through explicit authorization. Preserve [ordinary protection](branch-protection.md), approval and resolved conversations.
 

@@ -14,7 +14,4 @@ executed measurements and unknowns separate. An index or external upload needs a
 actual purpose, an explicit data scope and authorization for the external action.
 No provider is required for ordinary source work.
 
-This phase's navigation contains only published support, feature and guidance
-owners. An accepted future runtime design is not current runnable source. Verify
-the exact snapshot before answering, and state when build, browser or deployment
-evidence is absent.
+The current navigation includes application pages/layouts, request adapters, CSS/configuration, support and feature owners with their tests. Use [application integration](application.md) and the actual marker/inventory to distinguish delivered source from acceptance requirements. Read the exact source and execution evidence before answering; state when build, browser, visual, hosted or deployment evidence is absent. Navigation does not prove that an assistant loaded instructions or understood them.

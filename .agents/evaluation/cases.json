@@ -34,14 +34,17 @@
         "src/shared/settings/language.ts",
         "src/shared/settings/language.test.ts",
         "src/i18n/catalogs.ts",
-        "docs/localization.md"
+        "docs/localization.md",
+        "src/i18n/request.ts",
+        "src/shared/settings/server.ts",
+        "src/shared/runtime-adapters.test.ts"
       ],
       "mustExplain": [
         "Uncached API settings select one supported language/direction; unavailable or unsupported settings fail explicitly.",
         "All ten flat catalogs are complete. Request/layout composition must be confirmed in the exact source inventory; visitor negotiation remains forbidden and support tests do not verify SSR."
       ],
       "mustNot": [
-        "Add a visitor language selector, silently fall back to English or claim SSR/header redirects have been verified."
+        "Add a visitor language selector, silently fall back to English or claim SSR/header redirects were verified without exact-source execution evidence."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
@@ -76,7 +79,9 @@
       "evidence": [
         "src/shared/api/proxy.ts",
         "src/shared/api/proxy.test.ts",
-        "docs/server-boundary.md"
+        "docs/server-boundary.md",
+        "src/app/api/[...path]/route.ts",
+        "src/shared/runtime-adapters.test.ts"
       ],
       "mustExplain": [
         "Unsupported routes/methods, foreign mutation origins and invalid or oversized JSON are rejected.",
@@ -98,7 +103,11 @@
         "src/shared/seo/metadata.ts",
         "src/shared/seo/structured-data.ts",
         "src/shared/seo/config.test.ts",
-        "docs/client-document.md"
+        "docs/client-document.md",
+        "src/app/robots.ts",
+        "src/app/sitemap.ts",
+        "src/app/social-image/route.tsx",
+        "src/shared/runtime-adapters.test.ts"
       ],
       "mustExplain": [
         "SEO uses an explicitly valid public HTTPS origin and opt-in production indexing rather than upstream or request Host.",
@@ -141,14 +150,17 @@
         "src/shared/security/csp.ts",
         "src/shared/security/csp.test.ts",
         "docs/server-boundary.md",
-        "SECURITY.md"
+        "SECURITY.md",
+        "src/proxy.ts",
+        "src/shared/security/nonce.ts",
+        "src/proxy.test.ts"
       ],
       "mustExplain": [
         "Policy helpers parse modes and construct a nonce policy. Header selection belongs to framework wiring and must be confirmed in the source; report-only does not block violations.",
         "Nonce generation, incoming-header removal, response wiring, HTML caching and gateway rollout require actual adapters and current browser evidence, not helper tests."
       ],
       "mustNot": [
-        "Claim fresh per-response nonces, a collector, deployed CSP or both browser modes are already verified."
+        "Infer fresh per-response nonces or verified browser modes from pure-helper tests; claim a collector or deployed CSP without actual implementation and execution evidence."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
@@ -167,7 +179,7 @@
         "docs/application.md"
       ],
       "mustExplain": [
-        "Read the canonical marker, exact inventory and full manifest. The application-guidance snapshot is false with the unchanged66-module product closure and eleven checks; runnable integration requires all fifteen and genuine current build/browser/visual acceptance. Each PR changes at most100 entries.",
+        "Read the canonical marker, exact inventory and full manifest. Application source closes over 407 files and 90 product modules with fifteen required checks, genuine current build/browser/visual acceptance, and a maximum 100 changed entries per PR. A source marker alone does not establish execution.",
         "Provider requests require successful latest exact-head non-CodeRabbit checks, matching genuine Sonar analysis and an all-severity complete zero-unresolved report, cooldown and no in-flight duplicate.",
         "Runtime build/browser/visual/deployment evidence and current-head approval cannot be inferred from local guidance or a skipped review."
       ],

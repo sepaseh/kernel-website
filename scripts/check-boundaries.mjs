@@ -1,10 +1,34 @@
-import { readdir, readFile, realpath } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/app/(auth)/forgot-password/page.tsx",
+  "src/app/(auth)/layout.tsx",
+  "src/app/(auth)/login/page.tsx",
+  "src/app/(auth)/register/page.tsx",
+  "src/app/[...rest]/page.tsx",
+  "src/app/account/page.tsx",
+  "src/app/api/[...path]/route.ts",
+  "src/app/error.tsx",
+  "src/app/global-error.tsx",
+  "src/app/layout.tsx",
+  "src/app/not-found.tsx",
+  "src/app/page.tsx",
+  "src/app/robots.ts",
+  "src/app/sitemap.ts",
+  "src/app/social-image/route.tsx",
+  "src/i18n/request.ts",
+  "src/proxy.ts",
+  "src/shared/security/nonce.ts",
+  "src/shared/settings/server.ts",
+  "src/website/home/Home.tsx",
+  "src/website/layouts/AuthLayout.tsx",
+  "src/website/layouts/Footer.tsx",
+  "src/website/layouts/Header.tsx",
+  "src/website/layouts/HeaderAccountLink.tsx",
   "src/features/account/Account.tsx",
   "src/features/account/components/account-section/AccountSection.tsx",
   "src/features/account/components/email-form/EmailForm.tsx",
@@ -253,6 +277,80 @@ const ownerPackages = new Map([
     ],
   ],
 ]);
+const packageImport = (specifier, packageName, typeOnly = false) => ({
+  specifier,
+  package: packageName,
+  typeOnly,
+});
+const serverIntlImport = packageImport("next-intl/server", "next-intl");
+const linkImport = packageImport("next/link", "next");
+const iconsImport = packageImport("lucide-react", "lucide-react");
+const nextTypesImport = packageImport("next", "next", true);
+const reactTypesImport = packageImport("react", "@types/react", true);
+for (const owner of [
+  "src/app/(auth)/forgot-password/page.tsx",
+  "src/app/(auth)/login/page.tsx",
+  "src/app/(auth)/register/page.tsx",
+  "src/i18n/request.ts",
+])
+  ownerPackages.set(owner, [serverIntlImport]);
+ownerPackages.set("src/app/(auth)/layout.tsx", [
+  serverIntlImport,
+  intlRuntimeImport,
+  reactTypesImport,
+]);
+ownerPackages.set("src/app/account/page.tsx", [
+  serverIntlImport,
+  intlRuntimeImport,
+]);
+ownerPackages.set("src/app/layout.tsx", [
+  serverIntlImport,
+  intlRuntimeImport,
+  nextTypesImport,
+  reactTypesImport,
+]);
+ownerPackages.set("src/app/page.tsx", [serverIntlImport, nextTypesImport]);
+ownerPackages.set("src/app/error.tsx", [intlRuntimeImport]);
+ownerPackages.set("src/app/not-found.tsx", [serverIntlImport, linkImport]);
+ownerPackages.set("src/app/[...rest]/page.tsx", [
+  packageImport("next/navigation", "next"),
+]);
+ownerPackages.set("src/app/social-image/route.tsx", [
+  packageImport("next/og", "next"),
+]);
+for (const owner of ["src/app/robots.ts", "src/app/sitemap.ts"])
+  ownerPackages.set(owner, [
+    nextTypesImport,
+    packageImport("next/server", "next"),
+  ]);
+ownerPackages.set("src/proxy.ts", [packageImport("next/server", "next")]);
+ownerPackages.set("src/shared/security/nonce.ts", [
+  packageImport("server-only", "server-only"),
+  packageImport("next/headers", "next"),
+]);
+ownerPackages.set("src/shared/settings/server.ts", [
+  packageImport("server-only", "server-only"),
+  reactRuntimeImport,
+  packageImport("next/server", "next"),
+]);
+for (const owner of [
+  "src/website/home/Home.tsx",
+  "src/website/layouts/Header.tsx",
+])
+  ownerPackages.set(owner, [serverIntlImport, linkImport, iconsImport]);
+ownerPackages.set("src/website/layouts/Footer.tsx", [
+  serverIntlImport,
+  linkImport,
+]);
+ownerPackages.set("src/website/layouts/HeaderAccountLink.tsx", [
+  linkImport,
+  iconsImport,
+]);
+ownerPackages.set("src/website/layouts/AuthLayout.tsx", [
+  reactTypesImport,
+  intlRuntimeImport,
+  iconsImport,
+]);
 const runtimePackages = [
   "class-variance-authority",
   "lucide-react",
@@ -264,6 +362,7 @@ const runtimePackages = [
   "next-intl",
   "react",
   "react-dom",
+  "server-only",
   "tailwind-merge",
 ].sort((left, right) => left.localeCompare(right));
 const inside = (root, file) => {
@@ -337,6 +436,9 @@ const localSourceViolation = ({
   resolved,
   typeOnly,
 }) => {
+  const composition = path.resolve(root, "src/app");
+  if (inside(composition, resolved) && !inside(composition, file))
+    return "Shared and feature modules must not depend on route composition";
   for (const directory of ["src/shared/contracts", "src/i18n/catalog-data"]) {
     const pure = path.resolve(root, directory);
     if (
@@ -390,6 +492,12 @@ export const boundaryViolation = ({
   }
   const relativeTarget =
     resolved && path.relative(root, resolved).replaceAll(path.sep, "/");
+  if (relativeTarget === "src/app/globals.css")
+    return owner === "src/app/layout.tsx" &&
+      specifier === "./globals.css" &&
+      !typeOnly
+      ? undefined
+      : "Only the root layout may import the declared global stylesheet";
   if (relativeTarget === "src/shared/fonts/manifest.json")
     return owner === "src/shared/fonts/preloads.ts" && !typeOnly
       ? undefined
@@ -435,7 +543,7 @@ export const checkBoundaries = async (root = repository) => {
     )
   )
     violations.push(
-      "This publication requires exactly its declared feature UI packages",
+      "This publication requires exactly its declared runtime packages",
     );
   if (
     Object.values(manifest.devDependencies ?? {}).some(
@@ -487,6 +595,33 @@ export const checkBoundaries = async (root = repository) => {
       const edges = inspectImports(await readFile(file, "utf8"), file);
       const imports = await Promise.all(
         edges.map(async (edge) => {
+          if (edge.specifier?.endsWith(".css")) {
+            const stylesheet = path.join(root, "src/app/globals.css");
+            const permission = boundaryViolation({
+              root,
+              file,
+              specifier: edge.specifier,
+              resolved: stylesheet,
+              typeOnly: edge.typeOnly,
+            });
+            if (permission)
+              return `${path.relative(root, file)}:${edge.line}: ${edge.specifier}: ${permission}`;
+            const metadata = await lstat(stylesheet).catch(() => undefined);
+            const target =
+              metadata?.isFile() && !metadata.isSymbolicLink()
+                ? await realpath(stylesheet)
+                : undefined;
+            const violation = boundaryViolation({
+              root,
+              file,
+              specifier: edge.specifier,
+              resolved: target,
+              typeOnly: edge.typeOnly,
+            });
+            return violation
+              ? `${path.relative(root, file)}:${edge.line}: ${edge.specifier}: ${violation}`
+              : undefined;
+          }
           const resolved =
             edge.specifier &&
             ts.resolveModuleName(edge.specifier, file, options, ts.sys, cache)

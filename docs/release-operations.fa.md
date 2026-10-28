@@ -2,18 +2,9 @@
 
 [English](release-operations.md) · [فارسی](release-operations.fa.md)
 
-این snapshot در مرحلهٔ **delivery-tooling** قابل اجرا نیست. قرارداد آماده‌سازی
-محلی و مرجع غیرفعال اضافه می‌شود و هیچ workflow انتشار، بسته‌بندی، staging، smoke
-استقرار یا DAST فعال نمی‌شود. workflowهای فعلی check، سیاست و Sonar و
-[gate مرجع](validation.fa.md) یازده‌بررسی نقش موجود خود را حفظ می‌کنند. شاهد native
-Sonar و preflight کامل CodeRabbit تابع [حفاظت شاخه](branch-protection.fa.md) و
-[راهنمای Sonar](sonarqube.fa.md) می‌ماند.
+سورس برنامه ترکیب قابل اجرا و [دروازهٔ مرجع](validation.fa.md) کامل پانزده‌بررسی را همراه تعریف واقعی CI برای check/build/e2e/visual و بررسی‌های موجود سیاست، scanner و Sonar بومی فراهم می‌کند. گردش‌های کاری انتشار، بسته‌بندی، staging بیرونی، smoke استقرار و DAST موکول می‌مانند؛ انتشار این سورس گردش کار عملیاتی یا مقصد مستقر را فعال نمی‌کند. شاهد Sonar بومی و پیش‌بررسی کامل CodeRabbit تابع [حفاظت شاخه](branch-protection.fa.md) و [راهنمای Sonar](sonarqube.fa.md) می‌ماند.
 
-[پیکربندی نسخه](releasing.fa.md) و مدخل تاریخی changelog، tag، artifact بارگذاری‌شده،
-اجرای ارائه‌دهنده یا سرویس مستقر را ثابت نمی‌کند.
-[بسته‌بند](../scripts/package-release.mjs) با ورودی محلی ساختگی آزموده می‌شود؛ نه
-برنامهٔ غایب را build می‌کند و نه نسخه‌ای منتشر می‌کند. آماده‌سازی محلی مجوز commit،
-push، dispatch گردش کار، ایجاد secret یا فعال‌سازی زیرساخت نیست.
+[پیکربندی نسخه](releasing.fa.md) و مدخل تاریخی changelog، tag، artifact بارگذاری‌شده، اجرای سرویس بررسی یا سرویس مستقر را ثابت نمی‌کند. [بسته‌بند](../scripts/package-release.mjs) artifact محلی صریح می‌گیرد و آزمون مالک مصنوعی را حفظ می‌کند؛ ساخت برنامه را فراخوانی و نسخهٔ انتشار ایجاد نمی‌کند. برای پذیرش برنامه از نتیجهٔ ساخت واقعی استفاده کنید. آماده‌سازی محلی مجوز commit، push، اجرای گردش کار، فراهم‌کردن secret یا فعال‌سازی زیرساخت نیست.
 
 [اعتبارسنج‌های مقصد](../scripts/validate-workflow-targets.mjs) ورودی صریح
 staging، smoke و DAST را بدون تماس با URL می‌سنجند. staging میزبان تنظیم‌شدهٔ دقیق

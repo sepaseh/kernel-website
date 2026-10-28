@@ -13,6 +13,7 @@ import { test } from "node:test";
 
 import {
   inspectBootstrap,
+  publicationInventory,
   validateBootstrapPolicy,
 } from "./validate-bootstrap.mjs";
 
@@ -145,8 +146,19 @@ const readCurrentPublicationPolicy = async () =>
       "utf8",
     ),
   );
-const readPublicationPolicy = async () => {
+const readGuidancePublicationPolicy = async () => {
   const current = await readCurrentPublicationPolicy();
+  return current.phase === "application"
+    ? {
+        ...current,
+        phase: "application-guidance",
+        applicationReady: false,
+        allowedFiles: publicationInventory("application-guidance"),
+      }
+    : current;
+};
+const readPublicationPolicy = async () => {
+  const current = await readGuidancePublicationPolicy();
   const declared =
     current.phase === "application-guidance"
       ? {
@@ -756,7 +768,8 @@ test("integration tooling closes over every helper, owner test, guide pair and m
           allowedFiles: [...declared.allowedFiles, file],
         }),
       runnerPublishedFiles.includes(file) ||
-        browserPublishedFiles.includes(file)
+        browserPublishedFiles.includes(file) ||
+        ["knip.json", "e2e/visual/baselines/win32/metadata.json"].includes(file)
         ? /unique, exact paths within their declared phase/
         : /closed published inventory/,
       file,
@@ -1184,7 +1197,7 @@ test("API fixture snapshots inspect all348 owned files while refusing private, m
 });
 
 test("application guidance adds exactly eighteen documentation and archive paths to the unchanged API closure", async () => {
-  const declared = await readCurrentPublicationPolicy();
+  const declared = await readGuidancePublicationPolicy();
   const historical = await apiFixturePolicy();
   assert.equal(declared.phase, "application-guidance");
   assert.equal(declared.applicationReady, false);
@@ -1224,7 +1237,7 @@ test("application guidance adds exactly eighteen documentation and archive paths
 });
 
 test("application guidance rejects activation, private state, unlisted archives and executable integration", async () => {
-  const declared = await readCurrentPublicationPolicy();
+  const declared = await readGuidancePublicationPolicy();
   for (const change of [
     { applicationReady: true },
     { maximumChangedFiles: 101 },
@@ -1267,7 +1280,7 @@ test("application guidance rejects activation, private state, unlisted archives 
 });
 
 test("application guidance inspects its full closure without executing archived configuration or following links", async (context) => {
-  const declared = await readCurrentPublicationPolicy();
+  const declared = await readGuidancePublicationPolicy();
   const { root, put } = await fixture(context, declared);
   const archive = "docs/qa/source-originals/vitest.tooling.config.ts";
   await put(
@@ -1310,4 +1323,84 @@ test("application guidance inspects its full closure without executing archived 
     process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+const applicationPolicy = () =>
+  policy({
+    phase: "application",
+    applicationReady: true,
+    allowedFiles: publicationInventory("application"),
+  });
+
+test("application readiness requires its complete closed runtime and retained foundation inventory", () => {
+  const declared = applicationPolicy();
+  assert.equal(declared.allowedFiles.length, 407);
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  assert.throws(() => publicationInventory("unknown"), /Unknown publication/);
+  assert.throws(
+    () => validateBootstrapPolicy({ ...declared, applicationReady: false }),
+    /matching readiness/,
+  );
+  for (const file of declared.allowedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+  for (const file of [
+    "components.json",
+    "src/app/foreign/page.tsx",
+    "src/app/[foreign]/page.tsx",
+    "src/shared/foreign.test.ts",
+    "docs/unlisted.md",
+    ".github/workflows/staging.yml",
+    "deploy/docker/smoke.mjs",
+    "scripts/run-website-performance.mjs",
+    ".env.local",
+    "deploy/native/website.env",
+    "src/credentials.key",
+    "../kernel-api/src/index.ts",
+    "src/**",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy({
+        ...declared,
+        allowedFiles: [...declared.allowedFiles, file],
+      }),
+    );
+});
+
+test("application snapshot admits only owned generated root directories and never hides missing or linked source", async (context) => {
+  const declared = applicationPolicy();
+  const { root, put } = await fixture(context, declared);
+  for (const directory of [".next", "playwright-report", "test-results"])
+    await put(`${directory}/owned-output.txt`, "generated fixture output\n");
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "application");
+  assert.equal(result.applicationReady, true);
+  assert.equal(result.files, declared.allowedFiles.length);
+  assert.match(result.scope, /must separately record genuine build/);
+  await put(".env.local", "private fixture marker; never read\n");
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+  await rm(path.join(root, ".env.local"));
+  await rm(path.join(root, ".next"), { recursive: true });
+  await put(".next", "not a generated directory\n");
+  await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
+  await rm(path.join(root, ".next"));
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, ".next"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
+  await rm(path.join(root, ".next"));
+  await rm(path.join(root, "src/app/layout.tsx"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
 });

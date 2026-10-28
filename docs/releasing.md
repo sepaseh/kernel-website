@@ -2,23 +2,9 @@
 
 [English](releasing.md) · [فارسی](releasing.fa.md)
 
-The **delivery-tooling** phase keeps `applicationReady:false`. The local
-[release configuration](../release-please-config.json),
-[version manifest](../.release-please-manifest.json) and
-[changelog](../CHANGELOG.md) are source records. Historical entries describe their
-recorded scope; they do not prove that this independent snapshot was built,
-released or deployed. Conventional Commit titles provide future versioning input;
-they do not automatically publish a tag or open a release PR.
+The application phase provides runnable source; its true readiness marker does not publish releases. The local [release configuration](../release-please-config.json), [version manifest](../.release-please-manifest.json) and [changelog](../CHANGELOG.md) are source records. Historical entries describe their recorded scope; they do not prove this independent snapshot was released or deployed. Conventional Commit titles provide versioning input and do not automatically publish a tag or open a release PR.
 
-The [artifact packager](../scripts/package-release.mjs) validates an explicit
-release ID and creates a new exclusive destination from supplied local build-shaped
-inputs in an explicitly ready root; owner tests use synthetic roots. The current
-non-runnable source's public readiness guard refuses this operation. Its metadata identifies
-the supplied build and execution platform. The
-[owner tests](../scripts/package-release.test.mjs) verify synthetic file handling,
-exclusions and failure cases, not a runnable Linux artifact, reproducibility across
-machines or a complete installed dependency graph. The current package has no
-build/start or release-publishing command.
+The [artifact packager](../scripts/package-release.mjs) validates an explicit release ID and creates a new exclusive destination from supplied local build-shaped inputs in an explicitly ready root. It refuses false/invalid readiness before operation. Metadata identifies the supplied build and execution platform. Its [owner tests](../scripts/package-release.test.mjs) use synthetic roots to verify file handling, exclusions and failures; they do not prove a runnable Linux artifact, cross-machine reproducibility or a complete installed dependency graph. Application build/start commands are present; release-publishing commands/workflows remain deferred to operational acceptance.
 
 Source roots and destination ancestors must be physical local directories without
 symlinked ancestors. Resolve an intentionally selected root to its canonical path
