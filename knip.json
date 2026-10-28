@@ -3,13 +3,15 @@
     "scripts/*.mjs",
     "e2e/**/*.ts",
     "playwright.*.config.ts",
-    "src/i18n/catalog-data/*.test.ts"
+    "src/i18n/catalog-data/*.test.ts",
+    "deploy/docker/*.mjs"
   ],
   "project": [
     "src/**/*.{ts,tsx,css}",
     "scripts/**/*.mjs",
     "e2e/**/*.ts",
-    "*.ts"
+    "*.ts",
+    "deploy/docker/*.mjs"
   ],
   "playwright": false
 }

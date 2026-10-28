@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { once } from "node:events";
 import {
   copyFile,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -15,7 +16,7 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 
 import { parseDocument } from "yaml";
@@ -755,6 +756,55 @@ test("Docker shell templates parse and the website entrypoint enforces readiness
     /applicationReady|non-runnable|runnable application/i,
   );
   await assert.rejects(readFile(marker), { code: "ENOENT" });
+});
+
+test("Docker build copies the actual application-helper closure and uses explicit synthetic build inputs", async (context) => {
+  const directory = await temporaryFixture(context);
+  await markedCliFixture(directory, false);
+  const dockerfile = await readFile(
+    new URL("../deploy/docker/Dockerfile", import.meta.url),
+    "utf8",
+  );
+  const buildStage = dockerfile
+    .split("FROM dependencies AS build")[1]
+    .split("FROM node:24.18.0-bookworm-slim AS website")[0];
+  assert.match(buildStage, /^COPY scripts \.\/scripts$/m);
+  for (const value of [
+    "API_BASE_URL=http://127.0.0.1:3100",
+    "HOSTNAME=127.0.0.1",
+    "PORT=3010",
+    "WEBSITE_URL=http://127.0.0.1:3010",
+    "WEBSITE_INDEXING_ENABLED=false",
+    "KERNEL_SYNTHETIC_ENV=1",
+  ])
+    assert.ok(buildStage.includes(value));
+  assert.ok(
+    buildStage.indexOf("COPY scripts ./scripts") <
+      buildStage.indexOf("RUN npm run build"),
+  );
+  await cp(new URL("./", import.meta.url), path.join(directory, "scripts"), {
+    recursive: true,
+    force: true,
+  });
+  const imported = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      "await import(process.argv[1]);",
+      pathToFileURL(path.join(directory, "scripts/application-checks.mjs"))
+        .href,
+    ],
+    {
+      cwd: directory,
+      env: commandEnvironment(),
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(imported.error, undefined);
+  assert.equal(imported.status, 0, imported.stderr);
 });
 
 test("readiness probes check actual response semantics and do not follow redirects", async () => {

@@ -1,4 +1,4 @@
-# Future application template; current applicationReady:false refuses website startup/build.
+# Explicit operator inputs and separate deployment acceptance are required for this runnable application.
 name: kernel-website
 services:
   website:

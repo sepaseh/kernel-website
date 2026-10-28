@@ -2,9 +2,11 @@
 
 [English](release-operations.md) · [فارسی](release-operations.fa.md)
 
-The application source supplies runnable composition and its complete fifteen-check [canonical gate](validation.md), with real check/build/e2e/visual CI definitions plus the existing policy/scanner/native Sonar checks. Release, packaging, external staging, deployment-smoke and DAST workflows remain deferred; no operational workflow or deployed target is activated by this source publication. Native Sonar and the complete CodeRabbit preflight remain governed by [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
+The operations phase retains the complete fifteen-check [application gate](validation.md) and adds six operational workflow sources. [CodeQL](../.github/workflows/codeql.yml) defines automatic JavaScript/TypeScript analysis for main pushes, main-targeted PRs and a weekly schedule, plus manual dispatch. The other five workflows are manual and main-only: release, packaging, external staging, deployment smoke and DAST. Source definitions and semantic tests do not establish hosted availability, a completed scan, an uploaded artifact or a deployment. Native Sonar and CodeRabbit remain subject to [branch protection](branch-protection.md) and the [exact-head preflight](sonarqube.md).
 
 [Version configuration](releasing.md) and historical changelog entries do not prove a tag, uploaded artifact, provider run or deployed service. The [packager](../scripts/package-release.mjs) consumes supplied local artifacts and retains synthetic owner tests; it does not invoke the application build or publish a release. Use actual build results for application acceptance. Local preparation grants no permission to commit, push, dispatch a workflow, provision secrets or activate infrastructure.
+
+The [operational wrapper](../scripts/operations-checks.mjs) guards `deploy:package`, `test:smoke` and `test:staging`. Packaging consumes a prepared local build and exclusive release ID; browser modes validate explicit public targets before resolving the exact installed SDK and forward an allowlisted parent environment. Docker smoke and Lighthouse use their separate owned runners. These four manual operations and the advisory lab command remain outside `full`.
 
 [Target validators](../scripts/validate-workflow-targets.mjs) parse explicit
 staging/smoke/DAST inputs without contacting their URLs. Staging checks exact
@@ -22,7 +24,7 @@ disposable files; they do not attest engine compatibility or successful removal 
 real resources. Cleanup failures stay failures, and unrelated images, caches and
 deployments must never be globally pruned.
 
-Future runtime operations require a separately reviewed application gate, trusted
+Actual runtime operations require a separately reviewed application gate, trusted
 fixture provenance, exact artifact/target identity, least provider permissions and
 explicit authorization. Forks and untrusted source must not receive private
 fixture credentials. Record actual execution, failures and remaining resources;

@@ -1,6 +1,6 @@
 FROM node:24.18.0-bookworm-slim AS dependencies
 WORKDIR /app
-# Future application template: refuse this non-runnable snapshot before install/build.
+# Refuse incomplete source before dependency installation or application build.
 COPY .github/bootstrap-policy.json ./.github/bootstrap-policy.json
 COPY scripts/release-files.mjs ./scripts/release-files.mjs
 RUN node --input-type=module -e "import { requireApplicationReady } from './scripts/release-files.mjs'; await requireApplicationReady(process.cwd());"
@@ -11,8 +11,12 @@ RUN npm ci
 FROM dependencies AS build
 COPY src ./src
 COPY public ./public
-COPY next.config.ts tsconfig.json postcss.config.mjs performance-budget.json ./
-COPY scripts/prepare-standalone.mjs ./scripts/prepare-standalone.mjs
+COPY next-env.d.ts next.config.ts tsconfig.json postcss.config.mjs performance-budget.json ./
+# The build command owns readiness, environment and bundle checks through these helpers.
+COPY scripts ./scripts
+ENV NODE_ENV=production API_BASE_URL=http://127.0.0.1:3100 HOSTNAME=127.0.0.1 PORT=3010 \
+    WEBSITE_URL=http://127.0.0.1:3010 WEBSITE_INDEXING_ENABLED=false \
+    WEBSITE_CSP_MODE=enforce KERNEL_SYNTHETIC_ENV=1
 RUN npm run build
 
 FROM node:24.18.0-bookworm-slim AS website

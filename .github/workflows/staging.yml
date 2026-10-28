@@ -1,0 +1,61 @@
+name: Staging validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_url:
+        description: Staging application base URL
+        required: true
+        type: string
+      api_health_url:
+        description: Staging API health endpoint
+        required: true
+        type: string
+
+concurrency:
+  cancel-in-progress: true
+  group: staging-${{ inputs.application_url }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      STAGING_ALLOWED_API_HOST: ${{ vars.STAGING_ALLOWED_API_HOST }}
+      STAGING_ALLOWED_APP_HOST: ${{ vars.STAGING_ALLOWED_APP_HOST }}
+      STAGING_API_HEALTH_URL: ${{ inputs.api_health_url }}
+      STAGING_BASE_URL: ${{ inputs.application_url }}
+      PLAYWRIGHT_BROWSERS_PATH: "0"
+      NPM_CONFIG_INCLUDE: dev
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          cache: npm
+          node-version-file: .nvmrc
+
+      - name: Validate staging targets
+        run: node scripts/validate-workflow-targets.mjs staging
+
+      - run: npm ci
+
+      - run: node node_modules/@playwright/test/cli.js install --with-deps chromium firefox webkit
+
+      - run: npm run test:staging
+
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-validation-${{ github.run_id }}
+          path: |
+            playwright-report/staging
+            test-results/staging
+          retention-days: 14

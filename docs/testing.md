@@ -21,6 +21,8 @@ The [marker](../.github/bootstrap-policy.json) and [canonical manifest](../.agen
 
 The [API fixture](api-fixture.md) requires explicit absolute selection, pinned public Git revision, clean tracked source, independent dependency installation and its published entry. Structural markers alone are insufficient. Preserve standard fixed system Git, strict environment allowlists and launcher parent/child port ownership. Its Node owner tests use owned fixtures and mocked Git; the application browser checks separately run the independently installed API with fresh test-only state/secret outside source and verified browser identity.
 
+Operational source has separate measured owner tests: [filtered package/smoke/staging wrappers](../scripts/operations-checks.test.mjs), [disposable Docker orchestration](../deploy/docker/smoke.test.mjs), [Lighthouse orchestration](../scripts/run-website-performance.test.mjs) and [workflow policy](../scripts/check-ci.test.mjs). Synthetic children, injected engines and deterministic sample fixtures verify ownership, failures, cancellation, output bounds and cleanup without contacting operator targets or running a real container/lab. Keep real Docker/Lighthouse and manual hosted results separate.
+
 ## Recording results
 
 Record exact tree/revision, command, first failure, result, failures/skips, coverage and owned cleanup; follow [test reliability](test-reliability.md). Keep all product source measured, 90% unit and 80% governance thresholds and real font coverage. Smaller checks and old green logs do not validate another publication tree.

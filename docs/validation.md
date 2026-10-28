@@ -14,11 +14,13 @@ The runner validates the whole plan, rejects duplicate/omitted required IDs or m
 
 ## Current application snapshot
 
-The application phase registers fifteen checks and measures all 90 product modules. Both product/tooling TypeScript projects are required. The retained eleven checks are followed by dead-code analysis, production build/bundle, browser/CSP journeys and visual comparison in the canonical order. Installed SDK type checks and Node governance remain separate from actual browser execution. The audit regression retains its measured Vitest unit owner.
+The operations phase retains fifteen required application checks and measures all 90 product modules. Both product/tooling TypeScript projects are required. The retained eleven checks are followed by dead-code analysis, production build/bundle, browser/CSP journeys and visual comparison in the canonical order. Installed SDK type checks and Node governance remain separate from actual browser execution. The audit regression retains its measured Vitest unit owner.
 
 Preserve all production analysis/coverage, 90% unit thresholds for all four metrics, 80% governance thresholds and actual font integrity with measured Python coverage. CI must install pinned Python dependencies and run the full profile; scanner must generate actual font coverage before analysis. Synthetic bundles and owned health listeners measure helper behavior, not app builds or deployments.
 
 Core entries require readiness before configuration, dependencies, network or artifacts. Do not toggle the false source marker to execute them. Positive guard tests use explicitly ready owned synthetic roots, public values and injected callbacks. The [API contract](api-fixture.md) requires explicit selection, immutable revision, independent dependency identities and fresh state; actual API/browser execution remains separate from its mocked/Node owner tests. No private dotenv, existing service or implicit sibling fallback.
+
+The same manifest separately records manual `package`, `smoke`, `staging` and `docker` checks and advisory `lighthouse`. They are absent from `profiles.full`: source/governance validation must not dispatch workflows, contact an operator target, build containers or substitute lab scores for required correctness. Their Node owner tests are part of measured governance coverage; actual operations require selected inputs, authorization and separate execution evidence.
 
 ## Runnable transition and hosted evidence
 

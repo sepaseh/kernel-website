@@ -54,6 +54,8 @@ const applicationEnvironment = {
   PLAYWRIGHT_BROWSERS_PATH: "0",
   NPM_CONFIG_INCLUDE: "dev",
 };
+const isRunnablePhase = (phase) =>
+  phase === "application" || phase === "operations";
 
 const assertPullRequestTrigger = (workflow) => {
   if (!isRecord(workflow.on) || !Object.hasOwn(workflow.on, "pull_request"))
@@ -199,7 +201,7 @@ const assertCheckOwnership = (manifest) => {
     ["visual", ["check", "visual"]],
   ]);
   const expectedOwners = (check) =>
-    manifest.phase === "application"
+    isRunnablePhase(manifest.phase)
       ? (applicationOwners.get(check.id) ?? ["check"])
       : ["check"];
   if (
@@ -211,7 +213,7 @@ const assertCheckOwnership = (manifest) => {
     )
   )
     throw new Error(
-      manifest.phase === "application"
+      isRunnablePhase(manifest.phase)
         ? "Application checks must retain their exact job ownership."
         : "Every current required check must belong to check; a multi-job phase needs an explicit CI policy transition.",
     );
@@ -392,8 +394,284 @@ export const validateCiWorkflow = (content, manifest) => {
   assertCanonicalSteps(assertCheckJob(workflow));
   assertFontTooling(workflow.jobs.check, "npm run validate -- full");
   assertCheckOwnership(manifest);
-  if (manifest.phase === "application") assertApplicationCi(workflow, manifest);
+  if (isRunnablePhase(manifest.phase)) assertApplicationCi(workflow, manifest);
 };
+
+const mainOnly = "github.ref == 'refs/heads/main'";
+const operationalFixtureInstallation = [
+  'git clone --no-checkout https://github.com/sepaseh/kernel-api.git "$KERNEL_API_DIRECTORY"',
+  'git -C "$KERNEL_API_DIRECTORY" checkout --detach 4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9',
+  'npm --prefix "$KERNEL_API_DIRECTORY" ci',
+  'printf \'KERNEL_API_DIRECTORY=%s\\n\' "$KERNEL_API_DIRECTORY" >> "$GITHUB_ENV"',
+].join("\n");
+const checkoutStep = {
+  uses: checkoutAction,
+  with: { "persist-credentials": false },
+};
+const nodeStep = {
+  uses: nodeAction,
+  with: { "node-version-file": ".nvmrc", cache: "npm" },
+};
+const operationalArtifact = (name, directories) => ({
+  if: "${{ !cancelled() }}",
+  uses: artifactAction,
+  with: {
+    name: name + "-${{ github.run_id }}",
+    path: directories.join("\n") + "\n",
+    "retention-days": 14,
+  },
+});
+const browserOperation = (mode) => ({
+  job: mode === "smoke" ? "smoke" : "validate",
+  inputs: [
+    "application_url",
+    "api_health_url",
+    ...(mode === "smoke" ? ["deployment_id"] : []),
+  ],
+  environment: {
+    [mode.toUpperCase() + "_ALLOWED_API_HOST"]:
+      "${{ vars." + mode.toUpperCase() + "_ALLOWED_API_HOST }}",
+    [mode.toUpperCase() + "_ALLOWED_APP_HOST"]:
+      "${{ vars." + mode.toUpperCase() + "_ALLOWED_APP_HOST }}",
+    [mode.toUpperCase() + "_API_HEALTH_URL"]: "${{ inputs.api_health_url }}",
+    [mode.toUpperCase() + "_BASE_URL"]: "${{ inputs.application_url }}",
+    ...(mode === "smoke"
+      ? {
+          SMOKE_DEPLOYMENT_ID: "${{ inputs.deployment_id }}",
+          SMOKE_EXPECTED_DEPLOYMENT_ID:
+            "${{ vars.SMOKE_EXPECTED_DEPLOYMENT_ID }}",
+        }
+      : {}),
+    PLAYWRIGHT_BROWSERS_PATH: "0",
+    NPM_CONFIG_INCLUDE: "dev",
+  },
+  steps: [
+    checkoutStep,
+    nodeStep,
+    { run: "node scripts/validate-workflow-targets.mjs " + mode },
+    { run: "npm ci" },
+    {
+      run:
+        "node node_modules/@playwright/test/cli.js install --with-deps " +
+        (mode === "smoke" ? "chromium" : "chromium firefox webkit"),
+    },
+    { run: "npm run test:" + mode },
+    operationalArtifact(
+      mode === "smoke" ? "deployment-smoke" : "staging-validation",
+      ["playwright-report/" + mode, "test-results/" + mode],
+    ),
+  ],
+});
+const operationalPolicies = {
+  codeql: {
+    job: "analyze",
+    permissions: { contents: "read", "security-events": "write" },
+    steps: [
+      checkoutStep,
+      {
+        uses: "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+        with: {
+          languages: "javascript-typescript",
+          "build-mode": "none",
+          queries: "security-extended",
+        },
+      },
+      {
+        uses: "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      },
+    ],
+  },
+  dast: {
+    job: "zap",
+    inputs: ["target_url"],
+    environment: {
+      DAST_ALLOWED_HOST: "${{ vars.STAGING_ALLOWED_APP_HOST }}",
+      DAST_PRODUCTION_HOST: "${{ vars.PRODUCTION_HOST }}",
+      DAST_TARGET: "${{ inputs.target_url }}",
+    },
+    steps: [
+      checkoutStep,
+      { uses: nodeAction, with: { "node-version-file": ".nvmrc" } },
+      { run: "node scripts/validate-workflow-targets.mjs dast" },
+      {
+        uses: "zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c",
+        with: {
+          allow_issue_writing: false,
+          artifact_name: "staging-dast-${{ github.run_id }}",
+          cmd_options: "-a",
+          docker_name:
+            "ghcr.io/zaproxy/zaproxy:2.17.0@sha256:c558ee87358911ab17278c70991e856f57793e115d9cd0f88ca475cf82907a1a",
+          fail_action: true,
+          target: "${{ env.DAST_TARGET }}",
+        },
+      },
+    ],
+  },
+  "deployment-smoke": browserOperation("smoke"),
+  staging: browserOperation("staging"),
+  "package-release": {
+    job: "package",
+    inputs: ["release_id"],
+    environment: {
+      ...applicationEnvironment,
+      RELEASE_ID: "${{ inputs.release_id }}",
+      NEXT_TELEMETRY_DISABLED: "1",
+    },
+    steps: [
+      checkoutStep,
+      nodeStep,
+      { run: "npm ci" },
+      {
+        env: { KERNEL_API_DIRECTORY: "${{ runner.temp }}/kernel-api-fixture" },
+        run: operationalFixtureInstallation,
+      },
+      { run: "npm run build" },
+      { run: 'npm run deploy:package -- --release="$RELEASE_ID"' },
+      {
+        uses: artifactAction,
+        with: {
+          name: "website-release-${{ github.run_id }}",
+          path: "dist/releases",
+          "retention-days": 14,
+          "if-no-files-found": "error",
+        },
+      },
+    ],
+  },
+  release: {
+    job: "release",
+    inputs: [],
+    permissions: { contents: "write", "pull-requests": "write" },
+    steps: [
+      {
+        uses: "googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7",
+        with: {
+          "config-file": "release-please-config.json",
+          "manifest-file": ".release-please-manifest.json",
+          token: "${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}",
+        },
+      },
+    ],
+  },
+};
+
+function assertOperationalTriggers(workflow, name, policy) {
+  if (name === "codeql") {
+    if (
+      Object.keys(workflow.on ?? {})
+        .sort()
+        .join(",") !== "pull_request,push,schedule,workflow_dispatch" ||
+      workflow.on.push?.branches?.join(",") !== "main" ||
+      workflow.on.pull_request?.branches?.join(",") !== "main" ||
+      Object.keys(workflow.on.push).join(",") !== "branches" ||
+      Object.keys(workflow.on.pull_request).join(",") !== "branches" ||
+      workflow.on.schedule?.length !== 1 ||
+      workflow.on.schedule[0].cron !== "30 3 * * 1"
+    )
+      throw new Error(
+        "CodeQL must retain its reviewed main/PR/security schedule.",
+      );
+    return;
+  }
+  if (Object.keys(workflow.on ?? {}).join(",") !== "workflow_dispatch")
+    throw new Error("Operational target and release work must remain manual.");
+  const inputs = workflow.on.workflow_dispatch?.inputs ?? {};
+  if (
+    Object.keys(inputs).sort().join(",") !==
+      [...policy.inputs].sort().join(",") ||
+    Object.values(inputs).some(
+      (input) => input.type !== "string" || input.required !== true,
+    )
+  )
+    throw new Error(
+      "Manual workflow inputs must remain explicit required strings.",
+    );
+}
+
+function assertOperationalStep(step, expected) {
+  if (!isRecord(step))
+    throw new Error("Operational workflow steps must be explicit mappings.");
+  const allowed = new Set(["name", "run", "uses", "with", "env", "if"]);
+  assertRunSettings(step);
+  if (
+    Object.keys(step).some((key) => !allowed.has(key)) ||
+    step.uses !== expected.uses ||
+    step.run?.trim().replaceAll("\r\n", "\n") !== expected.run ||
+    step.if !== expected.if ||
+    (expected.with
+      ? !sameRecord(step.with, expected.with)
+      : step.with !== undefined) ||
+    (expected.env
+      ? !sameRecord(step.env, expected.env)
+      : step.env !== undefined)
+  )
+    throw new Error(
+      "Operational actions, filtered wrappers and validation order must remain fail closed.",
+    );
+}
+
+function assertOperationalSteps(job, policy) {
+  if (job.steps.length !== policy.steps.length)
+    throw new Error(
+      "Operational workflow steps must preserve their reviewed closure.",
+    );
+  for (const [index, step] of job.steps.entries())
+    assertOperationalStep(step, policy.steps[index]);
+}
+
+function assertOperationalJob(workflow, job, name, policy) {
+  assertRunSettings(workflow.defaults?.run);
+  assertRunSettings(job.defaults?.run);
+  if (
+    !sameRecord(workflow.permissions, { contents: "read" }) ||
+    workflow.env !== undefined ||
+    Object.keys(workflow.jobs).join(",") !== policy.job ||
+    job["runs-on"] !== "ubuntu-latest" ||
+    !(job["timeout-minutes"] > 0 && job["timeout-minutes"] <= 60) ||
+    [
+      "continue-on-error",
+      "strategy",
+      "container",
+      "services",
+      "environment",
+      "needs",
+    ].some((key) => Object.hasOwn(job, key)) ||
+    (name === "codeql" ? job.if !== undefined : job.if !== mainOnly) ||
+    (policy.permissions
+      ? !sameRecord(job.permissions, policy.permissions)
+      : job.permissions !== undefined) ||
+    (policy.environment
+      ? !sameRecord(job.env, policy.environment)
+      : job.env !== undefined)
+  )
+    throw new Error(
+      "Operational jobs need manual main ownership, bounded execution and least permissions.",
+    );
+}
+
+/** Validate operational source without dispatching jobs or contacting targets. */
+export function validateOperationalWorkflows(contents) {
+  if (
+    !isRecord(contents) ||
+    Object.keys(contents).sort().join(",") !==
+      Object.keys(operationalPolicies).sort().join(",")
+  )
+    throw new Error("All six operational workflow sources are required.");
+  for (const [name, policy] of Object.entries(operationalPolicies)) {
+    const document = parseDocument(contents[name], { uniqueKeys: true });
+    if (document.errors.length)
+      throw new Error("Operational workflows require valid unique-key YAML.");
+    const workflow = document.toJS({ maxAliasCount: 0 });
+    const job = workflow?.jobs?.[policy.job];
+    if (!isRecord(workflow) || !isRecord(job) || !Array.isArray(job.steps))
+      throw new Error(
+        "Each operational workflow needs its explicit owned job.",
+      );
+    assertOperationalJob(workflow, job, name, policy);
+    assertOperationalTriggers(workflow, name, policy);
+    assertOperationalSteps(job, policy);
+  }
+}
 
 export const inspectCi = async (root = repository) => {
   const [workflow, manifest, sonar] = await Promise.all([
@@ -401,8 +679,23 @@ export const inspectCi = async (root = repository) => {
     readFile(path.join(root, ".agents/validation.json"), "utf8"),
     readFile(path.join(root, ".github/workflows/sonar.yml"), "utf8"),
   ]);
-  validateCiWorkflow(workflow, JSON.parse(manifest));
+  const parsedManifest = JSON.parse(manifest);
+  validateCiWorkflow(workflow, parsedManifest);
   validateSonarFontWorkflow(sonar);
+  if (parsedManifest.phase === "operations") {
+    const contents = Object.fromEntries(
+      await Promise.all(
+        Object.keys(operationalPolicies).map(async (name) => [
+          name,
+          await readFile(
+            path.join(root, `.github/workflows/${name}.yml`),
+            "utf8",
+          ),
+        ]),
+      ),
+    );
+    validateOperationalWorkflows(contents);
+  }
 };
 
 if (

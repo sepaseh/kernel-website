@@ -266,6 +266,42 @@ test("the checker rejects unresolved imports and undeclared runtime dependencies
   );
 });
 
+test("operational runners and Lighthouse stay outside every product import boundary", () => {
+  const owner = path.join(root, "src/app/page.tsx");
+  for (const [specifier, location] of [
+    ["../../scripts/operations-checks.mjs", "scripts/operations-checks.mjs"],
+    [
+      "../../scripts/run-website-performance.mjs",
+      "scripts/run-website-performance.mjs",
+    ],
+    ["../../deploy/docker/smoke.mjs", "deploy/docker/smoke.mjs"],
+  ])
+    assert.match(
+      check(specifier, path.join(root, location), owner),
+      /only to published local production modules/,
+    );
+  assert.match(
+    check(
+      "lighthouse",
+      path.join(root, "node_modules/lighthouse/core/index.js"),
+      owner,
+      false,
+      "lighthouse",
+    ),
+    /exact owner/,
+  );
+  assert.match(
+    check(
+      "lighthouse",
+      path.join(root, "node_modules/lighthouse/core/index.d.ts"),
+      owner,
+      true,
+      "lighthouse",
+    ),
+    /exact owner/,
+  );
+});
+
 test("the application has ninety explicitly owned production modules", async () => {
   const result = await checkBoundaries();
   assert.equal(result.files, 90);

@@ -9,8 +9,323 @@ import { parse, stringify } from "yaml";
 import {
   inspectCi,
   validateCiWorkflow,
+  validateOperationalWorkflows,
   validateSonarFontWorkflow,
 } from "./check-ci.mjs";
+
+const operationalContents = async () =>
+  Object.fromEntries(
+    await Promise.all(
+      [
+        "codeql",
+        "dast",
+        "deployment-smoke",
+        "package-release",
+        "release",
+        "staging",
+      ].map(async (name) => [
+        name,
+        await readFile(
+          new URL("../.github/workflows/" + name + ".yml", import.meta.url),
+          "utf8",
+        ),
+      ]),
+    ),
+  );
+const changeOperational = async (name, change) => {
+  const contents = await operationalContents();
+  const workflow = parse(contents[name]);
+  change(workflow, Object.values(workflow.jobs)[0]);
+  contents[name] = stringify(workflow);
+  return contents;
+};
+
+test("operational publication retains the same mandatory application gate", async () => {
+  const { workflow, applicationManifest } = await applicationFixture();
+  applicationManifest.phase = "operations";
+  assert.doesNotThrow(() =>
+    validateCiWorkflow(stringify(workflow), applicationManifest),
+  );
+  assert.doesNotThrow(
+    validateOperationalWorkflows.bind(null, await operationalContents()),
+  );
+});
+
+test("all six operational sources are required and malformed YAML is rejected", async () => {
+  for (const value of [undefined, [], {}, { unrelated: "" }])
+    assert.throws(() => validateOperationalWorkflows(value));
+  const original = await operationalContents();
+  for (const name of Object.keys(original)) {
+    const missing = { ...original };
+    delete missing[name];
+    assert.throws(() => validateOperationalWorkflows(missing));
+    for (const invalid of [
+      "jobs: [",
+      "jobs: {}\njobs: {}",
+      "- unrelated",
+      "null",
+      "jobs: &job {}\nother: *job",
+    ])
+      assert.throws(() =>
+        validateOperationalWorkflows({ ...original, [name]: invalid }),
+      );
+  }
+});
+
+test("only CodeQL may run automatically and target operations stay on main", async () => {
+  for (const name of [
+    "dast",
+    "deployment-smoke",
+    "package-release",
+    "release",
+    "staging",
+  ]) {
+    for (const change of [
+      (workflow) => {
+        workflow.on.push = {};
+      },
+      (workflow) => {
+        workflow.on.pull_request_target = {};
+      },
+      (_workflow, job) => {
+        delete job.if;
+      },
+      (_workflow, job) => {
+        job.if = "always()";
+      },
+    ])
+      assert.throws(
+        validateOperationalWorkflows.bind(
+          null,
+          await changeOperational(name, change),
+        ),
+      );
+  }
+});
+
+test("manual inputs, source identity, permissions and execution cannot broaden", async () => {
+  for (const name of [
+    "dast",
+    "deployment-smoke",
+    "package-release",
+    "release",
+    "staging",
+  ]) {
+    const changes = [
+      (workflow) => {
+        workflow.permissions.contents = "write";
+      },
+      (workflow) => {
+        workflow.env = { PRIVATE_TOKEN: "synthetic-value" };
+      },
+      (_workflow, job) => {
+        job["continue-on-error"] = true;
+      },
+      (_workflow, job) => {
+        job["timeout-minutes"] = 0;
+      },
+      (_workflow, job) => {
+        job["timeout-minutes"] = 91;
+      },
+      (_workflow, job) => {
+        job.strategy = { matrix: { runtime: ["untrusted"] } };
+      },
+      (_workflow, job) => {
+        job.environment = "production";
+      },
+      (_workflow, job) => {
+        job["runs-on"] = "self-hosted";
+      },
+      (_workflow, job) => {
+        job.defaults = { run: { "working-directory": "../foreign" } };
+      },
+      (_workflow, job) => {
+        job.steps.push({ run: "curl https://production.example.test" });
+      },
+      (_workflow, job) => {
+        job.steps[0] = null;
+      },
+      (_workflow, job) => {
+        job.steps[0].if = "false";
+      },
+      (_workflow, job) => {
+        job.steps[0].uses = "untrusted/action@main";
+      },
+      (_workflow, job) => {
+        job.steps[0].env = { SECRET: "synthetic" };
+      },
+      (workflow) => {
+        workflow.defaults = { run: { shell: "bash {0}; true" } };
+      },
+    ];
+    for (const change of changes)
+      assert.throws(
+        validateOperationalWorkflows.bind(
+          null,
+          await changeOperational(name, change),
+        ),
+      );
+  }
+  for (const name of [
+    "dast",
+    "deployment-smoke",
+    "package-release",
+    "staging",
+  ]) {
+    for (const change of [
+      (workflow) => {
+        Object.values(workflow.on.workflow_dispatch.inputs)[0].required = false;
+      },
+      (workflow) => {
+        Object.values(workflow.on.workflow_dispatch.inputs)[0].type = "boolean";
+      },
+      (workflow) => {
+        workflow.on.workflow_dispatch.inputs.extra = {
+          type: "string",
+          required: true,
+        };
+      },
+    ])
+      assert.throws(
+        validateOperationalWorkflows.bind(
+          null,
+          await changeOperational(name, change),
+        ),
+      );
+  }
+});
+
+test("Node must be pinned before pure target validation and browsers use root wrappers", async () => {
+  for (const name of ["dast", "deployment-smoke", "staging"]) {
+    for (const change of [
+      (_workflow, job) => {
+        [job.steps[1], job.steps[2]] = [job.steps[2], job.steps[1]];
+      },
+      (_workflow, job) => {
+        job.steps[1].with["node-version-file"] = "../other/.nvmrc";
+      },
+      (_workflow, job) => {
+        job.steps[2].run += " || true";
+      },
+      (_workflow, job) => {
+        job.steps[2].run = "echo validate later";
+      },
+      (_workflow, job) => {
+        job.steps[2].shell = "bash {0}; true";
+      },
+    ])
+      assert.throws(
+        validateOperationalWorkflows.bind(
+          null,
+          await changeOperational(name, change),
+        ),
+      );
+  }
+  for (const name of ["deployment-smoke", "staging"]) {
+    for (const change of [
+      (_workflow, job) => {
+        job.steps[4].run = "npx playwright install chromium";
+      },
+      (_workflow, job) => {
+        job.steps[5].run = "npx playwright test";
+      },
+      (_workflow, job) => {
+        job.env.PLAYWRIGHT_BROWSERS_PATH = "shared";
+      },
+      (_workflow, job) => {
+        job.steps.at(-1).with.path = "operator-state";
+      },
+      (_workflow, job) => {
+        job.steps.at(-1).if = "always()";
+      },
+      (_workflow, job) => {
+        job.steps.at(-1)["continue-on-error"] = true;
+      },
+    ])
+      assert.throws(
+        validateOperationalWorkflows.bind(
+          null,
+          await changeOperational(name, change),
+        ),
+      );
+  }
+});
+
+test("packaging retains independent immutable API input, synthetic build and immutable artifact", async () => {
+  for (const change of [
+    (_workflow, job) => {
+      job.env.KERNEL_SYNTHETIC_ENV = "0";
+    },
+    (_workflow, job) => {
+      delete job.env.WEBSITE_URL;
+    },
+    (_workflow, job) => {
+      job.steps[3].env.KERNEL_API_DIRECTORY = "../kernel-api";
+    },
+    (_workflow, job) => {
+      job.steps[3].run = job.steps[3].run.replace(
+        "4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9",
+        "main",
+      );
+    },
+    (_workflow, job) => {
+      job.steps[3].run += "\ntrue";
+    },
+    (_workflow, job) => {
+      job.steps[4].run += " || true";
+    },
+    (_workflow, job) => {
+      job.steps[5].run = "npm run deploy:package";
+    },
+    (_workflow, job) => {
+      job.steps.at(-1).with["if-no-files-found"] = "warn";
+    },
+  ])
+    assert.throws(
+      validateOperationalWorkflows.bind(
+        null,
+        await changeOperational("package-release", change),
+      ),
+    );
+});
+
+test("CodeQL pins build-free analysis and only its job receives security upload permission", async () => {
+  for (const change of [
+    (workflow) => {
+      workflow.on.push.branches = ["untrusted"];
+    },
+    (workflow) => {
+      workflow.on.pull_request.paths = ["src/**"];
+    },
+    (workflow) => {
+      workflow.on.schedule = [];
+    },
+    (workflow) => {
+      workflow.on.schedule[0].cron = "* * * * *";
+    },
+    (_workflow, job) => {
+      job.permissions.contents = "write";
+    },
+    (_workflow, job) => {
+      job.steps[0].with["persist-credentials"] = true;
+    },
+    (_workflow, job) => {
+      job.steps[1].uses = "github/codeql-action/init@main";
+    },
+    (_workflow, job) => {
+      job.steps[1].with["build-mode"] = "autobuild";
+    },
+    (_workflow, job) => {
+      job.steps[2]["continue-on-error"] = true;
+    },
+  ])
+    assert.throws(
+      validateOperationalWorkflows.bind(
+        null,
+        await changeOperational("codeql", change),
+      ),
+    );
+});
 
 const manifest = {
   checks: [{ id: "example", kind: "required", ciJobs: ["check"] }],
@@ -367,7 +682,7 @@ const applicationFixture = async () => ({
 
 test("application CI has the full fifteen-check gate and independent Windows build, e2e and visual jobs", async () => {
   const { workflow, applicationManifest } = await applicationFixture();
-  assert.equal(applicationManifest.phase, "application");
+  assert.ok(["application", "operations"].includes(applicationManifest.phase));
   assert.equal(applicationManifest.applicationReady, true);
   assert.equal(applicationManifest.profiles.full.length, 15);
   assert.deepEqual(Object.keys(workflow.jobs), [

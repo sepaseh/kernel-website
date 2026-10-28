@@ -485,9 +485,26 @@ const applicationFiles = [
   "src/website/runtime-client.test.tsx",
 ];
 const applicationPaths = new Set(applicationFiles);
+const operationsFiles = [
+  ".github/workflows/codeql.yml",
+  ".github/workflows/dast.yml",
+  ".github/workflows/deployment-smoke.yml",
+  ".github/workflows/package-release.yml",
+  ".github/workflows/release.yml",
+  ".github/workflows/staging.yml",
+  "components.json",
+  "deploy/docker/smoke.mjs",
+  "deploy/docker/smoke.test.mjs",
+  "scripts/operations-checks.mjs",
+  "scripts/operations-checks.test.mjs",
+  "scripts/run-website-performance.mjs",
+  "scripts/run-website-performance.test.mjs",
+];
+const operationsPaths = new Set(operationsFiles);
+const applicationPhases = new Set(["application", "operations"]);
 const applicationGuidancePhases = new Set([
   "application-guidance",
-  "application",
+  ...applicationPhases,
 ]);
 const apiFixturePhases = new Set(["api-fixture", ...applicationGuidancePhases]);
 const browserPhases = new Set(["browser-foundation", ...apiFixturePhases]);
@@ -513,6 +530,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  operations:
+    "Published operational workflows, readiness-first owned Docker and advisory Lighthouse runners, manual release/browser wrappers and generator metadata over the complete runnable application. Source and injected owner tests do not establish a Docker engine, remote target, release, hosted security scan or lab result; each needs its separate authorization and current evidence.",
   application:
     "Published runnable standalone Next.js application, routes, CSS, browser configuration and independently installed synthetic API integration. Exact source closure does not establish execution: the complete application gate must separately record genuine build, browser/CSP and visual results; historical screenshots and metadata remain historical until a current compatibility check succeeds.",
   "application-guidance":
@@ -581,7 +600,8 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(browserPhases.has(phase) ? browserFoundationFiles : []),
   ...(apiFixturePhases.has(phase) ? apiFixtureFiles : []),
   ...(applicationGuidancePhases.has(phase) ? applicationGuidanceFiles : []),
-  ...(phase === "application" ? applicationFiles : []),
+  ...(applicationPhases.has(phase) ? applicationFiles : []),
+  ...(phase === "operations" ? operationsFiles : []),
 ];
 
 /** Return the exact maintained file closure for a named publication phase. */
@@ -597,12 +617,15 @@ export const publicationInventory = (phase) => {
 const rejectsProtectedPublicationPath = (file, phase) => {
   const deliveryPhase = deliveryPhases.has(phase);
   const deploymentPath = file === "deploy" || file.startsWith("deploy/");
+  const publishedDeployment =
+    deliveryToolingPaths.has(file) ||
+    (phase === "operations" && operationsPaths.has(file));
   const localSettingsPath =
     /(?:^|\/)(?:\.env(?:\.|$)|[^/]+\.env(?:\.|$)|settings\.local\.json$)/i.test(
       file,
     );
   return (
-    (deploymentPath && (!deliveryPhase || !deliveryToolingPaths.has(file))) ||
+    (deploymentPath && (!deliveryPhase || !publishedDeployment)) ||
     (localSettingsPath && (!deliveryPhase || !publicDeliveryExamples.has(file)))
   );
 };
@@ -615,13 +638,14 @@ const isToolingPathOutsidePhase = (file, phase) =>
   (!apiFixturePhases.has(phase) && apiFixturePaths.has(file)) ||
   (!applicationGuidancePhases.has(phase) &&
     applicationGuidancePaths.has(file)) ||
-  (phase !== "application" && applicationPaths.has(file));
+  (!applicationPhases.has(phase) && applicationPaths.has(file)) ||
+  (phase !== "operations" && operationsPaths.has(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
     !Object.hasOwn(publicationScopes, policy.phase) ||
-    policy.applicationReady !== (policy.phase === "application") ||
+    policy.applicationReady !== applicationPhases.has(policy.phase) ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
     !policy.allowedFiles.length
@@ -640,7 +664,7 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       (/[*?[\]{}:\0\r\n]/.test(file) &&
-        !(policy.phase === "application" && applicationPaths.has(file))) ||
+        !(applicationPhases.has(policy.phase) && applicationPaths.has(file))) ||
       /^(?:apps|packages|drizzle|collection|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
@@ -650,7 +674,7 @@ export const validateBootstrapPolicy = (policy) => {
         (policy.phase === "governance" ||
           (!isPublishedSource(file, sourcePhase) &&
             !(
-              policy.phase === "application" && applicationPaths.has(file)
+              applicationPhases.has(policy.phase) && applicationPaths.has(file)
             )))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
@@ -710,8 +734,15 @@ export const inspectBootstrap = async (root) => {
           [
             "node_modules",
             "coverage",
-            ...(policy.phase === "application"
-              ? [".next", "playwright-report", "test-results"]
+            ...(applicationPhases.has(policy.phase)
+              ? [
+                  ".next",
+                  "playwright-report",
+                  "test-results",
+                  ...(policy.phase === "operations"
+                    ? [".lighthouseci", "dist"]
+                    : []),
+                ]
               : []),
           ].includes(relative)
         ) {

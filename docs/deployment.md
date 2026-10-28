@@ -2,7 +2,7 @@
 
 [English](deployment.md) · [فارسی](deployment.fa.md)
 
-The application phase provides runnable Next.js composition, CSS and build/start commands with `applicationReady:true`. The local delivery helpers and deployment references below retain separate operational acceptance. A complete application gate is required for its source, but it does not execute or certify a Docker engine, installed Linux service, certificate, release or deployed target.
+The operations phase retains runnable Next.js composition, CSS and build/start commands with `applicationReady:true` and supplies guarded packaging and Docker-smoke source. Their local preparation, container execution and external deployment have separate acceptance. The complete fifteen-check application gate is still required, but it does not execute or certify a Docker engine, installed Linux service, certificate, release or deployed target.
 
 ## Published preparation contracts
 
@@ -34,7 +34,7 @@ boundaries. They are not deployment instructions for this snapshot. Read
 
 ## Acceptance before a runnable deployment
 
-Deployment acceptance must use the actual application artifact and its exact-tree fifteen-check [validation profile](validation.md), including real production build/bundle, independently installed synthetic API/browser/CSP and current visual comparison. Record source, toolchain, platform, artifact hash and actual results. Retained local helper tests do not establish engine/service compatibility; later operational runner/workflow publication must close its own dependencies and acceptance.
+Deployment acceptance must use the actual application artifact and its exact-tree fifteen-check [validation profile](validation.md), including real production build/bundle, independently installed synthetic API/browser/CSP and current visual comparison. Record source, toolchain, platform, artifact hash and actual results. Retained local helper tests and the published operational runners do not establish engine/service compatibility. Run the guarded container smoke or separately authorized target checks on the intended platform and retain their actual results.
 
 Before operator activation, verify trusted hosts/forwarding, same-origin API
 cookies, request-time settings, CSP/cache behavior, assets/fonts, explicit health

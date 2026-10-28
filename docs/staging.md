@@ -1,8 +1,10 @@
-# Staging target contracts and future verification
+# Staging target and execution contracts
 
 [English](staging.md) · [فارسی](staging.fa.md)
 
-[Pure target validators](../scripts/validate-workflow-targets.mjs) and [Node owner tests](../scripts/validate-workflow-targets.test.mjs) remain local contracts alongside the runnable application. Validation does not open a URL, resolve DNS, follow redirects or launch a browser/scanner. Guarded smoke/staging Playwright configurations and authored operation suites are published/type-checked, but external staging, deployment-smoke and DAST workflows and execution remain outside the application gate.
+[Pure target validators](../scripts/validate-workflow-targets.mjs) and their [Node tests](../scripts/validate-workflow-targets.test.mjs) parse explicit inputs without opening URLs, resolving DNS, following redirects or launching a browser/scanner. The [operational wrapper](../scripts/operations-checks.mjs) now supplies the registered `test:smoke` and `test:staging` commands and passes only validated public inputs to the exact installed Playwright SDK. The manual main-only staging, deployment-smoke and DAST workflow sources are present; actual external execution remains separate from the mandatory application gate.
+
+The manual workflow installs pinned Node before pure target validation and resolves browsers through the installed root CLI, never an unpinned `npx` download. `test:smoke` selects Chromium; `test:staging` selects Chromium, Firefox and WebKit. SDK configuration rejects unfiltered ambient values, and the wrapper forwards only public validated target/runtime keys. DAST validates its allowed and denied hostnames before its pinned scanner action. None of these workflow definitions is an observed remote pass.
 
 Staging requires explicit application/API target URLs and their exact configured
 allowed hostnames. Smoke uses its own named inputs and additionally requires equal
@@ -13,7 +15,7 @@ contracts do not make allowlists trustworthy or prevent a production alias, DNS
 change or downstream redirect. Operator review and runtime controls must address
 those cases before any request.
 
-Future verification needs a separately authorized, genuinely non-production target,
+Actual external verification needs a separately authorized, genuinely non-production target,
 an identified deployed artifact, synthetic data policy and independently installed
 compatible browser/API fixtures. Verify actual public routes, assets/fonts,
 noindex, CSP modes, health responses and the release marker if implemented. Record

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "application",
+  "phase": "operations",
   "applicationReady": true,
   "checks": [
     {
@@ -107,6 +107,41 @@
       "scopes": ["application"],
       "command": "npm run test:visual",
       "ciJobs": ["check", "visual"]
+    },
+    {
+      "id": "package",
+      "command": "npm run deploy:package",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "smoke",
+      "command": "npm run test:smoke",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "staging",
+      "command": "npm run test:staging",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "docker",
+      "command": "npm run test:docker",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "lighthouse",
+      "command": "npm run perf:website",
+      "kind": "advisory",
+      "ciJobs": [],
+      "scopes": ["operations"]
     }
   ],
   "profiles": {
@@ -147,6 +182,30 @@
     {
       "path": ".github/workflows/sonar.yml",
       "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/codeql.yml",
+      "mode": "security"
+    },
+    {
+      "path": ".github/workflows/dast.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/deployment-smoke.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/package-release.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/staging.yml",
+      "mode": "manual"
     }
   ]
 }

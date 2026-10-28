@@ -2,7 +2,7 @@
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-The [source policy](../.github/bootstrap-policy.json) is the authority for phase, readiness and exact inventory. The current application phase has `applicationReady:true`, 90 product modules, 38 source test files and three source test-support modules. It integrates Next.js routes, the root layout, request adapters and CSS with the retained API fixture, phase-aware guidance and dated source history. Inventory size and the 100-entry PR limit are different counts; a true marker declares source completeness, not a completed execution result.
+The [source policy](../.github/bootstrap-policy.json) is the authority for phase, readiness and exact inventory. The operations phase has `applicationReady:true`, 420 source files, 90 product modules, 38 source test files and three source test-support modules. It preserves runnable Next.js composition and adds six workflow sources, optional component-generator metadata, guarded Docker/Lighthouse runners and their operational wrappers/tests. Inventory size and the 100-entry PR limit are different counts; a true marker declares source completeness, not completed execution.
 
 ## Delivered foundation
 
