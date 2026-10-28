@@ -2,20 +2,9 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This **delivery-tooling** snapshot remains non-runnable with
-`applicationReady:false`. The files describe a future Linux service/edge layout;
-they do not install, start or verify one. The current source has no application
-build/server, native release or deployment smoke result. Do not install the
-[systemd reference](systemd/kernel-website.service) as evidence of readiness.
+The application source now includes runnable Next.js composition and build/start commands with `applicationReady:true`. These files remain passive Linux service/edge references: they do not install, start or verify a service, release or deployment-smoke target. Do not install the [systemd reference](systemd/kernel-website.service) as evidence of deployment readiness. The exact application gate and intended-platform operational acceptance are separate prerequisites.
 
-The intended layout separates immutable releases/current selection, operator
-configuration and per-release writable cache from API-owned state. The service
-reference uses an unprivileged website account, a preflight and filesystem/kernel
-restrictions. [Artifact preparation](../../scripts/package-release.mjs) and
-[preflight](../../scripts/validate-deployment-env.mjs) use the shared public
-readiness guard; the current false marker refuses operation. Synthetic ready
-fixtures prove the helper contract, not that the real application is ready. A
-future artifact must ship its matching guard/marker and runtime support files.
+The intended layout separates immutable releases/current selection, operator configuration and per-release writable cache from API-owned state. The service reference uses an unprivileged website account, preflight and filesystem/kernel restrictions. [Artifact preparation](../../scripts/package-release.mjs) and [preflight](../../scripts/validate-deployment-env.mjs) require the shared public readiness guard; false/invalid markers fail without a bypass. Synthetic ready fixtures prove helper contracts, not installed-service readiness. A real artifact must ship its matching guard/marker and complete runtime support files.
 
 [Website](website.env.example) and [host](hosts.env.example) examples are public
 source placeholders. They are not installed environments, secrets or proof that

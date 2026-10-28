@@ -5,9 +5,10 @@
 Start with the smallest relevant command in the
 [canonical manifest](../validation.json), following
 [Contributing](../../CONTRIBUTING.md) and the [phase guide](../../docs/bootstrap.md).
-The current phase has no application build, Knip or browser command. Do not invent
-those commands, require unpublished tooling or treat support tests as a running
-website. Before every authorized commit, push or PR handoff, run the complete
+Read the actual source marker and registered profile. Runnable application source
+requires all fifteen checks, including declared Knip, build/bundle, browser/CSP
+and visual commands. Never invent an unregistered command or substitute support
+tests for actual application acceptance. Before every authorized commit, push or PR handoff, run the complete
 full profile on an isolated export of the exact proposed tree, including for
 changes limited to documentation.
 

@@ -1,0 +1,64 @@
+{
+  "platform": "win32",
+  "arch": "x64",
+  "osRelease": "10.0.26200",
+  "node": "v24.18.0",
+  "playwright": "1.64.1",
+  "browser": "bundled-chromium",
+  "browserVersion": "156.0.8078.4",
+  "sourceFingerprint": "82da803fcae2bff68d61fd6fc4e54ddc58c5583d2601d1c42aa46deee3664cb2",
+  "sourceInputs": [
+    "package-lock.json",
+    "playwright.visual.config.ts",
+    "e2e/visual/website.spec.ts",
+    "e2e/visual/readiness.ts",
+    "src/app/globals.css",
+    "src/website/home/Home.tsx",
+    "src/website/layouts/Header.tsx",
+    "src/features/login/Login.tsx",
+    "src/features/register/Register.tsx",
+    "src/shared/fonts/manifest.json",
+    "src/shared/fonts/vazirmatn.css"
+  ],
+  "generatedAt": "2026-10-24T06:44:01.127Z",
+  "review": {
+    "status": "reviewed",
+    "reviewer": "Codex root agent reviewed all four current-browser captures against retained original PNGs; all byte-identical.",
+    "reviewedAt": "2026-10-26T05:53:41.747Z"
+  },
+  "verifiedAt": "2026-10-26T05:53:41.747Z",
+  "retainedBaselineImages": true,
+  "comparison": [
+    {
+      "name": "website-home-en-dark.png",
+      "changedPixels": 0,
+      "maxChannelDifference": 0,
+      "byteIdentical": true
+    },
+    {
+      "name": "website-home-fa-dark.png",
+      "changedPixels": 0,
+      "maxChannelDifference": 0,
+      "byteIdentical": true
+    },
+    {
+      "name": "website-login-en-light.png",
+      "changedPixels": 0,
+      "maxChannelDifference": 0,
+      "byteIdentical": true
+    },
+    {
+      "name": "website-register-fa-light.png",
+      "changedPixels": 0,
+      "maxChannelDifference": 0,
+      "byteIdentical": true
+    }
+  ],
+  "compatibilityReview": {
+    "capturedAt": "2026-10-26T05:50:18.513Z",
+    "previousPlaywright": "1.63.0",
+    "previousBrowserVersion": "153.0.8010.12",
+    "previousSourceFingerprint": "0cbc9b418b833bcf2ea2205db879d73f70f3ce2a5c678a27956b621d6c80553c",
+    "baselineImagesRetained": true
+  }
+}

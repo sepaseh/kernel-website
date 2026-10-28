@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-This is one independently installable root TypeScript package. [The source marker](../.github/bootstrap-policy.json) identifies delivered composition and exact inventory; [phase scope](bootstrap.md) records the current false-marker boundary. Next App Router is the accepted runtime direction in [ADR0001](adr/0001-independent-runtimes.md). [Application integration](application.md) defines the composition and evidence required to deliver that direction.
+This is one independently installable root TypeScript package. [The source marker](../.github/bootstrap-policy.json) identifies delivered composition and exact inventory; [phase scope](bootstrap.md) records the application boundary. Next App Router implements the runtime direction in [ADR0001](adr/0001-independent-runtimes.md). [Application integration](application.md) maps the root layout, pages, request adapters and shell to their complete acceptance contract.
 
 ## Source and service ownership
 
@@ -10,7 +10,7 @@ This is one independently installable root TypeScript package. [The source marke
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | Features           | [features](../src/features)                                                                                                                 | Login, shared OTP, recovery and account forms, feature HTTP modules and exclusive DTOs.                                                    |
 | Shared wire data   | [contracts](../src/shared/contracts/index.ts), [settings contracts](../src/shared/settings/contracts.ts)                                    | Local framework-free shared DTOs and path constants.                                                                                       |
-| HTTP               | [client](../src/shared/api/client.ts), [forwarding](../src/shared/api/proxy.ts)                                                             | Cookie/no-store transport and bounded Web API forwarding. Mounting into a framework route needs explicit composition and tests.            |
+| HTTP               | [client](../src/shared/api/client.ts), [forwarding](../src/shared/api/proxy.ts)                                                             | Cookie/no-store transport and bounded Web API forwarding. Mounted by the owned App Router API route, with adapter and browser acceptance.  |
 | Language/messages  | [language loader](../src/shared/settings/language.ts), [catalogs](../src/i18n/catalogs.ts), [client groups](../src/i18n/client-messages.ts) | API-authoritative language/direction, ten local flat catalogs and explicit message scopes.                                                 |
 | Presentation       | [primitives](../src/components/ui), [shared UI](../src/shared/ui), [providers](../src/app/providers/Providers.tsx)                          | Controls, feedback, session/theme composition and interaction support; page-shell ownership is confirmed from the actual inventory.        |
 | Document/resources | [SEO](../src/shared/seo), [CSP](../src/shared/security/csp.ts), [fonts](../src/shared/fonts), [Web Vitals](../src/shared/performance)       | Explicit origins, escaped data, policy construction, licensed assets and optional delivery. Live SSR/headers need actual adapter evidence. |

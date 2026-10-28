@@ -2,20 +2,9 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-These are inert references for a future runnable website. The **delivery-tooling**
-snapshot has `applicationReady:false`, no application build/start command and no
-Docker smoke runner. Do not treat this directory as an installable stack. No
-Docker engine, image build, Compose startup, certificate issuance or real API
-session is exercised by the current gate.
+These are passive Docker/TLS references alongside runnable application source. The application has `applicationReady:true` and build/start commands, but Docker smoke orchestration and operational workflow acceptance remain deferred. This directory is not an accepted installable stack. The application gate does not run an engine, build an image, start Compose, issue certificates or verify an API session through this gateway. The Docker image’s complete build-helper dependency closure still needs the separate operational change.
 
-Review the [Dockerfile](Dockerfile), [Compose model](compose.yaml),
-[website entrypoint](website-entrypoint.sh),
-[gateway configuration validator](15-validate-configuration.sh) and
-[Nginx template](nginx.conf.template) as source. The website build/entrypoint
-requires the public readiness marker through the shared helper; the current
-non-runnable marker must fail rather than be flipped to bypass missing application
-work. [The example](.env.example) contains public placeholders, not operator
-configuration, credentials or a certificate. No real dotenv or key is bundled.
+Review the [Dockerfile](Dockerfile), [Compose model](compose.yaml), [website entrypoint](website-entrypoint.sh), [gateway validator](15-validate-configuration.sh) and [Nginx template](nginx.conf.template) as references awaiting operational acceptance. Build/entrypoint require the public readiness marker through the shared helper; false/invalid markers must fail without a bypass. Application readiness does not certify the image or gateway. [The example](.env.example) contains public placeholders, not operator configuration, credentials or a certificate. No real dotenv or key is bundled.
 
 The intended separation is website plus gateway with an explicitly configured
 independent API upstream; there is no API service or database in the normal
@@ -23,7 +12,7 @@ Compose model. The references propose an internal website listener, nonroot
 website user, explicit health URL, read-only certificate mount, unknown-host/TLS
 rejection and trusted forwarding-header replacement. Static inspection and local
 configuration tests do not prove these properties in a running engine or that
-future Next.js routes preserve cookies, CSP and no-store behavior.
+the mounted Next.js routes preserve cookies through this gateway, CSP and no-store behavior.
 
 The [cleanup helper](../../scripts/docker-smoke-cleanup.mjs) is tested through
 [injected fake operations](../../scripts/docker-smoke-cleanup.test.mjs), not Docker.

@@ -4,14 +4,7 @@
 
 ## Source phase and evidence
 
-The browser foundation introduced the SDK-backed authored scenarios before
-application activation. Read the [source marker](../.github/bootstrap-policy.json)
-for the current exact inventory and [application contract](application.md) for
-activation acceptance. The current `application-guidance` snapshot retains
-`applicationReady:false` and the eleven-check foundation profile. Its authored
-suites and owner tests establish no real browser/API execution or visual comparison.
-Pages, root layout and the CSS pipeline must arrive with the complete runnable
-application and fresh evidence, rather than a marker-only activation.
+The browser foundation introduced SDK-backed authored scenarios before application activation. Read the [source marker](../.github/bootstrap-policy.json) for the current exact inventory and [application contract](application.md) for acceptance. The application snapshot integrates pages, the root layout and CSS with `applicationReady:true` and a fifteen-check profile. Its Node owner tests and typed authored suites still establish only their own layer; actual browser/API execution and compatible visual comparison must be recorded separately for the exact application tree.
 
 [Independent API fixture](api-fixture.md) defines the pinned public revision,
 installation identity checks, fresh owned state, launcher port contract and SDK
@@ -38,13 +31,7 @@ programs, rather than changing the source marker.
 
 ## Dependency and input boundaries
 
-Playwright and its Axe integration are exact local development dependencies.
-Strict [tooling typechecking](../tsconfig.tooling.json) includes all thirteen
-authored e2e TypeScript files and four configurations against the installed SDK
-types. This is compilation evidence, not a browser installation or execution.
-The false-marker profile registers no browser, Lighthouse, Knip or deployment
-execution command. A runnable application must register and pass the complete
-application profile; operational workflows have their own later acceptance.
+Playwright and its Axe integration are exact local development dependencies. Strict [tooling typechecking](../tsconfig.tooling.json) includes all thirteen authored e2e TypeScript files and four configurations against the installed SDK types. This compilation is separate from browser provisioning/execution. The application profile registers actual website/browser, enforcing/report-only CSP and visual commands together with build/bundle and dead-code checks. Lighthouse, external staging/DAST and deployment have their own deferred operational acceptance.
 
 The resolver checks the selected root's package name, exact declared Playwright
 version, lockfile entry, installed package name/version and fixed unlinked CLI
@@ -108,11 +95,7 @@ metadata must identify the matching platform, SDK/browser version and an actual
 reviewer/time; update mode invalidates prior approval before capture can change
 an image. An unsuccessful or partial capture must remain pending.
 
-Previous PNGs and review metadata remain preserved historical material outside
-this snapshot. Historical metadata cannot attest current compatibility; a later
-application must run the matching reviewed baseline under the visual contract.
-This documentation change creates or approves no baseline. See [visual limits](visual-regression.md),
-[fonts](fonts.md) and [accessibility](accessibility.md).
+The published Windows PNGs and metadata retain their historical dates and bytes. They are baseline inputs, not current compatibility evidence. Exact-tree application acceptance must run compatible current captures and comparisons under the visual contract; missing or mismatched metadata is a failure. Do not refresh dates or approve a changed image without authorization and actual visual review. See [visual limits](visual-regression.md), [fonts](fonts.md) and [accessibility](accessibility.md).
 
 Two operation files describe [release smoke](../e2e/operations/smoke.spec.ts) and
 [staging acceptance](../e2e/operations/staging.spec.ts). They are authored
@@ -135,13 +118,7 @@ Focused development checks may run the four Node owners:
 node --test scripts/browser-inputs.test.mjs scripts/playwright-config.test.mjs scripts/visual.test.mjs scripts/test-csp-report-only.test.mjs
 ```
 
-Before an authorized commit, push or PR handoff, fresh Node and pinned Python
-installation and the complete [canonical profile](../.agents/validation.json)
-must pass on the exact isolated proposed tree, retaining all eleven checks while
-the marker is false. Keep the existing unit,
-governance and font thresholds, source closure and complete provider preflight.
-See [validation](validation.md), [testing](testing.md) and
-[test reliability](test-reliability.md).
+Before an authorized commit, push or PR handoff, fresh Node and pinned Python installation and the complete fifteen-check [canonical profile](../.agents/validation.json) must pass on the exact isolated application tree. Keep unit, governance and font thresholds, complete source closure and provider preflight. Node owner cases alone do not establish the profile’s actual build/browser/visual results. See [validation](validation.md), [testing](testing.md) and [test reliability](test-reliability.md).
 
 Application activation must supply pages/layout/CSS, Knip, an independently
 installed synthetic API, browser provisioning, applicable reviewed baselines and

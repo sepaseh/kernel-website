@@ -182,10 +182,18 @@ const syntheticGuidanceProject = async (t) => {
       name: pkg.name,
       packages: { "": {} },
     }),
-    ".github/workflows/ci.yml": await readFile(
-      new URL("../.github/workflows/ci.yml", import.meta.url),
-      "utf8",
-    ),
+    ".github/workflows/ci.yml": `on:
+  pull_request:
+jobs:
+  check:
+    steps:
+      - run: npm ci
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.14.4"
+      - run: python -m pip install --requirement font-source/requirements.txt
+      - run: npm run validate -- full
+`,
   };
   for (const filename of [
     "AGENTS.md",
@@ -307,9 +315,13 @@ test("the verified canonical full runner projects every required check once", as
     "      - run: npm ci",
     "      - run: npm run unregistered\n      - run: npm ci",
   );
+  assert.throws(
+    () => ciCommands(extra, manifest),
+    /exact pinned actions and commands/,
+  );
   assert.ok(
-    validateManifest(manifest, settings, ciCommands(extra, manifest)).some(
-      (error) => error.includes("Unregistered CI"),
+    validateManifest(manifest, settings, ciCommands(extra)).some((error) =>
+      error.includes("Unregistered CI"),
     ),
   );
   assert.throws(() => ciCommands("jobs: [invalid"), /valid YAML/);

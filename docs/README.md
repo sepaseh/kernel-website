@@ -2,17 +2,12 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-The published `application-guidance` phase retains `applicationReady:false`, the
-independent API fixture prerequisite and the same sixty-six production modules.
-Start with the [phase guide](bootstrap.md) for the current inventory and eleven
-required checks. The [application contract](application.md) describes the future
-runnable integration and its acceptance conditions; publishing that contract does
-not activate routes, CSS, a browser, delivery or additional provider workflows.
+The published `application` phase contains runnable composition with `applicationReady:true` and 90 production modules over the independent API fixture foundation. Start with the [phase guide](bootstrap.md) for the exact inventory and fifteen required checks. [Application integration](application.md) maps delivered composition and acceptance; actual build/browser/visual results must identify the exact tested tree. Deployment and operational workflows retain separate acceptance and authorization.
 
 | Area                                   | Guide                                                                                                                                                                                   |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Current setup and source ownership     | [README](../README.md), [architecture](architecture.md), [navigation](source-navigation.md), [ADRs](adr/README.md)                                                                      |
-| Future application integration         | [Application acceptance](application.md), [SEO contract](seo.md)                                                                                                                        |
+| Application integration                | [Application acceptance](application.md), [SEO contract](seo.md)                                                                                                                        |
 | Local forms and session behavior       | [Forms](forms.md), [session](session.md), [client UI](client-ui.md)                                                                                                                     |
 | API and server boundaries              | [API fixture](api-fixture.md), [server boundary](server-boundary.md), [client/document support](client-document.md)                                                                     |
 | Design and languages                   | [Design](../DESIGN.md), [design skill](../.agents/skills/design-ui/SKILL.md), [localization](localization.md), [fonts](fonts.md)                                                        |

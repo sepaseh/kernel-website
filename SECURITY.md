@@ -4,9 +4,7 @@
 
 ## Scope and reporting
 
-Security fixes target the latest maintained website source on main. Older commits
-and forks are not separately supported. This repository currently publishes
-non-runnable support and feature modules; it does not establish a deployed service.
+Security fixes target the latest maintained website source on main. Older commits and forks are not separately supported. This repository publishes runnable website composition and its local support/feature modules; source publication and test results do not establish a deployed service or a security certification.
 
 Keep suspected vulnerability details out of public issues, discussions, PRs and
 commits. If private reporting is enabled, use the repository's

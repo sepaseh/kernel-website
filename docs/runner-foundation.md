@@ -4,15 +4,7 @@
 
 ## Source phase and activation
 
-These process owners were introduced in the 317-file `runner-foundation` phase.
-The [source marker](../.github/bootstrap-policy.json) owns the current exact
-inventory and readiness; documentation additions do not activate a runtime.
-The current `application-guidance` snapshot retains `applicationReady:false` and
-the eleven-check foundation profile. Website, API, server and analyzer entry
-operations reject this marker before environment/configuration reads, dependency
-resolution, output access or child creation. Do not toggle it to run an incomplete
-snapshot. [Application acceptance](application.md) defines the separate source,
-fifteen-check gate and protected merge transition required for activation.
+These process owners were introduced in the 317-file `runner-foundation` phase. The [source marker](../.github/bootstrap-policy.json) owns the current exact inventory and readiness. The application snapshot has complete runnable composition, `applicationReady:true` and a fifteen-check profile. Website, API, server and analyzer entries still validate readiness before environment/configuration reads, dependency resolution, output access or child creation; a false or invalid marker fails without a bypass. [Application acceptance](application.md) requires actual exact-tree execution and the protected merge transition, independently of structural readiness.
 
 [Independent API fixture](api-fixture.md) defines the public pinned API adapter,
 fresh owned state, launcher port contract and strict SDK worker control. Ordinary
@@ -67,20 +59,13 @@ not only mocked callbacks. Negative cases keep the false marker and prove inputs
 and side effects remain untouched. Local files and processes belong to each test;
 real dotenv, developer APIs, operator state and production are not fixtures.
 
-The [canonical manifest](../.agents/validation.json) owns the full profile, which
-currently retains all eleven checks. These owners join measured governance coverage and Sonar through existing
-source selectors, without exclusions or weaker thresholds. Focused development
-verification can run:
+The [canonical manifest](../.agents/validation.json) owns the complete fifteen-check application profile. These Node owners remain in measured governance coverage and Sonar through the existing source selectors, without exclusions or weaker thresholds. Focused development verification can run:
 
 ```sh
 node --test scripts/runner-process.test.mjs scripts/runner-inputs.test.mjs scripts/start-website.test.mjs scripts/test-website-api.test.mjs scripts/test-website-server.test.mjs scripts/analyze-website-performance.test.mjs
 ```
 
-An authorized commit, push or PR handoff still requires fresh Node and pinned
-Python installation plus `npm run validate -- full` on the exact isolated tree.
-The existing 66-module product inventory, source-test ownership, operation-token
-activation guards and font checks remain intact in this false-marker snapshot;
-see [session ownership](session.md).
+An authorized commit, push or PR handoff requires fresh Node and pinned Python installation plus `npm run validate -- full` on the exact isolated tree. All 90 product modules, source-test ownership, operation-token activation guards and font checks remain in scope; see [session ownership](session.md).
 
 Passing these Node owner tests establishes neither a real Next.js build/start nor
 independent API compatibility, browser/CSP, accessibility, visual comparison,

@@ -2,27 +2,11 @@
 
 [English](deployment.md) · [فارسی](deployment.fa.md)
 
-The **delivery-tooling** phase publishes local artifact/configuration helpers and
-inert deployment references. `applicationReady:false` remains mandatory. The
-website still has no application routes, root layout, CSS pipeline or runnable
-server. No application build, API, browser, Docker engine or deployed target is
-started or certified by this phase.
+The application phase provides runnable Next.js composition, CSS and build/start commands with `applicationReady:true`. The local delivery helpers and deployment references below retain separate operational acceptance. A complete application gate is required for its source, but it does not execute or certify a Docker engine, installed Linux service, certificate, release or deployed target.
 
 ## Published preparation contracts
 
-[Standalone preparation](../scripts/prepare-standalone.mjs), the
-[release packager](../scripts/package-release.mjs) and their shared
-[file policy](../scripts/release-files.mjs) operate on explicitly supplied local
-inputs. Their owner tests use disposable synthetic build trees. A copied
-server-shaped fixture and release metadata prove file handling, not that Next.js
-produced a working server or that bundled dependencies are complete and usable.
-Core delivery CLIs read the unlinked public readiness policy and require
-schema version 1 with applicationReady true before environment reads, network or
-artifact copying. The current false policy refuses them; only owned synthetic
-test roots declare readiness for these contract tests. There is no bypass flag.
-Release IDs and destinations remain exclusive; an existing release is not a
-scratch directory to overwrite. Filtering prohibited file classes does not prove
-that arbitrary allowed content contains no secret.
+[Standalone preparation](../scripts/prepare-standalone.mjs), the [release packager](../scripts/package-release.mjs) and their shared [file policy](../scripts/release-files.mjs) operate on explicitly supplied local inputs. Owner tests use disposable synthetic build trees; copied server-shaped fixtures prove file handling, not a complete working artifact. Core CLIs require an ordinary unlinked schema1 readiness policy with applicationReady true before environment, network or artifact operations; false/invalid policies still fail with no bypass. A true source marker does not authorize release or deployment. Release IDs/destinations remain exclusive; an existing release is not a scratch directory. File-class filtering does not attest arbitrary allowed content contains no secret.
 
 [Configuration validation](../scripts/validate-deployment-env.mjs) checks supplied
 website settings; [template rendering](../scripts/render-deployment.mjs) substitutes
@@ -50,12 +34,7 @@ boundaries. They are not deployment instructions for this snapshot. Read
 
 ## Acceptance before a runnable deployment
 
-A later authorized change must deliver the actual framework composition and a
-verified production build, install an independently owned synthetic API fixture,
-and introduce the complete required application/build/browser/visual gates.
-Record the exact source, toolchain, platform, artifact hash and actual results.
-The current eleven-check [validation profile](validation.md) remains required;
-local helper tests cannot replace those future runtime checks.
+Deployment acceptance must use the actual application artifact and its exact-tree fifteen-check [validation profile](validation.md), including real production build/bundle, independently installed synthetic API/browser/CSP and current visual comparison. Record source, toolchain, platform, artifact hash and actual results. Retained local helper tests do not establish engine/service compatibility; later operational runner/workflow publication must close its own dependencies and acceptance.
 
 Before operator activation, verify trusted hosts/forwarding, same-origin API
 cookies, request-time settings, CSP/cache behavior, assets/fonts, explicit health

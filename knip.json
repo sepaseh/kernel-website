@@ -1,0 +1,15 @@
+{
+  "entry": [
+    "scripts/*.mjs",
+    "e2e/**/*.ts",
+    "playwright.*.config.ts",
+    "src/i18n/catalog-data/*.test.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx,css}",
+    "scripts/**/*.mjs",
+    "e2e/**/*.ts",
+    "*.ts"
+  ],
+  "playwright": false
+}

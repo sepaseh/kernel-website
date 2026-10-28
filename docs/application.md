@@ -2,17 +2,17 @@
 
 [English](application.md) · [فارسی](application.fa.md)
 
-Read the [publication marker](../.github/bootstrap-policy.json), [canonical checks](../.agents/validation.json) and [phase guide](bootstrap.md) first. This is an acceptance contract, not a declaration of readiness. The application-guidance phase retains a false marker, 66 product modules and eleven full checks.
+Read the [publication marker](../.github/bootstrap-policy.json), [canonical checks](../.agents/validation.json) and [phase guide](bootstrap.md) first. The application phase publishes complete runnable composition with `applicationReady:true`, 407 source files and 90 product modules. The full profile contains fifteen required checks. Source readiness and a recorded contract are not a claim that an arbitrary tree, hosted check or deployed service has passed.
 
 ## Composition
 
-Deliver framework composition with its CSS/configuration, tests and documentation together. Proposed owners are `src/app/layout.tsx`, public/auth/account pages and error boundaries, `src/app/api/[...path]/route.ts`, `src/proxy.ts`, `src/i18n/request.ts`, `src/shared/settings/server.ts` and the website shell. These planned references do not assert files are published.
+Framework composition, CSS/configuration, tests and documentation are delivered together. Owners are [the root layout](../src/app/layout.tsx), public/auth/account pages and error boundaries under [app](../src/app), [the API route](../src/app/api), [request proxy](../src/proxy.ts), [request messages](../src/i18n/request.ts), [server settings](../src/shared/settings/server.ts) and [the website shell](../src/website/layouts). Composition/adapter unit tests retain explicit framework mocks; real build and browser checks establish their separate integration evidence.
 
 Preserve request-scoped uncached API language/direction, complete local catalogs and explicit root/auth/account messages, cookie/no-store forwarding, fresh CSP nonces and both modes, explicit SEO origins and opt-in indexing, local licensed fonts, reduced motion, independent theme and session/form ownership. Keep one independently installable package without source dependencies on another checkout. Inspect actual installed framework APIs; cover composition and adapter failure paths, every production TS/TSX owner and its import boundaries. Retain all security fixes, existing tests and coverage thresholds.
 
 ## Exact-tree acceptance
 
-The runnable full profile must register fifteen required checks: the retained eleven plus dead-code analysis, production build with bundle budget, browser journeys including enforcing/report-only CSP, and visual comparison. Update the manifest, checked projections, exact inventory, package permissions, type/lint/coverage configuration and CI semantic tests together. These are future requirements, not new executable commands registered by this document.
+The runnable full profile registers fifteen required checks: the retained eleven plus dead-code analysis, production build with bundle budget, browser journeys including enforcing/report-only CSP, and visual comparison. The manifest, checked projections, exact inventory, package permissions, type/lint/coverage configuration and CI semantic tests must agree. Commands are owned by the canonical manifest and package scripts, including `check:unused`, `build`, `test:e2e` and `test:visual`; this document does not register an independent command list.
 
 Freshly install Node and pinned Python dependencies in the exact isolated proposed export. For browser evidence independently install the public API revision and dependencies defined by [the fixture contract](api-fixture.md); use fresh owned state and a generated test-only secret outside source, explicit loopback targets and verified SDK/browser identity. Never reuse existing APIs, private dotenv or operator state.
 

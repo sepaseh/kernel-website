@@ -2,15 +2,17 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This independent TypeScript frontend uses the [source marker and exact inventory](.github/bootstrap-policy.json) for publication scope and the [canonical manifest](.agents/validation.json) for required commands. The application-guidance snapshot keeps `applicationReady:false`, 66 product modules, 34 source test files and three source test-support modules. It prepares integration guidance and preserves dated source history without adding routes, a root layout or CSS build.
+This independent TypeScript frontend uses the [source marker and exact inventory](.github/bootstrap-policy.json) for publication scope and the [canonical manifest](.agents/validation.json) for required commands. The application phase publishes Next App Router pages, a root layout, CSS and request adapters with `applicationReady:true`, 90 product modules, 38 source test files and three source test-support modules. Readiness describes the complete source closure; exact-tree acceptance still requires the full gate and actual provider evidence.
 
 Local product owners provide authentication/account forms, reviewed UI primitives, session/theme providers, ten complete 107-key flat catalogs, cookie/no-store HTTP and forwarding, API-owned language/direction, pure CSP/SEO support, optional private Web Vitals and licensed self-hosted fonts. Read [architecture](docs/architecture.md), [forms](docs/forms.md), [session](docs/session.md), [localization](docs/localization.md), [client/document support](docs/client-document.md) and [fonts](docs/fonts.md).
 
-The independent API owns authentication, settings, persistence and storage. Consume it through HTTP; no cross-checkout source imports, workspaces or local links. Package imports have explicit owner/identity permissions. The [fixture contract](docs/api-fixture.md) pins a public API revision, clean source, independently installed dependencies, fresh owned state and strict launcher inputs. The false-marker gate measures this adapter with synthetic Node tests; it runs no real API or browser.
+The independent API owns authentication, settings, persistence and storage. Consume it through HTTP; no cross-checkout source imports, workspaces or local links. Package imports have explicit owner/identity permissions. The [fixture contract](docs/api-fixture.md) pins a public API revision, clean source, independently installed dependencies, fresh owned state and strict launcher inputs. Synthetic Node owner tests verify adapter contracts; the application gate separately requires actual execution of that independent fixture and the browser.
 
 ## Install and validate
 
-Use Node from [.nvmrc](.nvmrc), its bundled npm and Python 3.14.4 in an activated disposable environment outside source:
+Use Node from [.nvmrc](.nvmrc), its bundled npm and Python 3.14.4 in an activated disposable environment outside source. Independently install the pinned public API as described in [the fixture guide](docs/api-fixture.md), and select its absolute path with `KERNEL_API_DIRECTORY`; never select an existing service or discover a sibling checkout.
+
+For the synthetic full profile, explicitly supply `KERNEL_SYNTHETIC_ENV=1`, `NODE_ENV=production`, `NPM_CONFIG_INCLUDE=dev`, `HOSTNAME=127.0.0.1`, distinct available website/API loopback origins and matching `PORT`, `WEBSITE_URL` and `API_BASE_URL`, plus `WEBSITE_INDEXING_ENABLED=false` and `PLAYWRIGHT_BROWSERS_PATH=0`. CI uses website port 3010 and API port 3100. Use the host shell’s environment syntax, not dotenv. Install the matching project-local Chromium with the declared Playwright SDK before the browser checks. The owned API runner generates its test-only secret and fresh state; supply no private credential.
 
 ```sh
 npm ci
@@ -18,7 +20,7 @@ python -m pip install --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
-The current profile has eleven required checks. Real React/RTL, Radix, next-intl and next-themes run in isolated jsdom with synthetic HTTP; navigation/motion mocks retain their documented limits. All product source, governance scripts and actual font binaries remain measured. Generated coverage reports are not committed.
+The current profile has fifteen required checks, including dead-code analysis, a real production build and bundle budget, browser journeys in enforcing/report-only CSP modes and Windows visual comparison. Real React/RTL, Radix, next-intl and next-themes also run in isolated unit environments with synthetic HTTP; navigation/motion mocks retain their documented limits. All product source, governance scripts and actual font binaries remain measured. Generated coverage and browser reports are not committed.
 
 [Contributing](CONTRIBUTING.md), [testing](docs/testing.md) and [validation](docs/validation.md) define exact-tree acceptance. Every PR executes the full declared profile, including documentation. Each changes at most 100 GitHub entries. Keep one website PR open and create authorized PRs ready for review. Observe hosted CI, Sonar and review results for the current head; files alone do not prove provider success.
 

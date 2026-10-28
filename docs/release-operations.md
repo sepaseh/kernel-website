@@ -2,19 +2,9 @@
 
 [English](release-operations.md) · [فارسی](release-operations.fa.md)
 
-This **delivery-tooling** snapshot is non-runnable. It adds local preparation
-contracts and passive references, with no release, packaging, staging,
-deployment-smoke or DAST workflow activated. The current check/policy/Sonar
-workflows and eleven-check [canonical gate](validation.md) retain their existing
-roles. Native Sonar evidence and the complete CodeRabbit preflight remain governed
-by [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
+The application source supplies runnable composition and its complete fifteen-check [canonical gate](validation.md), with real check/build/e2e/visual CI definitions plus the existing policy/scanner/native Sonar checks. Release, packaging, external staging, deployment-smoke and DAST workflows remain deferred; no operational workflow or deployed target is activated by this source publication. Native Sonar and the complete CodeRabbit preflight remain governed by [branch protection](branch-protection.md) and [Sonar](sonarqube.md).
 
-[Version configuration](releasing.md) and historical changelog entries do not
-prove a tag, uploaded artifact, provider run or deployed service. The
-[packager](../scripts/package-release.mjs) is tested with synthetic local inputs;
-it neither builds the missing application nor publishes a release. Local
-preparation does not create permission to commit, push, dispatch a workflow,
-provision secrets or activate infrastructure.
+[Version configuration](releasing.md) and historical changelog entries do not prove a tag, uploaded artifact, provider run or deployed service. The [packager](../scripts/package-release.mjs) consumes supplied local artifacts and retains synthetic owner tests; it does not invoke the application build or publish a release. Use actual build results for application acceptance. Local preparation grants no permission to commit, push, dispatch a workflow, provision secrets or activate infrastructure.
 
 [Target validators](../scripts/validate-workflow-targets.mjs) parse explicit
 staging/smoke/DAST inputs without contacting their URLs. Staging checks exact

@@ -2,12 +2,7 @@
 
 [English](staging.md) · [فارسی](staging.fa.md)
 
-The non-runnable **delivery-tooling** phase publishes
-[pure target validators](../scripts/validate-workflow-targets.mjs) and
-[Node owner tests](../scripts/validate-workflow-targets.test.mjs). Validation does
-not open a URL, resolve DNS, follow redirects or launch a browser/scanner. No
-staging, deployment-smoke or DAST workflow, Playwright configuration or operations
-browser suite is activated in this snapshot.
+[Pure target validators](../scripts/validate-workflow-targets.mjs) and [Node owner tests](../scripts/validate-workflow-targets.test.mjs) remain local contracts alongside the runnable application. Validation does not open a URL, resolve DNS, follow redirects or launch a browser/scanner. Guarded smoke/staging Playwright configurations and authored operation suites are published/type-checked, but external staging, deployment-smoke and DAST workflows and execution remain outside the application gate.
 
 Staging requires explicit application/API target URLs and their exact configured
 allowed hostnames. Smoke uses its own named inputs and additionally requires equal
@@ -26,8 +21,4 @@ the exact build, browser/platform, target and actual failures. A syntactically
 valid target or matching input IDs is not proof of the remote service's identity.
 Staging noindex is indexing policy, never access control.
 
-The current eleven-check [validation gate](validation.md) uses synthetic/local
-evidence and remains required. It supplies no browser, real cookie/session,
-deployment or DAST result. External target access and scanning need their own
-authorization; importing or testing these validators grants none. Read
-[operations](release-operations.md) and [security review](security/reviews.md).
+The complete fifteen-check [application gate](validation.md) requires owned local build, independent API/browser/CSP and visual evidence. It does not establish an external staging deployment or DAST result. Target-validator owner tests retain synthetic/local inputs and do not prove remote service identity. External target access and scanning require their own authorization; importing or testing these validators grants none. Read [operations](release-operations.md) and [security review](security/reviews.md).

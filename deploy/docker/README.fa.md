@@ -2,26 +2,15 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-این فایل‌ها مرجع غیرفعال وب‌سایت قابل اجرای آینده‌اند. snapshot مرحلهٔ
-**delivery-tooling** مقدار `applicationReady:false` دارد، فرمان build و start
-برنامه ندارد و اجراکنندهٔ smoke Docker ندارد. این پوشه stack قابل نصب نیست.
-gate فعلی موتور Docker، build image، شروع Compose، صدور گواهی یا نشست واقعی API
-را اجرا نمی‌کند.
+این فایل‌ها مرجع غیرفعال Docker و TLS در کنار سورس برنامهٔ قابل اجرا هستند. برنامه `applicationReady:true` و فرمان build/start دارد، ولی اجراکنندهٔ smoke در Docker و پذیرش گردش کار عملیاتی موکول می‌ماند. این پوشه stack پذیرفته‌شدهٔ قابل نصب نیست. دروازهٔ برنامه موتور اجرا نمی‌کند، image نمی‌سازد، Compose را راه نمی‌اندازد، گواهی صادر نمی‌کند و نشست API از این درگاه را تأیید نمی‌کند. تکمیل وابستگی همهٔ ابزارهای ساخت image در Docker همچنان به تغییر مستقل عملیاتی نیاز دارد.
 
-[Dockerfile](Dockerfile)، [مدل Compose](compose.yaml)،
-[entrypoint وب‌سایت](website-entrypoint.sh)،
-[اعتبارسنج پیکربندی درگاه](15-validate-configuration.sh) و
-[قالب Nginx](nginx.conf.template) را به‌عنوان سورس بازبینی کنید. build و entrypoint
-وب‌سایت از ابزار مشترک، marker عمومی آمادگی می‌خواهند؛ marker غیرقابل اجرای فعلی
-باید شکست بخورد و برای دورزدن کار برنامهٔ غایب تغییر نکند.
-[فایل نمونه](.env.example) جای‌نگهدار عمومی دارد و تنظیم اپراتور، اعتبارنامه یا
-گواهی نیست. dotenv یا کلید واقعی همراه نمی‌شود.
+[Dockerfile](Dockerfile)، [مدل Compose](compose.yaml)، [entrypoint وب‌سایت](website-entrypoint.sh)، [اعتبارسنج درگاه](15-validate-configuration.sh) و [قالب Nginx](nginx.conf.template) را به‌عنوان مرجع در انتظار پذیرش عملیاتی بازبینی کنید. build و entrypoint از ابزار مشترک نشانگر عمومی آمادگی می‌خواهند؛ نشانگر false یا نامعتبر باید بدون راه دورزدن رد شود. آمادگی برنامه image یا درگاه را تأیید نمی‌کند. [فایل نمونه](.env.example) جای‌نگهدار عمومی دارد، نه تنظیم اپراتور، اعتبارنامه یا گواهی. dotenv یا کلید واقعی همراه نمی‌شود.
 
 تفکیک هدف، وب‌سایت و درگاه با upstream مستقل API صریح است؛ مدل عادی Compose سرویس
 API یا پایگاه ندارد. مرجع‌ها listener داخلی وب‌سایت، کاربر nonroot وب‌سایت، URL
 صریح سلامت، اتصال فقط‌خواندنی گواهی، رد میزبان و TLS ناشناخته و جایگزینی forwarding
 معتبر را پیشنهاد می‌کنند. بازرسی ایستا و آزمون محلی پیکربندی، این ویژگی‌ها را در
-engine فعال یا حفظ کوکی، CSP و no-store توسط مسیر آیندهٔ Next.js ثابت نمی‌کند.
+engine فعال یا حفظ کوکی، CSP و no-store توسط مسیر نصب‌شدهٔ Next.js از این درگاه ثابت نمی‌کند.
 
 [ابزار پاک‌سازی](../../scripts/docker-smoke-cleanup.mjs) با
 [عملیات ساختگی تزریقی](../../scripts/docker-smoke-cleanup.test.mjs) آزموده می‌شود و

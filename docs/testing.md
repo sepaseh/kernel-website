@@ -2,7 +2,7 @@
 
 [English](testing.md) · [فارسی](testing.fa.md)
 
-The [marker](../.github/bootstrap-policy.json) and [canonical manifest](../.agents/validation.json) define actual scope and commands. [Validation](validation.md) owns sequencing; [application integration](application.md) defines expanded acceptance when runnable composition is delivered. Tests and dated reports establish only the source actually exercised.
+The [marker](../.github/bootstrap-policy.json) and [canonical manifest](../.agents/validation.json) define actual scope and commands. [Validation](validation.md) owns sequencing; [application integration](application.md) maps the delivered composition and complete acceptance. Tests and dated reports establish only the source actually exercised.
 
 | Layer                   | Evidence and limits                                                                                                                                                                                                     |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -19,7 +19,7 @@ The [marker](../.github/bootstrap-policy.json) and [canonical manifest](../.agen
 
 [Runner](runner-foundation.md) and [browser](browser-foundation.md) guides map their measured Node owner cases. Imports stay inert; false-marker core entries reject before configuration, dependency, network or artifact operations. Only owned synthetic roots may declare readiness to test positive guard paths. Test cancellation, failures, bounded output and cleanup of the actual direct child object created by its owner.
 
-The [API fixture](api-fixture.md) requires explicit absolute selection, pinned public Git revision, clean tracked source, independent dependency installation and its published entry. Structural markers alone are insufficient. Preserve standard fixed system Git, strict environment allowlists and launcher parent/child port ownership. Its current false-marker tests use owned Node fixtures and mocked Git; actual browser integration must independently install that API, generate fresh test-only state/secret outside source and verify browser identity.
+The [API fixture](api-fixture.md) requires explicit absolute selection, pinned public Git revision, clean tracked source, independent dependency installation and its published entry. Structural markers alone are insufficient. Preserve standard fixed system Git, strict environment allowlists and launcher parent/child port ownership. Its Node owner tests use owned fixtures and mocked Git; the application browser checks separately run the independently installed API with fresh test-only state/secret outside source and verified browser identity.
 
 ## Recording results
 

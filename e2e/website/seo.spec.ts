@@ -201,69 +201,75 @@ for (const locale of localeCodes) {
     const messages = (await catalogs[locale]()).default;
     const otherLocale = locale === "en" ? "fa" : "en";
     const configuredLanguage = await setSiteLanguage(request, locale);
-    const response = await request.get(
-      `${websiteOrigin}/?utm_source=seo&preview=ignored`,
-      {
-        headers: {
-          ...botHeaders,
-          "Accept-Language": otherLocale,
-          Cookie: `NEXT_LOCALE=${otherLocale}`,
+    await withWebsite(request, { indexing: true }, async (origin) => {
+      // Only this owned loopback server may supply the positive indexing case.
+      // The synthetic canonical HTTPS origin remains a blocked network target.
+      await page.route(`${origin}/**`, (route) => route.continue());
+      const response = await request.get(
+        `${origin}/?utm_source=seo&preview=ignored`,
+        {
+          headers: {
+            ...botHeaders,
+            "Accept-Language": otherLocale,
+            Cookie: `NEXT_LOCALE=${otherLocale}`,
+          },
         },
-      },
-    );
-    expect(response.status()).toBe(200);
-    expect(response.headers()["x-robots-tag"]).toBeUndefined();
-    const document = await inspectHtml(page, await response.text());
-    expect(document.language).toBe(locale);
-    expect(document.direction).toBe(configuredLanguage.direction);
-    expect(document.title).toBe(messages.metadataTitle);
-    expect(document.meta.description).toBe(messages.metadataDescription);
-    expect(
-      document.canonical.map((value) => new URL(value ?? "").href),
-    ).toEqual([canonicalHome]);
-    expect(document.hreflang).toBe(0);
-    expect(document.meta.robots).toBe("index, follow");
-    expect(document.meta["og:type"]).toBe("website");
-    expect(document.meta["og:site_name"]).toBe("Kernel");
-    expect(document.meta["og:title"]).toBe(messages.metadataTitle);
-    expect(document.meta["og:description"]).toBe(messages.metadataDescription);
-    expect(new URL(document.meta["og:url"]).href).toBe(canonicalHome);
-    expect(document.meta["og:image"]).toBe(`${canonicalOrigin}/social-image`);
-    expect(document.meta["og:image:width"]).toBe("1200");
-    expect(document.meta["og:image:height"]).toBe("630");
-    expect(document.meta["twitter:card"]).toBe("summary_large_image");
-    expect(document.meta["twitter:title"]).toBe(messages.metadataTitle);
-    expect(document.meta["twitter:description"]).toBe(
-      messages.metadataDescription,
-    );
-    expect(document.meta["twitter:image"]).toBe(
-      `${canonicalOrigin}/social-image`,
-    );
-    expect(document.jsonLd).toEqual([
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "@id": canonicalHome,
-        url: canonicalHome,
-        name: "Kernel",
-        description: messages.metadataDescription,
-        inLanguage: locale,
-      },
-    ]);
+      );
+      expect(response.status()).toBe(200);
+      expect(response.headers()["x-robots-tag"]).toBeUndefined();
+      const document = await inspectHtml(page, await response.text());
+      expect(document.language).toBe(locale);
+      expect(document.direction).toBe(configuredLanguage.direction);
+      expect(document.title).toBe(messages.metadataTitle);
+      expect(document.meta.description).toBe(messages.metadataDescription);
+      expect(
+        document.canonical.map((value) => new URL(value ?? "").href),
+      ).toEqual([canonicalHome]);
+      expect(document.hreflang).toBe(0);
+      expect(document.meta.robots).toBe("index, follow");
+      expect(document.meta["og:type"]).toBe("website");
+      expect(document.meta["og:site_name"]).toBe("Kernel");
+      expect(document.meta["og:title"]).toBe(messages.metadataTitle);
+      expect(document.meta["og:description"]).toBe(
+        messages.metadataDescription,
+      );
+      expect(new URL(document.meta["og:url"]).href).toBe(canonicalHome);
+      expect(document.meta["og:image"]).toBe(`${canonicalOrigin}/social-image`);
+      expect(document.meta["og:image:width"]).toBe("1200");
+      expect(document.meta["og:image:height"]).toBe("630");
+      expect(document.meta["twitter:card"]).toBe("summary_large_image");
+      expect(document.meta["twitter:title"]).toBe(messages.metadataTitle);
+      expect(document.meta["twitter:description"]).toBe(
+        messages.metadataDescription,
+      );
+      expect(document.meta["twitter:image"]).toBe(
+        `${canonicalOrigin}/social-image`,
+      );
+      expect(document.jsonLd).toEqual([
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "@id": canonicalHome,
+          url: canonicalHome,
+          name: "Kernel",
+          description: messages.metadataDescription,
+          inLanguage: locale,
+        },
+      ]);
 
-    await page.goto("/?utm_source=seo");
-    await expect(page).toHaveTitle(messages.metadataTitle);
-    await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute(
-      "href",
-      /^https:\/\/kernel-seo\.test\/?$/,
-    );
-    await expect(page.locator('head meta[name="description"]')).toHaveAttribute(
-      "content",
-      messages.metadataDescription,
-    );
-    await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      messages.homeTitle,
-    );
+      await page.goto(`${origin}/?utm_source=seo`);
+      await expect(page).toHaveTitle(messages.metadataTitle);
+      await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute(
+        "href",
+        /^https:\/\/kernel-seo\.test\/?$/,
+      );
+      await expect(
+        page.locator('head meta[name="description"]'),
+      ).toHaveAttribute("content", messages.metadataDescription);
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(
+        messages.homeTitle,
+      );
+    });
   });
 }
 
@@ -271,44 +277,51 @@ test("publishes only the real homepage in discovery files and serves a valid loc
   page,
   request,
 }) => {
-  const robots = await request.get(`${websiteOrigin}/robots.txt`);
-  expect(robots.status()).toBe(200);
-  expect(robots.headers()["content-type"]).toContain("text/plain");
-  const text = await robots.text();
-  expect(text).toMatch(/^User-Agent: \*$/m);
-  expect(text).toMatch(/^Allow: \/$/m);
-  expect(text.match(/^Disallow: .*$/gm)).toEqual(["Disallow: /api/"]);
-  expect(text).toContain(`Sitemap: ${canonicalOrigin}/sitemap.xml`);
+  await withWebsite(request, { indexing: true }, async (origin) => {
+    const robots = await request.get(`${origin}/robots.txt`);
+    expect(robots.status()).toBe(200);
+    expect(robots.headers()["content-type"]).toContain("text/plain");
+    const text = await robots.text();
+    expect(text).toMatch(/^User-Agent: \*$/m);
+    expect(text).toMatch(/^Allow: \/$/m);
+    expect(text.match(/^Disallow: .*$/gm)).toEqual(["Disallow: /api/"]);
+    expect(text).toContain(`Sitemap: ${canonicalOrigin}/sitemap.xml`);
 
-  const sitemap = await request.get(`${websiteOrigin}/sitemap.xml`);
-  expect(sitemap.status()).toBe(200);
-  expect(sitemap.headers()["content-type"]).toContain("xml");
-  const xml = await sitemap.text();
-  expect(
-    await page.evaluate((source) => {
-      const parsed = new DOMParser().parseFromString(source, "application/xml");
-      if (parsed.querySelector("parsererror"))
-        throw new Error("Invalid sitemap XML.");
-      return [...parsed.querySelectorAll("loc")].map(
-        (element) => element.textContent,
-      );
-    }, xml),
-  ).toEqual([canonicalHome]);
-  expect(xml).not.toContain("<lastmod>");
-  const image = await request.get(`${websiteOrigin}/social-image`);
-  expect(image.status()).toBe(200);
-  expect(image.headers()["content-type"]).toContain("image/png");
-  const bytes = await image.body();
-  expect([...bytes.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
-  expect(bytes.readUInt32BE(16)).toBe(1200);
-  expect(bytes.readUInt32BE(20)).toBe(630);
-  await test.info().attach("social-image", {
-    body: bytes,
-    contentType: "image/png",
+    const sitemap = await request.get(`${origin}/sitemap.xml`);
+    expect(sitemap.status()).toBe(200);
+    expect(sitemap.headers()["content-type"]).toContain("xml");
+    const xml = await sitemap.text();
+    expect(
+      await page.evaluate((source) => {
+        const parsed = new DOMParser().parseFromString(
+          source,
+          "application/xml",
+        );
+        if (parsed.querySelector("parsererror"))
+          throw new Error("Invalid sitemap XML.");
+        return [...parsed.querySelectorAll("loc")].map(
+          (element) => element.textContent,
+        );
+      }, xml),
+    ).toEqual([canonicalHome]);
+    expect(xml).not.toContain("<lastmod>");
+    const image = await request.get(`${origin}/social-image`);
+    expect(image.status()).toBe(200);
+    expect(image.headers()["content-type"]).toContain("image/png");
+    const bytes = await image.body();
+    expect([...bytes.subarray(0, 8)]).toEqual([
+      137, 80, 78, 71, 13, 10, 26, 10,
+    ]);
+    expect(bytes.readUInt32BE(16)).toBe(1200);
+    expect(bytes.readUInt32BE(20)).toBe(630);
+    await test.info().attach("social-image", {
+      body: bytes,
+      contentType: "image/png",
+    });
+    const icon = await request.get(`${origin}/icon.svg`);
+    expect(icon.status()).toBe(200);
+    expect(icon.headers()["content-type"]).toContain("image/svg+xml");
   });
-  const icon = await request.get(`${websiteOrigin}/icon.svg`);
-  expect(icon.status()).toBe(200);
-  expect(icon.headers()["content-type"]).toContain("image/svg+xml");
 });
 
 test("keeps utility, API and missing pages out of search without borrowing the homepage canonical", async ({

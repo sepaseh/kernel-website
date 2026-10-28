@@ -349,3 +349,291 @@ test("Sonar must generate actual Python coverage before its scanner", async () =
   }
   assert.throws(() => validateSonarFontWorkflow("jobs: ["));
 });
+
+const applicationFixture = async () => ({
+  workflow: parse(
+    await readFile(
+      new URL("../.github/workflows/ci.yml", import.meta.url),
+      "utf8",
+    ),
+  ),
+  applicationManifest: JSON.parse(
+    await readFile(
+      new URL("../.agents/validation.json", import.meta.url),
+      "utf8",
+    ),
+  ),
+});
+
+test("application CI has the full fifteen-check gate and independent Windows build, e2e and visual jobs", async () => {
+  const { workflow, applicationManifest } = await applicationFixture();
+  assert.equal(applicationManifest.phase, "application");
+  assert.equal(applicationManifest.applicationReady, true);
+  assert.equal(applicationManifest.profiles.full.length, 15);
+  assert.deepEqual(Object.keys(workflow.jobs), [
+    "check",
+    "build",
+    "e2e",
+    "visual",
+  ]);
+  assert.doesNotThrow(() =>
+    validateCiWorkflow(stringify(workflow), applicationManifest),
+  );
+});
+
+test("application manifest records each real command owner and rejects missing or invented job ownership", async () => {
+  for (const [id, owners] of [
+    ["build", ["check", "build", "e2e", "visual"]],
+    ["e2e", ["check", "e2e"]],
+    ["visual", ["check", "visual"]],
+    ["dead-code", ["check"]],
+  ]) {
+    const { applicationManifest } = await applicationFixture();
+    assert.deepEqual(
+      applicationManifest.checks.find((entry) => entry.id === id).ciJobs,
+      owners,
+    );
+    for (const ciJobs of [
+      undefined,
+      [],
+      owners.slice(1),
+      [...owners, "foreign"],
+      [...owners, owners[0]],
+    ]) {
+      const { workflow, applicationManifest: changed } =
+        await applicationFixture();
+      changed.checks.find((entry) => entry.id === id).ciJobs = ciJobs;
+      assert.throws(
+        () => validateCiWorkflow(stringify(workflow), changed),
+        /job ownership/,
+      );
+    }
+  }
+  for (const [id, ciJobs] of [
+    ["build", ["check", "build", "e2e"]],
+    ["e2e", ["check", "visual"]],
+    ["visual", ["check", "e2e"]],
+    ["unit-coverage", ["check", "build"]],
+  ]) {
+    const { workflow, applicationManifest } = await applicationFixture();
+    applicationManifest.checks.find((entry) => entry.id === id).ciJobs = ciJobs;
+    assert.throws(
+      () => validateCiWorkflow(stringify(workflow), applicationManifest),
+      /job ownership/,
+    );
+  }
+});
+
+test("every application job is real, unconditional, fail closed and uses the baseline platform", async () => {
+  const changes = [
+    (workflow, id) => {
+      delete workflow.jobs[id];
+    },
+    (workflow, id) => {
+      workflow.jobs[id].if = "!github.event.pull_request.draft";
+    },
+    (workflow, id) => {
+      workflow.jobs[id]["continue-on-error"] = true;
+    },
+    (workflow, id) => {
+      workflow.jobs[id]["runs-on"] = "ubuntu-latest";
+    },
+    (workflow, id) => {
+      workflow.jobs[id].strategy = { matrix: { include: [] } };
+    },
+    (workflow, id) => {
+      workflow.jobs[id].env = { KERNEL_SYNTHETIC_ENV: "0" };
+    },
+    (workflow, id) => {
+      workflow.jobs[id]["timeout-minutes"] = 0;
+    },
+    (workflow, id) => {
+      workflow.jobs[id].container = "unrelated-image";
+    },
+    (workflow, id) => {
+      workflow.jobs[id].services = {};
+    },
+    (workflow, id) => {
+      workflow.jobs[id].environment = "production";
+    },
+    (workflow, id) => {
+      workflow.jobs[id].permissions = { contents: "write" };
+    },
+    (workflow, id) => {
+      workflow.jobs[id].needs = "unrelated";
+    },
+  ];
+  for (const id of ["check", "build", "e2e", "visual"])
+    for (const change of changes) {
+      const { workflow, applicationManifest } = await applicationFixture();
+      change(workflow, id);
+      assert.throws(() =>
+        validateCiWorkflow(stringify(workflow), applicationManifest),
+      );
+    }
+});
+
+test("application fixture installation pins public source, owns its directory and preserves each native failure", async () => {
+  const changes = [
+    (step) => {
+      step.run = step.run.replace(
+        "4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9",
+        "main",
+      );
+    },
+    (step) => {
+      step.run = step.run.replace(
+        "https://github.com/sepaseh/kernel-api.git",
+        "https://example.test/foreign.git",
+      );
+    },
+    (step) => {
+      step.run = step.run.replace(
+        'npm --prefix "$env:KERNEL_API_DIRECTORY" ci',
+        'npm --prefix "$env:KERNEL_API_DIRECTORY" install',
+      );
+    },
+    (step) => {
+      step.run = step.run.replace(
+        "if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }",
+        "# omitted exit propagation",
+      );
+    },
+    (step) => {
+      step.run += "\nexit 0\n";
+    },
+    (step) => {
+      step.if = "false";
+    },
+    (step) => {
+      step["continue-on-error"] = true;
+    },
+    (step) => {
+      step.env.KERNEL_API_DIRECTORY = "${{ github.workspace }}/kernel-api";
+    },
+    (step) => {
+      step.env.EXTRA_PRIVATE_INPUT = "synthetic-placeholder";
+    },
+    (step) => {
+      step.shell = "pwsh {0}; exit 0";
+    },
+  ];
+  for (const id of ["check", "build", "e2e", "visual"])
+    for (const change of changes) {
+      const { workflow, applicationManifest } = await applicationFixture();
+      const step = workflow.jobs[id].steps.find((entry) =>
+        entry.run?.includes("git clone"),
+      );
+      change(step);
+      assert.throws(() =>
+        validateCiWorkflow(stringify(workflow), applicationManifest),
+      );
+    }
+});
+
+test("application browser jobs retain SDK installation and a real same-job build before their checks", async () => {
+  for (const id of ["check", "e2e", "visual"])
+    for (const change of [
+      (steps) =>
+        steps.filter((step) => !step.run?.includes("cli.js install chromium")),
+      (steps) =>
+        steps.map((step) =>
+          step.run?.includes("cli.js install chromium")
+            ? { ...step, if: "false" }
+            : step,
+        ),
+      (steps) =>
+        steps.map((step) =>
+          step.run?.includes("cli.js install chromium")
+            ? { ...step, run: "npx playwright install chromium || true" }
+            : step,
+        ),
+    ]) {
+      const { workflow, applicationManifest } = await applicationFixture();
+      workflow.jobs[id].steps = change(workflow.jobs[id].steps);
+      assert.throws(() =>
+        validateCiWorkflow(stringify(workflow), applicationManifest),
+      );
+    }
+  for (const id of ["e2e", "visual"])
+    for (const change of [
+      (steps) => steps.filter((step) => step.run !== "npm run build"),
+      (steps) =>
+        steps.map((step) =>
+          step.run === "npm run build" ? { ...step, if: "false" } : step,
+        ),
+      (steps) => [...steps.slice(0, 5), steps[6], steps[5], steps[7]],
+    ]) {
+      const { workflow, applicationManifest } = await applicationFixture();
+      workflow.jobs[id].steps = change(workflow.jobs[id].steps);
+      assert.throws(() =>
+        validateCiWorkflow(stringify(workflow), applicationManifest),
+      );
+    }
+});
+
+test("application public inputs, all fifteen manifest owners and bounded evidence cannot be replaced", async () => {
+  const changes = [
+    (workflow) => {
+      delete workflow.env.NPM_CONFIG_INCLUDE;
+    },
+    (workflow) => {
+      workflow.env.API_BASE_URL = "https://api.example.test";
+    },
+    (workflow) => {
+      workflow.env.PLAYWRIGHT_BROWSERS_PATH = "shared";
+    },
+    (workflow) => {
+      workflow.env.KERNEL_SYNTHETIC_ENV = "0";
+    },
+    (workflow) => {
+      workflow.permissions.contents = "write";
+    },
+    (workflow) => {
+      workflow.jobs.foreign = {};
+    },
+    (workflow) => {
+      workflow.jobs.visual.steps.at(-1).with.path = "unowned-state";
+    },
+    (workflow) => {
+      workflow.jobs.e2e.steps.at(-1)["continue-on-error"] = false;
+    },
+    (workflow) => {
+      workflow.jobs.check.steps[0].with.ref = "main";
+    },
+    (workflow) => {
+      workflow.jobs.build.steps[1].uses = "actions/setup-node@main";
+    },
+  ];
+  for (const change of changes) {
+    const { workflow, applicationManifest } = await applicationFixture();
+    change(workflow);
+    assert.throws(() =>
+      validateCiWorkflow(stringify(workflow), applicationManifest),
+    );
+  }
+  for (const change of [
+    (value) => {
+      value.applicationReady = false;
+    },
+    (value) => {
+      value.checks = value.checks.filter((entry) => entry.id !== "e2e");
+    },
+    (value) => {
+      value.profiles.full.pop();
+    },
+    (value) => {
+      value.checks.find((entry) => entry.id === "build").command =
+        "npm run typecheck";
+    },
+    (value) => {
+      value.checks.find((entry) => entry.id === "visual").kind = "advisory";
+    },
+  ]) {
+    const { workflow, applicationManifest } = await applicationFixture();
+    change(applicationManifest);
+    assert.throws(() =>
+      validateCiWorkflow(stringify(workflow), applicationManifest),
+    );
+  }
+});

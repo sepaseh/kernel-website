@@ -441,7 +441,55 @@ const applicationGuidanceFiles = [
   "docs/qa/source-originals/vitest.tooling.config.ts",
 ];
 const applicationGuidancePaths = new Set(applicationGuidanceFiles);
-const apiFixturePhases = new Set(["api-fixture", "application-guidance"]);
+const applicationFiles = [
+  "e2e/visual/baselines/win32/metadata.json",
+  "e2e/visual/baselines/win32/website-home-en-dark.png",
+  "e2e/visual/baselines/win32/website-home-fa-dark.png",
+  "e2e/visual/baselines/win32/website-login-en-light.png",
+  "e2e/visual/baselines/win32/website-register-fa-light.png",
+  "knip.json",
+  "next-env.d.ts",
+  "next.config.ts",
+  "postcss.config.mjs",
+  "scripts/application-checks.mjs",
+  "scripts/application-checks.test.mjs",
+  "src/app/(auth)/forgot-password/page.tsx",
+  "src/app/(auth)/layout.tsx",
+  "src/app/(auth)/login/page.tsx",
+  "src/app/(auth)/register/page.tsx",
+  "src/app/[...rest]/page.tsx",
+  "src/app/account/page.tsx",
+  "src/app/api/[...path]/route.ts",
+  "src/app/error.tsx",
+  "src/app/global-error.tsx",
+  "src/app/globals.css",
+  "src/app/icon.svg",
+  "src/app/layout.tsx",
+  "src/app/not-found.tsx",
+  "src/app/page.tsx",
+  "src/app/robots.ts",
+  "src/app/runtime-composition.test.tsx",
+  "src/app/sitemap.ts",
+  "src/app/social-image/route.tsx",
+  "src/i18n/request.ts",
+  "src/proxy.test.ts",
+  "src/proxy.ts",
+  "src/shared/runtime-adapters.test.ts",
+  "src/shared/security/nonce.ts",
+  "src/shared/settings/server.ts",
+  "src/website/home/Home.tsx",
+  "src/website/layouts/AuthLayout.tsx",
+  "src/website/layouts/Footer.tsx",
+  "src/website/layouts/Header.tsx",
+  "src/website/layouts/HeaderAccountLink.tsx",
+  "src/website/runtime-client.test.tsx",
+];
+const applicationPaths = new Set(applicationFiles);
+const applicationGuidancePhases = new Set([
+  "application-guidance",
+  "application",
+]);
+const apiFixturePhases = new Set(["api-fixture", ...applicationGuidancePhases]);
 const browserPhases = new Set(["browser-foundation", ...apiFixturePhases]);
 const runnerPhases = new Set(["runner-foundation", ...browserPhases]);
 const deliveryPhases = new Set(["delivery-tooling", ...runnerPhases]);
@@ -465,6 +513,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  application:
+    "Published runnable standalone Next.js application, routes, CSS, browser configuration and independently installed synthetic API integration. Exact source closure does not establish execution: the complete application gate must separately record genuine build, browser/CSP and visual results; historical screenshots and metadata remain historical until a current compatibility check succeeds.",
   "application-guidance":
     "Published phase-aware application acceptance guidance and dated source archives over the unchanged API fixture prerequisite. The readiness guard still refuses this non-runnable snapshot; historical reports and archived configuration are not current execution evidence or active application, browser, visual or deployment configuration.",
   "api-fixture":
@@ -530,8 +580,19 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(runnerPhases.has(phase) ? runnerFoundationFiles : []),
   ...(browserPhases.has(phase) ? browserFoundationFiles : []),
   ...(apiFixturePhases.has(phase) ? apiFixtureFiles : []),
-  ...(phase === "application-guidance" ? applicationGuidanceFiles : []),
+  ...(applicationGuidancePhases.has(phase) ? applicationGuidanceFiles : []),
+  ...(phase === "application" ? applicationFiles : []),
 ];
+
+/** Return the exact maintained file closure for a named publication phase. */
+export const publicationInventory = (phase) => {
+  if (!Object.hasOwn(publicationScopes, phase))
+    throw new Error("Unknown publication phase.");
+  const sourcePhase = ["guidance", ...toolingPhases].includes(phase)
+    ? "feature-ui"
+    : phase;
+  return [...new Set(requiredPublicationFiles(phase, sourcePhase))];
+};
 
 const rejectsProtectedPublicationPath = (file, phase) => {
   const deliveryPhase = deliveryPhases.has(phase);
@@ -552,18 +613,22 @@ const isToolingPathOutsidePhase = (file, phase) =>
   (!runnerPhases.has(phase) && runnerFoundationPaths.has(file)) ||
   (!browserPhases.has(phase) && browserFoundationPaths.has(file)) ||
   (!apiFixturePhases.has(phase) && apiFixturePaths.has(file)) ||
-  (phase !== "application-guidance" && applicationGuidancePaths.has(file));
+  (!applicationGuidancePhases.has(phase) &&
+    applicationGuidancePaths.has(file)) ||
+  (phase !== "application" && applicationPaths.has(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
     !Object.hasOwn(publicationScopes, policy.phase) ||
-    policy.applicationReady !== false ||
+    policy.applicationReady !== (policy.phase === "application") ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
     !policy.allowedFiles.length
   )
-    throw new Error("An explicit non-runnable publication phase is required.");
+    throw new Error(
+      "An explicit publication phase and matching readiness are required.",
+    );
   const sourcePhase = ["guidance", ...toolingPhases].includes(policy.phase)
     ? "feature-ui"
     : policy.phase;
@@ -574,7 +639,8 @@ export const validateBootstrapPolicy = (policy) => {
       !file ||
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
-      /[*?[\]{}:\0\r\n]/.test(file) ||
+      (/[*?[\]{}:\0\r\n]/.test(file) &&
+        !(policy.phase === "application" && applicationPaths.has(file))) ||
       /^(?:apps|packages|drizzle|collection|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
@@ -582,7 +648,10 @@ export const validateBootstrapPolicy = (policy) => {
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") &&
         (policy.phase === "governance" ||
-          !isPublishedSource(file, sourcePhase))) ||
+          (!isPublishedSource(file, sourcePhase) &&
+            !(
+              policy.phase === "application" && applicationPaths.has(file)
+            )))) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
@@ -638,7 +707,13 @@ export const inspectBootstrap = async (root) => {
         if (relative === ".git") return;
         if (
           policy.phase !== "governance" &&
-          ["node_modules", "coverage"].includes(relative)
+          [
+            "node_modules",
+            "coverage",
+            ...(policy.phase === "application"
+              ? [".next", "playwright-report", "test-results"]
+              : []),
+          ].includes(relative)
         ) {
           if (entry.isSymbolicLink() || !entry.isDirectory())
             throw new Error(
@@ -709,7 +784,7 @@ export const inspectBootstrap = async (root) => {
     }),
   );
   return {
-    applicationReady: false,
+    applicationReady: policy.applicationReady,
     files: found.size,
     phase: policy.phase,
     scope: publicationScopes[policy.phase],
