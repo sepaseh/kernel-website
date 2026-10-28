@@ -115,10 +115,23 @@ const readJson = async (filename) =>
 
 export const apiFixtureRevision = "4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9";
 
-const gitOutput = (directory, args, inherited) =>
-  new Promise((resolve, reject) => {
+const systemGit =
+  process.platform === "win32"
+    ? "C:\\Program Files\\Git\\cmd\\git.exe"
+    : "/usr/bin/git";
+const gitEnvironment = () =>
+  process.platform === "win32"
+    ? {
+        PATH: "C:\\Program Files\\Git\\cmd;C:\\Windows\\System32",
+        SystemRoot: "C:\\Windows",
+      }
+    : { PATH: "/usr/bin:/bin" };
+
+async function gitOutput(directory, args) {
+  await artifactFile(systemGit);
+  return new Promise((resolve, reject) => {
     childProcess.execFile(
-      "git",
+      systemGit,
       [
         "--no-optional-locks",
         "--no-replace-objects",
@@ -130,7 +143,7 @@ const gitOutput = (directory, args, inherited) =>
       ],
       {
         encoding: "utf8",
-        env: runtimeEnvironment(inherited),
+        env: gitEnvironment(),
         maxBuffer: 1024 * 1024,
         timeout: 10_000,
         windowsHide: true,
@@ -138,6 +151,7 @@ const gitOutput = (directory, args, inherited) =>
       (error, stdout) => (error ? reject(error) : resolve(stdout.trim())),
     );
   });
+}
 
 async function verifyApiInstallation(directory) {
   const manifest = await readJson(path.join(directory, "package.json"));
@@ -211,22 +225,14 @@ export async function resolveApiFixture(root, inherited = process.env) {
     KERNEL_API_DIRECTORY: inherited?.KERNEL_API_DIRECTORY,
   });
   await artifactDirectory(path.join(directory, ".git"));
-  const top = await gitOutput(
-    directory,
-    ["rev-parse", "--show-toplevel"],
-    inherited,
-  );
-  const revision = await gitOutput(directory, ["rev-parse", "HEAD"], inherited);
-  const changes = await gitOutput(
-    directory,
-    [
-      "status",
-      "--porcelain=v1",
-      "--untracked-files=no",
-      "--ignore-submodules=none",
-    ],
-    inherited,
-  );
+  const top = await gitOutput(directory, ["rev-parse", "--show-toplevel"]);
+  const revision = await gitOutput(directory, ["rev-parse", "HEAD"]);
+  const changes = await gitOutput(directory, [
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=no",
+    "--ignore-submodules=none",
+  ]);
   if (
     path.resolve(top) !== directory ||
     revision !== apiFixtureRevision ||

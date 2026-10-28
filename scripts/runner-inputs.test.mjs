@@ -380,6 +380,67 @@ test("API fixture resolution rejects changed revision, tracked sources, lock and
     resolveApiFixture(root, inherited),
     /installed lock versions/,
   );
-  assert.deepEqual(calls[0].options.env, { PATH: "owned-path" });
+  assert.deepEqual(
+    calls[0].options.env,
+    process.platform === "win32"
+      ? {
+          PATH: "C:\\Program Files\\Git\\cmd;C:\\Windows\\System32",
+          SystemRoot: "C:\\Windows",
+        }
+      : { PATH: "/usr/bin:/bin" },
+  );
   assert.equal(calls[0].options.windowsHide, true);
+});
+
+test("API identity checks use only the fixed unlinked system Git and never read poisoned inherited launch paths", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { calls, control } = await createApiFixture(t, put, directory);
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+  };
+  let poisonedReads = 0;
+  for (const key of [
+    "PATH",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "GIT_EXEC_PATH",
+    "GIT_SSH_COMMAND",
+    "NODE_OPTIONS",
+  ])
+    Object.defineProperty(inherited, key, {
+      get() {
+        poisonedReads++;
+        throw new Error("Untrusted inherited launch control was read");
+      },
+    });
+  await resolveApiFixture(root, inherited);
+  assert.equal(poisonedReads, 0);
+  assert.equal(calls.length, 3);
+  for (const call of calls) {
+    assert.equal(
+      call.command,
+      process.platform === "win32"
+        ? "C:\\Program Files\\Git\\cmd\\git.exe"
+        : "/usr/bin/git",
+    );
+    assert.equal(path.isAbsolute(call.command), true);
+    assert.deepEqual(
+      Object.keys(call.options.env).sort(),
+      process.platform === "win32" ? ["PATH", "SystemRoot"] : ["PATH"],
+    );
+    assert.equal(call.options.env.PATH.includes("owned-path"), false);
+  }
+  const before = calls.length;
+  const missing = new Error("The verified system Git executable disappeared");
+  missing.code = "ENOENT";
+  control.error = missing;
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    (error) => error === missing,
+  );
+  assert.equal(calls.length, before + 1);
+  assert.equal(poisonedReads, 0);
 });

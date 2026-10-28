@@ -6,6 +6,8 @@ The api-fixture phase keeps applicationReady:false and the reviewed sixty-six pr
 
 ## Published adapter contract
 
+Git inspection requires the ordinary unlinked system installation at C:/Program Files/Git/cmd/git.exe on Windows or /usr/bin/git on Unix. The Git child receives fixed system directories and the standard Windows system root rather than caller-supplied search paths. Missing or alternate installations fail closed; there is no executable discovery or operator override. Node/API process environment construction remains a separate contract.
+
 The website-owned API launcher now consumes public sepaseh/kernel-api at immutable revision 4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9. A future authorized runnable operation requires an explicit absolute KERNEL_API_DIRECTORY pointing to a fresh independently installed checkout. No sibling repository is discovered or imported. After readiness, the resolver verifies an ordinary independent Git directory, expected top-level and HEAD, clean tracked source and manifest/lock/installed direct-dependency identities, then selects the API's published src/index.ts. These checks do not attest every installed package byte.
 
 The launcher uses explicit loopback synthetic inputs, NODE_ENV=test, a generated fixture-only auth secret, fixed public test OTP, seed data, and fresh owned SQLite/object storage outside source. It drains its direct child before state cleanup and preserves operation/cleanup errors. The current false marker rejects real operations before configuration, Git, SDK or process work. Node owner tests use marked temporary projects, fake SDK/API programs and an explicitly mocked Git boundary; those tests are not real API/browser execution.

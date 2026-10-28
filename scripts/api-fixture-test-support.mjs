@@ -10,7 +10,12 @@ export function apiGitMock(
   calls = [],
 ) {
   return (command, args, options, callback) => {
-    assert.equal(command, "git");
+    assert.equal(
+      command,
+      process.platform === "win32"
+        ? "C:\\Program Files\\Git\\cmd\\git.exe"
+        : "/usr/bin/git",
+    );
     assert.deepEqual(args.slice(0, 6), [
       "--no-optional-locks",
       "--no-replace-objects",
@@ -19,7 +24,7 @@ export function apiGitMock(
       "-c",
       "core.fsmonitor=false",
     ]);
-    calls.push({ args, options });
+    calls.push({ command, args, options });
     const operation = args.slice(6).join(" ");
     const output =
       operation === "rev-parse --show-toplevel"
