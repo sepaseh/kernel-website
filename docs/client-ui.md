@@ -2,11 +2,12 @@
 
 [English](client-ui.md) · [فارسی](client-ui.fa.md)
 
-The [guidance phase](bootstrap.md) retains thirteen independently testable foundation support
-modules: five local shadcn/Radix primitives, FormField and Feedback, session and
-theme/motion providers, preferences, a bounded countdown, Reveal and a Web Vitals
-hook adapter. There are no pages, root layout, CSS build, Next.js request adapter
-or runnable website. Keep applicationReady:false until real application gates pass.
+Thirteen independently testable foundation support modules supply five local
+shadcn/Radix primitives, FormField and Feedback, session and theme/motion providers,
+preferences, a bounded countdown, Reveal and a Web Vitals hook adapter. Their
+contracts survive application integration. Read the [phase marker](../.github/bootstrap-policy.json)
+and [application contract](application.md): a false-marker snapshot validates local
+components, not mounted pages, a root layout, a CSS build or request integration.
 
 ## Components and styling
 
@@ -29,8 +30,9 @@ text through React and uses generic network text for transport/server errors.
 Lucide icons use direct named imports, explicit size/currentColor and decorative
 aria-hidden. No HTML message insertion is permitted.
 
-Tailwind class strings and component semantics are published; the stylesheet and
-production CSS pipeline are not. DOM and static-markup tests do not establish
+The component contract owns Tailwind class strings and semantics; application
+integration separately owns the stylesheet and production CSS pipeline. DOM and
+static-markup tests do not establish
 visual layout, contrast, keyboard journeys or browser accessibility compliance.
 
 ## Feature forms
@@ -43,8 +45,8 @@ Preferences changes only the theme through installed next-themes. The composite
 provider uses class-based dark/light themes, fixed dark bootstrap, no system-theme
 selection and kernel-website-theme storage. This preference never selects a
 language; API settings remain authoritative. The theme script receives a supplied
-CSP nonce for static server markup. Real Next.js nonce/request integration remains
-unpublished.
+CSP nonce for static server markup. Application composition must supply that same
+trusted request nonce and verify it in actual HTML and browser behavior.
 
 Reveal uses Motion's strict minimal component with initial content visible.
 Reduced motion removes initial displacement and animation delay. The composite
@@ -65,10 +67,12 @@ events, label/description links, localized safe feedback and theme-only storage.
 Node static-markup tests check content visibility, provider composition and nonce
 forwarding. Synthetic media-query fixtures are test support, not browser evidence.
 Feature tests use real HTTP/session behavior and only the explicit auth/account messages; framework router and document navigation are mocked. These tests do not establish browser navigation, native constraint validation or hydration. All executable production modules remain in measured coverage and Sonar analysis.
-Hooks recommended lint rules join the existing required lint command; all eleven
-canonical checks, font verification and existing thresholds remain required.
+Hooks recommended lint rules join the existing required lint command. Use the
+complete canonical profile for the marker: eleven prerequisite checks or all
+fifteen application checks, retaining font verification and coverage thresholds.
 
 Read [session and cooldown ownership](session.md), [client/document support](client-document.md)
-and [Contributing](../CONTRIBUTING.md). Before any runnable publication, add all
-fifteen application checks and genuine required build/e2e/visual jobs against an
-independently installed synthetic API fixture.
+and [Contributing](../CONTRIBUTING.md). Application acceptance includes all fifteen
+checks and genuine build/e2e/visual jobs against the independently installed
+[pinned synthetic API](api-fixture.md); observe them pass and make them required
+before a runnable merge. A helper result cannot substitute for these jobs.

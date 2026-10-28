@@ -118,6 +118,26 @@ const apiFixturePublishedFiles = [
   "docs/api-fixture.md",
   "scripts/api-fixture-test-support.mjs",
 ];
+const applicationGuidancePublishedFiles = [
+  "docs/README.fa.md",
+  "docs/README.md",
+  "docs/application.fa.md",
+  "docs/application.md",
+  "docs/seo.fa.md",
+  "docs/seo.md",
+  "docs/qa/independent-website-verification.fa.md",
+  "docs/qa/independent-website-verification.md",
+  "docs/qa/requirements-audit-2026-10-24.fa.md",
+  "docs/qa/requirements-audit-2026-10-24.md",
+  "docs/qa/roadmap-status-2026-10-24.fa.md",
+  "docs/qa/roadmap-status-2026-10-24.json",
+  "docs/qa/roadmap-status-2026-10-24.md",
+  "docs/qa/source-comprehension-2026-10-24.fa.md",
+  "docs/qa/source-comprehension-2026-10-24.md",
+  "docs/qa/standalone-layout-2026-10-24.fa.md",
+  "docs/qa/standalone-layout-2026-10-24.md",
+  "docs/qa/source-originals/vitest.tooling.config.ts",
+];
 const readCurrentPublicationPolicy = async () =>
   JSON.parse(
     await readFile(
@@ -126,7 +146,17 @@ const readCurrentPublicationPolicy = async () =>
     ),
   );
 const readPublicationPolicy = async () => {
-  const declared = await readCurrentPublicationPolicy();
+  const current = await readCurrentPublicationPolicy();
+  const declared =
+    current.phase === "application-guidance"
+      ? {
+          ...current,
+          phase: "api-fixture",
+          allowedFiles: current.allowedFiles.filter(
+            (file) => !applicationGuidancePublishedFiles.includes(file),
+          ),
+        }
+      : current;
   return declared.phase === "api-fixture"
     ? {
         ...declared,
@@ -1148,6 +1178,135 @@ test("API fixture snapshots inspect all348 owned files while refusing private, m
   await symlink(
     path.join(root, "docs"),
     path.join(root, "scripts/api-fixture-test-support.mjs"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+test("application guidance adds exactly eighteen documentation and archive paths to the unchanged API closure", async () => {
+  const declared = await readCurrentPublicationPolicy();
+  const historical = await apiFixturePolicy();
+  assert.equal(declared.phase, "application-guidance");
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 366);
+  assert.equal(validateBootstrapPolicy(historical).size, 348);
+  assert.equal(applicationGuidancePublishedFiles.length, 18);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !historical.allowedFiles.includes(file))
+      .sort(),
+    [...applicationGuidancePublishedFiles].sort(),
+  );
+  assert.deepEqual(
+    declared.allowedFiles.filter((file) => file.startsWith("src/")).sort(),
+    historical.allowedFiles.filter((file) => file.startsWith("src/")).sort(),
+  );
+  for (const file of declared.allowedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+  for (const file of applicationGuidancePublishedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...historical,
+          allowedFiles: [...historical.allowedFiles, file],
+        }),
+      /declared phase/,
+      file,
+    );
+});
+
+test("application guidance rejects activation, private state, unlisted archives and executable integration", async () => {
+  const declared = await readCurrentPublicationPolicy();
+  for (const change of [
+    { applicationReady: true },
+    { maximumChangedFiles: 101 },
+    { schemaVersion: 2 },
+    { phase: "application" },
+    { phase: "api-fixture" },
+    { phase: "browser-foundation" },
+  ])
+    assert.throws(() => validateBootstrapPolicy({ ...declared, ...change }));
+  for (const file of [
+    "docs/qa/source-originals/unlisted.ts",
+    "docs/qa/source-originals/vitest.tooling.config.ts/child",
+    "docs/qa/source-originals/.env.example",
+    "docs/qa/source-originals/key.pem",
+    "docs/qa/source-originals/../vitest.tooling.config.ts",
+    "docs/unlisted.md",
+    "vitest.tooling.config.ts",
+    "next.config.ts",
+    "scripts/application-checks.mjs",
+    "src/app/page.tsx",
+    "src/app/layout.tsx",
+    "src/i18n/request.ts",
+    "src/proxy.ts",
+    "deploy/docker/smoke.mjs",
+    ".github/workflows/browser.yml",
+    ".github/workflows/staging.yml",
+    ".env.local",
+    "deploy/native/website.env",
+    "server/data/test.sqlite",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+});
+
+test("application guidance inspects its full closure without executing archived configuration or following links", async (context) => {
+  const declared = await readCurrentPublicationPolicy();
+  const { root, put } = await fixture(context, declared);
+  const archive = "docs/qa/source-originals/vitest.tooling.config.ts";
+  await put(
+    archive,
+    "throw new Error('archived config must never execute');\n",
+  );
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "application-guidance");
+  assert.equal(result.applicationReady, false);
+  assert.equal(result.files, 366);
+  assert.match(result.scope, /not current execution evidence/);
+  for (const file of [
+    "vitest.tooling.config.ts",
+    "src/app/page.tsx",
+    "docs/qa/source-originals/unlisted.ts",
+    ".env.local",
+  ]) {
+    await put(
+      file,
+      "throw new Error('unexpected input must never execute');\n",
+    );
+    await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+    await rm(path.join(root, file));
+  }
+  await put(
+    "docs/application.md",
+    "[unpublished route](../src/app/page.tsx)\n",
+  );
+  await assert.rejects(inspectBootstrap(root), /link is outside/);
+  await put("docs/application.md", "[private](../.env.local)\n");
+  await assert.rejects(inspectBootstrap(root), /link is outside/);
+  await put("docs/application.md", "[escape](../../outside.md)\n");
+  await assert.rejects(inspectBootstrap(root), /link is outside/);
+  await put("docs/application.md", "[API fixture](api-fixture.md)\n");
+  await rm(path.join(root, archive));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, archive),
     process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);

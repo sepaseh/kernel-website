@@ -2,43 +2,15 @@
 
 [English](source-navigation.md) · [فارسی](source-navigation.fa.md)
 
-Start with [root instructions](../AGENTS.md), [settings](../.agents/settings.json)
-and the matching task in [navigation](../.agents/navigation.json). The machine map
-owns concrete local source, contracts, tests, rules and check IDs. Read the full
-owning functions; an index is not proof of semantic completeness or automatic
-instruction loading.
+Start with [root instructions](../AGENTS.md), [settings](../.agents/settings.json), [source marker](../.github/bootstrap-policy.json) and the matching task in [machine navigation](../.agents/navigation.json). The map owns published owners/contracts/tests and actual check IDs. It must never list proposed routes/layout/CSS or an unexecuted service as delivered. [Phase scope](bootstrap.md), [architecture](architecture.md) and [application acceptance](application.md) separate current source from planned composition.
 
-This map covers the published non-runnable support and feature scope. It must not
-describe authored browser suites as executed journeys, or point to deferred routes,
-layout/CSS or deployment as if they were present. [Architecture](architecture.md) and [ADRs](adr/README.md) distinguish
-accepted design from delivered integration.
+- Forms/session: trace feature owners, HTTP/types, [forms](forms.md) and [session](session.md), cancellation, generations, mount/account replacement, OTP destination and stale navigation.
+- Wire ownership: inspect feature types, settings contracts and shared wire modules; real API authentication/storage belongs to the independent service.
+- Language/messages: inspect API settings, each code-named catalog, English-derived erased key types, literal loaders and explicit root/auth/account selections. Never derive direction from locale code.
+- Design: start with [DESIGN](../DESIGN.md), the [design skill](../.agents/skills/design-ui/SKILL.md) and actual primitives. Semantic classes alone prove no computed CSS, contrast or screenshots.
+- HTTP/CSP/SEO/fonts/performance: open actual owners and direct tests. Confirm framework composition and execution from the marker/inventory and current evidence.
+- Tools/runners/browser: use [testing](testing.md), [runners](runner-foundation.md), [browser](browser-foundation.md) and [API fixture](api-fixture.md). Trace guards, explicit fixture identity, inputs/ports, owned children and cleanup. Typed suites, callbacks and images are not executed journeys.
+- Delivery: inspect [delivery](deployment.md) and [operations](release-operations.md), artifact/configuration/target/health/cleanup owners and tests. Readiness is first; publication does not authorize remote workflow dispatch.
+- Git: use [Git policy](../.agents/rules/git.md), [branches](../.agents/rules/branches.md) and matching skill. Preserve work/authorization, verify real base and reconcile after actual merge before next publication.
 
-- For forms and session races, inspect feature owners, HTTP modules/types and
-  [form](forms.md)/[session](session.md) behavior. Trace cancellation, generation
-  replacement, feedback, OTP destinations and stale navigation.
-- For wire ownership, inspect feature types.ts, settings contracts and the shared
-  wire module. The independent API owns real authentication, data and storage.
-- For language/messages, inspect the API language loader, one locales/code.ts
-  object per language, English-derived key type, literal loaders and explicit
-  root/auth/account client groups. API direction is not derived from a language code.
-- For design, begin with [DESIGN](../DESIGN.md), the
-  [design skill](../.agents/skills/design-ui/SKILL.md) and actual local primitives.
-  Semantic classes are not computed CSS, screenshots or browser evidence.
-- For HTTP/CSP/SEO/font/performance support, open the linked source owner and its
-  direct tests. Those helpers do not establish live route or document integration.
-- For Git and review work, use the git-workflow task, [Git router](../.agents/rules/git.md),
-  [branches](../.agents/rules/branches.md), [commit](../.agents/skills/commit/SKILL.md)
-  and [issue startup](../.agents/skills/start-issue/SKILL.md) workflows. Preserve
-  work and verify the actual base; preparation does not publish remote metadata.
-
-Select checks from the [canonical manifest](../.agents/validation.json) and
-[contribution policy](../CONTRIBUTING.md). Record source freshness, actual execution,
-failures, skips and limits. A matching search line or past green result is not fresh
-verification. [Evaluation](comprehension-evaluation.md) separately addresses static
-navigation, observed instruction discovery and measured source understanding.
-
-For deterministic quality tooling, start with the integration-tooling task in the machine navigation and [testing](testing.md). Inspect the explicit API resolver, bundle/budget parser, performance environment and visual metadata/lock helper plus their three Node owner-test files. Their required check is measured governance coverage; browser routes, launchers and historical image compatibility remain outside this phase.
-
-For delivery-tooling, inspect the published readiness/copy/package, public configuration, explicit health, scoped cleanup and target-validation owners through the delivery-tooling machine task. [Deployment preparation](deployment.md) and [release operations](release-operations.md) describe synthetic evidence and passive templates. The required check is measured governance coverage; core CLIs reject operations when `applicationReady:false`, before configuration reads, network or artifact access. Remote workflows remain deferred.
-
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.
+Read whole owning functions rather than matching lines. Select checks from the [canonical manifest](../.agents/validation.json) and [Contributing](../CONTRIBUTING.md). Record exact source, actual commands, failures/skips and limits; old green logs are not fresh evidence. [Evaluation](comprehension-evaluation.md) separately measures understanding and observed instruction discovery. Indexes alone establish neither semantic completeness nor automatic loading.

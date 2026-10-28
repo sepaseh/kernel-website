@@ -2,11 +2,13 @@
 
 [English](authentication-review.md) · [فارسی](authentication-review.fa.md)
 
-The **delivery-tooling** phase remains non-runnable. The
+The [publication marker](../../.github/bootstrap-policy.json) distinguishes
+false-marker helper evidence from runnable application acceptance. The
 [API forwarding helper](../../src/shared/api/proxy.ts) and
 [owner tests](../../src/shared/api/proxy.test.ts) use synthetic Web requests,
-responses and streams. There is no mounted framework route, real API session or
-browser cookie-isolation result in this snapshot. Read the complete
+responses and streams. They do not establish a mounted route, real API session
+or browser cookie isolation. The [application contract](../application.md)
+requires separate exact-tree execution. Read the complete
 [server boundary](../server-boundary.md), [session](../session.md) and
 [forms](../forms.md) contracts before changing authentication behavior.
 
@@ -26,10 +28,10 @@ protected mutation expiry notifications remain intact. These client guards do no
 authorize an API write or undo one already accepted by the API. Preserve exact
 password whitespace and OTP destination ownership.
 
-Future acceptance must exercise the actual trusted Host/protocol and gateway
+Application and deployment acceptance must exercise the actual trusted Host/protocol and gateway
 forwarding boundary, browser cookie attributes/isolation, the supported auth/account
 journeys, errors and unavailable settings using an independently installed
-synthetic API. Verify real CSP headers/cache behavior and credential-safe output;
+synthetic API under the [pinned fixture contract](../api-fixture.md). Verify real CSP headers/cache behavior and credential-safe output;
 the [pure CSP helper](../website-csp.md) does not wire them. Remote or production
 access needs separate authorization. Record the exact source, API fixture,
 platform, failures and limits through [testing](../testing.md), and follow

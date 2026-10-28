@@ -11,8 +11,10 @@ src/shared/contracts. Contract modules remain framework-free.
 
 The browser client targets same-origin /api paths. Published proxy support owns
 its route/method allowlist, mutation Origin checks, body limits, cookie forwarding,
-credential stripping and private no-store responses. A future route must mount
-that boundary; this phase does not publish the route or gateway. The API owns
+credential stripping and private no-store responses. An application route must
+mount that same boundary and verify real requests; false-marker prerequisites
+only validate the helper. The [application contract](../application.md) separates
+that evidence from gateway/deployment acceptance. The API owns
 input validation, authorization and atomic writes; forms and guards do not replace
 those controls.
 

@@ -1,9 +1,6 @@
 # Public website source
 
-This standalone TypeScript guidance phase contains local website support and
-feature components. applicationReady remains false. Read
-[the phase guide](../../docs/bootstrap.md); no Next.js pages, root layout,
-server-only request adapter, CSS build, browser fixture or deployment is published.
+This standalone TypeScript website has explicit phase ownership. Read [the source marker](../../.github/bootstrap-policy.json), [phase guide](../../docs/bootstrap.md) and [application contract](../../docs/application.md). False-marker phases retain local feature/support owners without runnable framework composition. A runnable package must publish its routes/layout, request/CSS adapters and complete acceptance together; documentation alone does not establish readiness.
 
 ## Ownership and boundaries
 
@@ -14,12 +11,7 @@ checkout. Keep feature-specific pure DTOs beside the feature, settings contracts
 beside their loader and reused wire concepts in src/shared/contracts.
 
 Production package imports require the exact owner, installed package identity
-and runtime/type-only permission in scripts/check-boundaries.mjs. The installed
-Next.js package currently supplies only declared feature-local link/router
-boundaries, erased document types and the Web Vitals hook adapter. Do not add a
-framework entry point or broaden permissions to make a test appear realistic.
-When later integrating framework request APIs, inspect the installed guide and
-actual supported signatures rather than assuming an older synchronous API.
+and runtime/type-only permission in scripts/check-boundaries.mjs. In a false-marker phase the installed Next.js package supplies only its declared feature-local link/router boundaries, erased document types and Web Vitals hook adapter. Do not broaden permissions to make a test realistic. Runnable adapters need explicit owners, package permissions and tests. Inspect installed framework request APIs and actual supported signatures rather than assuming older synchronous APIs.
 
 Keep request composition consistent with failure semantics. Independently useful
 reads retain their own result/error state; dependent operations stay ordered.
@@ -32,8 +24,7 @@ Protected personal data and settings remain uncached. Read
 
 Annotate component input parameters with a named Props type and infer the return
 type. Do not use FC, React.FC, FunctionComponent or aliases of those types.
-Components without props need no empty props type. Keep appropriate framework
-function signatures when a future runnable phase introduces them.
+Components without props need no empty props type. Keep the installed framework function signatures when runnable composition introduces them.
 
 Reuse the reviewed local UI primitives. Preserve native control properties,
 explicit submit types, visible labels, unique description relationships and
@@ -62,12 +53,9 @@ SEO support requires explicit origins and opt-in indexing. Escape JSON-LD and
 restrict it to verified content. Metrics have no default transport and must not
 corrupt delivery. Preserve the pure CSP/proxy policies and licensed self-hosted
 fonts. The existing [client/document guide](../../docs/client-document.md)
-describes support behavior, not a running root layout or public route.
+describes support behavior; actual document/route composition follows the source marker and application acceptance.
 
 ## Verification
 
 Select checks from [the canonical manifest](../validation.json). The complete
-phase gate measures local code and tooling; it does not establish browser,
-accessibility, visual, SSR or deployment readiness. A future runnable phase must
-publish and execute the application checks and isolated synthetic API fixture,
-then observe and require the real hosted build/e2e/visual checks before merging.
+gate must match actual source. Local code/tooling tests do not establish browser, visual, SSR or deployment readiness. Runnable composition requires all application checks, the independently installed synthetic API and actual hosted build/e2e/visual checks observed and made required before merge.

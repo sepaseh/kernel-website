@@ -1,80 +1,29 @@
-# Canonical validation for browser foundation
+# Canonical website validation
 
 [English](validation.md) · [فارسی](validation.fa.md)
 
-[.agents/validation.json](../.agents/validation.json) is the sole command/profile
-inventory. **browser-foundation** retains eleven required checks over the exact
-345-file non-runnable inventory. Four retained integration helpers with three Node
-owner-test files and eight delivery helpers with six Node owner-test files stay in
-required governance coverage, not unexecuted advisory entries. The existing eleven
-audit regression cases remain in the Vitest unit suite; their runner and coverage
-owner are unchanged. settings.recommendedChecks is a checked full-profile projection.
-[Contributing](../CONTRIBUTING.md) owns installation, authorization and exact-tree
-handoff requirements.
+[.agents/validation.json](../.agents/validation.json) is the sole command/profile inventory. The [source marker](../.github/bootstrap-policy.json) defines the phase; settings.recommendedChecks is a checked full-profile projection. [Contributing](../CONTRIBUTING.md) owns installation, authorization and exact-tree handoff. [Testing](testing.md) maps measured owners and evidence.
 
-The required `typecheck` command checks both `tsconfig.json` and
-`tsconfig.tooling.json` against the installed dependencies. The second project
-checks all thirteen authored e2e TypeScript files and four Playwright
-configurations; compilation does not execute a browser, an API or a journey.
-
-Use the pinned Node and its bundled npm, and Python3.14.4 with pinned font
-requirements in a disposable environment outside the checkout. After fresh
-installation, run the complete gate on the exact isolated proposed snapshot:
+Use pinned Node and its bundled npm, Python3.14.4 and pinned font dependencies in a disposable external Python environment. After fresh installation run the complete profile on an isolated export of the exact proposed tree:
 
 ```sh
 npm run validate -- full
 ```
 
-The runner validates the whole command plan, executes sequentially and stops at
-failure. Every PR, including documentation and drafts, runs the same full profile
-without changed-path filtering. A smaller declared profile or focused helper test
-is development evidence, not a replacement for full:
+The runner validates the whole plan, rejects duplicate/omitted required IDs or manual/advisory substitutions, executes sequentially and stops at failure. Every PR including docs/drafts runs the full declared profile without path filtering. Focused development tests do not replace it.
 
-```sh
-node --test scripts/api-repository.test.mjs scripts/website-performance.test.mjs scripts/visual-environment.test.mjs
-```
+## Current guidance snapshot
 
-Select matching delivery owner files from [testing](testing.md), for example:
+The false-marker application-guidance phase retains eleven checks and the same66 product modules. Both product/tooling TypeScript projects are required; installed SDKs type-check authored suites and four configurations without launching a browser. Node governance measures every helper owner. The audit regression retains its measured Vitest unit owner.
 
-```sh
-node --test scripts/release-files.test.mjs scripts/prepare-standalone.test.mjs scripts/package-release.test.mjs
-```
+Preserve all production analysis/coverage, 90% unit thresholds for all four metrics, 80% governance thresholds and actual font integrity with measured Python coverage. CI must install pinned Python dependencies and run the full profile; scanner must generate actual font coverage before analysis. Synthetic bundles and owned health listeners measure helper behavior, not app builds or deployments.
 
-These focused Node commands do not run the Vitest audit regression or the entire
-gate. Use the canonical full profile for complete handoff evidence; never remove
-an existing selector or exclude source to make a runner pass.
+Core entries require readiness before configuration, dependencies, network or artifacts. Do not toggle the false source marker to execute them. Positive guard tests use explicitly ready owned synthetic roots, public values and injected callbacks. The [API contract](api-fixture.md) requires explicit selection, immutable revision, independent dependency identities and fresh state; actual API/browser execution remains separate from its mocked/Node owner tests. No private dotenv, existing service or implicit sibling fallback.
 
-Keep production source in measured analysis/coverage, 90% unit and 80% governance
-thresholds, and required real font verification. Synthetic bundle fixtures and
-owned loopback listener probes measure tooling behavior only. They do not build
-an app, launch an API/browser or compare images. The phase registers no browser,
-Lighthouse, Knip or deployment execution command.
+## Runnable transition and hosted evidence
 
-Core delivery CLIs read the unlinked public readiness policy and refuse this
-applicationReady:false phase before configuration/network/artifact operations.
-Synthetic test roots may declare readiness to exercise actual local copying and
-immutable packaging; that marker does not establish a working application.
-Public configuration values, injected engine callbacks and owned health listeners
-keep evidence local. Passive native/Docker templates, release configuration and
-historical changelog entries do not activate a provider workflow or deployment.
-See [delivery acceptance](deployment.md) and [operations](release-operations.md).
+[Application integration](application.md) requires all fifteen checks, actual production build/budget, browser journeys in both CSP modes and compatible visual comparison. Add commands, source closure and semantic CI validation together. A ready marker cannot replace observed results.
 
-The API location helper requires KERNEL_SYNTHETIC_ENV=1 and an absolute explicit
-KERNEL_API_DIRECTORY; tests supply owned synthetic directories. Marker validation
-does not prove installation, immutable revision or service compatibility.
-Environment helpers retain only allowlisted runtime essentials and synthetic
-values, not owner secrets or NODE_OPTIONS. Never load real dotenv, existing state
-or another checkout implicitly.
+Before runnable merge introduce genuine build/e2e/visual jobs, observe the proposed head pass and make their real contexts required through explicit authorization. Preserve [ordinary protection](branch-protection.md), approval and resolved conversations.
 
-Local results do not establish hosted CI, Sonar or CodeRabbit execution. Follow
-[branch protection](branch-protection.md) and the [current-head preflight](sonarqube.md#before-requesting-coderabbit)
-before provider requests or authorized merges. Failures, missing evidence and
-unavailable audits are not passes. Optional hooks are host aids, not the full gate;
-their Bash/Node fixture tests do not prove host autoload.
-
-Before runtime activation, publish the app and independently installed synthetic
-API fixture, extend application checks, observe genuine build/browser/CSP/visual
-jobs and require their verified contexts. Historical reports and baseline metadata
-cannot replace that evidence.
-
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.
+Local success does not establish hosted CI, Sonar or CodeRabbit success. Before requesting a review apply the [exact-head preflight](sonarqube.md#before-requesting-coderabbit), including complete matching all-severity zero-unresolved Sonar results, cooldown and no duplicate. Record actual source/tree, failures/skips and limits. Missing evidence and unavailable audits are not passes; historical reports and optional hooks are not full validation.

@@ -2,15 +2,17 @@
 
 [English](forms.md) · [فارسی](forms.fa.md)
 
-The **guidance** phase publishes local [login](../src/features/login/Login.tsx),
+The local [login](../src/features/login/Login.tsx),
 [registration](../src/features/register/Register.tsx),
 [recovery](../src/features/recovery/Recovery.tsx) and
-[account](../src/features/account/Account.tsx) components. Registration and
+[account](../src/features/account/Account.tsx) components preserve the same behavior
+in prerequisite and application snapshots. Registration and
 recovery share the typed [OTP form](../src/features/auth/OtpForm.tsx); their
-payloads and success destinations remain feature-owned. Routes, a root layout,
-CSS build and browser integration are not published. applicationReady remains
-false. API validation, authorization, OTP limits and cookie revocation remain
-owned by the independent API.
+payloads and success destinations remain feature-owned. The [phase marker](../.github/bootstrap-policy.json)
+distinguishes local component evidence from application integration; its false
+value does not establish routes, a root layout, CSS build or browser execution.
+API validation, authorization, OTP limits and cookie revocation remain owned by
+the independent API. See the [application acceptance contract](application.md).
 
 ## Values and controls
 
@@ -74,6 +76,8 @@ replacement and delayed results; they do not establish Next.js routing, browser
 constraint validation, cookie isolation, hydration, visual layout or deployment.
 
 Run the [canonical full gate](../.agents/validation.json) on the exact proposed
-snapshot as described in [Contributing](../CONTRIBUTING.md). Before runnable
-publication, all fifteen application checks, an independently installed synthetic
-API fixture and genuine required build/e2e/visual jobs remain necessary.
+snapshot as described in [Contributing](../CONTRIBUTING.md). Runnable integration
+must retain these tests and pass all fifteen application checks plus genuine
+build/e2e/visual jobs against the [pinned independent synthetic API](api-fixture.md).
+Those jobs must be required before merge; a prior component pass does not
+validate different application source.

@@ -2,18 +2,23 @@
 
 [English](runner-foundation.md) · [فارسی](runner-foundation.fa.md)
 
-## Current API fixture prerequisite
+## Source phase and activation
 
-The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+These process owners were introduced in the 317-file `runner-foundation` phase.
+The [source marker](../.github/bootstrap-policy.json) owns the current exact
+inventory and readiness; documentation additions do not activate a runtime.
+The current `application-guidance` snapshot retains `applicationReady:false` and
+the eleven-check foundation profile. Website, API, server and analyzer entry
+operations reject this marker before environment/configuration reads, dependency
+resolution, output access or child creation. Do not toggle it to run an incomplete
+snapshot. [Application acceptance](application.md) defines the separate source,
+fifteen-check gate and protected merge transition required for activation.
 
-The **runner-foundation** phase adds controlled Node process wrappers before the
-browser SDKs, application entry points and integration suites. Its original inventory
-contained 317 files; the current [browser foundation](browser-foundation.md) extends
-that exact closure to 348 files without activating the application. The public source marker remains `applicationReady:false`;
-the website, API, server and analyzer entry operations reject it before reading environment/configuration,
-resolving dependencies, opening output or spawning a child. Do not change the
-marker to run this incomplete website. Imports are inert: no dotenv loading,
-environment mutation, service startup or installed CLI discovery occurs.
+[Independent API fixture](api-fixture.md) defines the public pinned API adapter,
+fresh owned state, launcher port contract and strict SDK worker control. Ordinary
+imports remain inert: no dotenv loading, environment mutation, service startup or
+installed CLI discovery occurs. The Node owner tests below establish process
+contracts, independently of any later application/API/browser execution.
 
 ## Owners and contracts
 
@@ -62,8 +67,8 @@ not only mocked callbacks. Negative cases keep the false marker and prove inputs
 and side effects remain untouched. Local files and processes belong to each test;
 real dotenv, developer APIs, operator state and production are not fixtures.
 
-The [canonical manifest](../.agents/validation.json) retains all eleven full
-checks. These owners join measured governance coverage and Sonar through existing
+The [canonical manifest](../.agents/validation.json) owns the full profile, which
+currently retains all eleven checks. These owners join measured governance coverage and Sonar through existing
 source selectors, without exclusions or weaker thresholds. Focused development
 verification can run:
 
@@ -73,15 +78,15 @@ node --test scripts/runner-process.test.mjs scripts/runner-inputs.test.mjs scrip
 
 An authorized commit, push or PR handoff still requires fresh Node and pinned
 Python installation plus `npm run validate -- full` on the exact isolated tree.
-The existing 66-module product inventory, source-test ownership and font checks
-are retained. The current phase also corrects operation-token activation timing;
+The existing 66-module product inventory, source-test ownership, operation-token
+activation guards and font checks remain intact in this false-marker snapshot;
 see [session ownership](session.md).
 
-There is no real Next.js build/start, independent API compatibility, browser/CSP,
-accessibility, visual comparison, Lighthouse, Docker or deployment result here.
-The [browser foundation](browser-foundation.md) now publishes the SDK-backed
-authored suites and guarded orchestration. Application composition and its full
-fifteen-check gate remain the next activation prerequisite. Before a runnable merge,
-observe genuine build, e2e and visual jobs and make them required. See
+Passing these Node owner tests establishes neither a real Next.js build/start nor
+independent API compatibility, browser/CSP, accessibility, visual comparison,
+Lighthouse, Docker or deployment. The [browser foundation](browser-foundation.md)
+documents the SDK-backed authored suites and guarded orchestration. Any runnable
+snapshot must meet the application contract and produce fresh exact-tree results;
+before its merge, observe genuine build, e2e and visual jobs and make them required. See
 [testing](testing.md), [validation](validation.md), [phase policy](bootstrap.md)
 and [delivery acceptance](deployment.md).

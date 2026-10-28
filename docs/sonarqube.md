@@ -16,17 +16,19 @@ project key. Never put token values in source, dotenv, variables, chat or logs.
 Missing credentials/project settings fail explicitly; no analysis is claimed.
 
 The workflow validates the declared snapshot, installs the locked toolchain and
-runs the real TypeScript/governance coverage commands and required Python font verification before scanning. The
-[properties](../sonar-project.properties) import `coverage/unit/lcov.info` and
-`coverage/governance/lcov.info` plus measured Python `coverage/fonts/coverage.xml` from that same checkout/revision. They cover
-all sixty-six published production modules, including local forms, operation/document adapters, UI/session/theme support,
-catalogs and governance scripts. Test/support TS/TSX files are classified as tests;
-production modules have no new source, security or coverage exclusions. Framework
-routes, styled pages, browser journeys and deployment remain outside this phase.
-Type-only DTO declarations have no executable behavior.
+runs actual TypeScript/governance coverage plus required Python font verification
+before scanning. The [properties](../sonar-project.properties) import
+`coverage/unit/lcov.info`, `coverage/governance/lcov.info` and measured Python
+`coverage/fonts/coverage.xml` from that same checkout/revision. False-marker
+prerequisites retain sixty-six production modules; application activation must
+expand coverage/analysis to every executable production owner in its exact
+inventory. Test/support TS/TSX files remain classified as tests. No production
+source, security or coverage exclusion may hide the new composition. Authored
+browser suites are test infrastructure, not measured product behavior or a
+deployment result. Type-only DTO declarations have no executable behavior.
 Do not fabricate reports or substitute another project's coverage.
 
-The guidance phase also analyzes `scripts/check-guidance.mjs` and the optional
+The maintained analysis also includes `scripts/check-guidance.mjs` and the optional
 Node safety guard in `.agents/hooks`. The governance command runs the guidance
 and portable-hook tests and measures their actual imported JavaScript alongside
 the existing guards. Shell fixture behavior is tested, but Node LCOV does not
@@ -94,8 +96,9 @@ publication requires `check`, the trusted `PR file limit`, `SonarQube Cloud anal
 CodeRabbit's own check and approval from this preflight to avoid a circular
 dependency.
 
-Under the non-runnable publication policy, app `build`, `e2e` and
-`visual` jobs are not currently required. Before any runnable-app merge,
+The approved false-marker policy does not require app `build`, `e2e` and
+`visual` jobs. This is a phase boundary, not permission to remove live required
+checks. Before any runnable-app merge,
 introduce those real jobs, observe them pass, add them to required checks and
 expand the full canonical application gate. Do not emit placeholder jobs,
 skip required checks or treat a documentation edit as a remote policy change.
@@ -114,15 +117,35 @@ reflected in the report. Do not exclude/suppress issues, add metric-only wrapper
 or weaken checks to bypass this requirement.
 
 Record the head, required-check results and Sonar analysis. Any new commit/head
-change invalidates this evidence. Recheck after fixes, respect review quotas and
-do not duplicate a request already in flight for the same head. Send one manual
+change invalidates this evidence. Recheck after fixes; wait at least one hour
+since both the latest review request and substantive website review, respect
+any longer provider retry limit and do not duplicate an accepted review already
+in flight for the same head. Send one manual
 request only after preflight passes and the remote action is explicitly
 authorized; a skipped or quota-limited review is not a completed review.
 
-The integration-tooling phase keeps all four independent quality helpers under scripts in the existing analysis scope. The three Node owner-test files produce genuine governance LCOV from the same source tree; no tooling source or coverage exclusion is added. Synthetic build, explicit fixture-location, environment, metadata and lock tests do not establish an application, API or browser run. See [testing](testing.md) and [validation](validation.md).
+Quality helpers under scripts remain in the existing analysis scope. Their Node
+owner tests produce genuine governance LCOV from the same source tree. Synthetic
+build, fixture-location, environment, metadata and lock tests do not establish
+application/API/browser execution. [Testing](testing.md), [validation](validation.md)
+and the [application contract](application.md) identify the additional evidence.
 
 All eight new delivery Node helpers stay under scripts in the existing analysis scope, with genuine coverage from the six Node owner files and the existing audit regression. Passive Docker/native shell/configuration templates have static and owned fixture contract checks; Node LCOV does not measure shell source or prove a container/service run. No source, rule, coverage or duplication exception is added. A locally prepared package has no new hosted analysis until it is separately authorized and published after the current PR merges.
 
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.
+The [runner foundation](runner-foundation.md) owns explicit inputs, direct-child
+lifecycle, standalone/API fixture launching and bounded analysis output. Core
+entry operations read the public readiness marker first and reject false-marker
+snapshots. Imports do not load dotenv, mutate the environment or launch services.
+Node owner tests execute owned synthetic children, including failures/cancellation;
+they do not establish real Next.js/API/browser/Docker or lab execution. The
+[browser foundation](browser-foundation.md) adds guarded Playwright configuration
+and visual/CSP orchestration. The [API fixture contract](api-fixture.md) verifies
+the immutable public revision and independent installation without turning a
+false marker into runnable evidence. Keep all helpers measured and thresholds intact.
 
-The browser-foundation phase retains all new Node helpers under scripts as measured source. The thirteen authored e2e TypeScript files and four exact Playwright configurations are analyzed as test infrastructure and checked by tsconfig.tooling.json against installed Playwright/Axe packages. They are not an executed e2e, accessibility, visual or API-compatibility result. No source, rule or coverage exclusion is added.
+Authored e2e TypeScript files and exact Playwright configurations remain analyzed
+as test infrastructure and checked by tsconfig.tooling.json against installed
+Playwright/Axe packages. Genuine application activation must add exact-tree real
+build, browser/CSP and visual execution and protected jobs; a passed typecheck,
+old report or local plan does not satisfy that requirement. No source, rule or
+coverage exclusion is added.

@@ -2,53 +2,15 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-## Current API fixture prerequisite
+This independent TypeScript frontend uses the [source marker and exact inventory](.github/bootstrap-policy.json) for publication scope and the [canonical manifest](.agents/validation.json) for required commands. The application-guidance snapshot keeps `applicationReady:false`, 66 product modules, 34 source test files and three source test-support modules. It prepares integration guidance and preserves dated source history without adding routes, a root layout or CSS build.
 
-The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](docs/api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+Local product owners provide authentication/account forms, reviewed UI primitives, session/theme providers, ten complete 107-key flat catalogs, cookie/no-store HTTP and forwarding, API-owned language/direction, pure CSP/SEO support, optional private Web Vitals and licensed self-hosted fonts. Read [architecture](docs/architecture.md), [forms](docs/forms.md), [session](docs/session.md), [localization](docs/localization.md), [client/document support](docs/client-document.md) and [fonts](docs/fonts.md).
 
-This standalone TypeScript project is in its **api-fixture** phase.
-`applicationReady` is **false**. The published scope contains sixty-six production
-modules, thirty-four source test files and three test-support modules:
-
-- Six pure wire-contract modules under `src/shared/contracts`, feature-owned
-  `types.ts` files and `src/shared/settings/contracts.ts`.
-- Form-input helpers preserving password whitespace and normalizing mobile digits.
-- Safe API-origin validation and a public-settings loader that preserves the
-  server's active language/direction and uses uncached requests.
-- Ten complete local translation catalogs with 107 flat string keys per language,
-  a key type derived from English and an explicit lazy-loader registry.
-
-- Web API forwarding with exact mutation-origin checks, bounded bodies, cookie-only
-  sessions and safe uncached error responses; pure document CSP policy helpers.
-- A shared cookie/no-store HTTP client and five feature modules for twelve operations,
-  explicit client message selection and catalogs tested with the real ICU engine.
-- SEO data and safe JSON-LD, private optional Web Vitals delivery, class composition,
-  and licensed self-hosted font assets with real binary verification and preload selection.
-- Five local shadcn/Radix primitives, associated form fields and localized feedback,
-  session/theme providers, theme preference, a bounded countdown, visible-first
-  motion and a Web Vitals hook adapter.
-- Login, shared registration/recovery OTP forms and account profile, username, email
-  verification, password-change and logout controls; mount/session ownership
-  protects local feedback and navigation from late results.
-
-Portable [guidance](.agents/README.md), [source navigation](docs/source-navigation.md), [architecture](docs/architecture.md), [design](DESIGN.md), [ADRs](docs/adr/README.md) and [evaluation templates](docs/comprehension-evaluation.md) now accompany that existing production inventory. The current phase also corrects committed-mount activation of the existing operation guard; see [session ownership](docs/session.md). The indexes point only to published owners and tests. Optional host hooks/adapters do not establish automatic discovery, a benchmark result or runtime readiness.
-
-Read [forms](docs/forms.md), [client UI](docs/client-ui.md), [session ownership](docs/session.md),
-[client/document support](docs/client-document.md), [fonts](docs/fonts.md) and
-[server boundary](docs/server-boundary.md) for behavior and remaining integration.
-Next.js pages, root layout, request/translation adapters, a CSS pipeline, executed browser
-journeys and deployment are not included. The installed support libraries are
-explicitly declared in [package.json](package.json); production package imports
-have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
-feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
-[348-file snapshot inventory](.github/bootstrap-policy.json).
-
-Dependabot version-update pull requests are configured with a zero limit while publication follows one open PR at a time. Repository security-update settings are separate and are not established by this local configuration. The future component-generator configuration and CSS integration are deferred.
+The independent API owns authentication, settings, persistence and storage. Consume it through HTTP; no cross-checkout source imports, workspaces or local links. Package imports have explicit owner/identity permissions. The [fixture contract](docs/api-fixture.md) pins a public API revision, clean source, independently installed dependencies, fresh owned state and strict launcher inputs. The false-marker gate measures this adapter with synthetic Node tests; it runs no real API or browser.
 
 ## Install and validate
 
-Use Python 3.14.4 in an activated disposable environment outside the checkout for font verification. CI installs the pinned requirements on its temporary runner. Use Node.js from [.nvmrc](.nvmrc), within the [package](package.json) engine range,
-and the npm bundled with that Node.js release, matching CI.
+Use Node from [.nvmrc](.nvmrc), its bundled npm and Python 3.14.4 in an activated disposable environment outside source:
 
 ```sh
 npm ci
@@ -56,24 +18,14 @@ python -m pip install --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) defines all eleven required phase
-checks. Unit tests run in Node or isolated jsdom with real React/RTL, Radix,
-next-intl and next-themes, synthetic fetch responses and dotenv loading disabled.
-Feature tests use scoped auth/account messages and the real HTTP/session stack;
-router and document navigation are mocked. Motion/framework-hook owner tests
-document their mocks and static-markup limits.
-They produce `coverage/unit/lcov.info`; Node governance tests produce
-`coverage/governance/lcov.info`. These are real measurements of the published source
-and its tooling, not coverage of a running website. Reports are not committed.
+The current profile has eleven required checks. Real React/RTL, Radix, next-intl and next-themes run in isolated jsdom with synthetic HTTP; navigation/motion mocks retain their documented limits. All product source, governance scripts and actual font binaries remain measured. Generated coverage reports are not committed.
 
-Read [Contributing](CONTRIBUTING.md), the [phase guide](docs/bootstrap.md),
-[branch protection](docs/branch-protection.md) and [Sonar setup](docs/sonarqube.md).
-Each PR may change at most **100 GitHub file entries**. This limit applies to the
-PR diff, not the total repository inventory. No hosted CI, review or Sonar result
-is established merely by these local files.
+[Contributing](CONTRIBUTING.md), [testing](docs/testing.md) and [validation](docs/validation.md) define exact-tree acceptance. Every PR executes the full declared profile, including documentation. Each changes at most 100 GitHub entries. Keep one website PR open and create authorized PRs ready for review. Observe hosted CI, Sonar and review results for the current head; files alone do not prove provider success.
 
-The retained integration tooling provides four independent quality helpers: explicit synthetic API fixture location, bundle/budget measurement, an allowlisted performance environment and visual metadata/locking utilities. Three Node owner-test files exercise them using disposable synthetic files. Read [testing](docs/testing.md), [validation](docs/validation.md), [performance](docs/website-performance.md), [visual limits](docs/visual-regression.md), [CSP](docs/website-csp.md), [accessibility](docs/accessibility.md) and [test reliability](docs/test-reliability.md). These helpers do not start an API or a browser; the readiness-first Node runner foundation below extends this evidence without activating the application.
+## Integration and operations
 
-Delivery preparation adds eight Node helpers for owned artifact copying/packaging, phase readiness, explicit health checks, public configuration validation/rendering, scoped cleanup and target validation. Six Node owner-test files join measured governance coverage; existing audit regression cases retain their measured Vitest unit ownership. The [delivery guides](docs/deployment.md), [release operations](docs/release-operations.md), [releasing](docs/releasing.md), [staging](docs/staging.md) and passive native/Docker templates describe future operator acceptance. The source remains non-runnable: core CLIs reject its false readiness marker before operations. Synthetic fixture success is not a Next.js build, installed API, container, deployment or release. [Changelog](CHANGELOG.md) distinguishes imported history from current evidence.
+[Application integration](docs/application.md) defines framework composition, CSS/configuration, all fifteen checks and actual build/browser/CSP/visual evidence with the independent synthetic API. The marker must agree with delivered source and checks; it cannot bypass missing acceptance.
 
-The [runner foundation](docs/runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](docs/browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.
+Published tooling owns fixture/bundle/environment/visual checks, child lifecycle, guarded browser configuration and artifact/configuration/health/cleanup contracts. Imports are inert; core entries check readiness before operations. Node fixtures, authored suites and old images prove only their recorded scope. See [phase scope](docs/bootstrap.md), [runners](docs/runner-foundation.md), [browser foundation](docs/browser-foundation.md), [delivery](docs/deployment.md), [operations](docs/release-operations.md) and [protection](docs/branch-protection.md). Deployment and workflow dispatch need their own authorization.
+
+[Documentation](docs/README.md) separates active guides from dated QA and archived originals. [Guidance](.agents/README.md), [navigation](docs/source-navigation.md), [design](DESIGN.md), [ADRs](docs/adr/README.md) and [evaluation](docs/comprehension-evaluation.md) describe ownership. Optional hooks/adapters do not prove automatic loading or model performance. Dependabot version-update PR limits stay zero during one-open-PR publication; security-update settings are separate.

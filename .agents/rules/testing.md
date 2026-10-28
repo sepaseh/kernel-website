@@ -1,8 +1,6 @@
 # Testing
 
-The published phase uses Vitest, real React/RTL, next-intl, Radix and next-themes
-with isolated jsdom, synthetic fetch responses and Node governance tests. Do not
-introduce MSW, user-event or undeclared browser tooling as if it were already installed. Playwright and Axe are declared for typed authored suites; the full phase gate executes their Node orchestration tests, not a browser.
+Read the source marker and canonical manifest for actual scope. Vitest uses real React/RTL, next-intl, Radix and next-themes with isolated jsdom and synthetic fetch; Node governance measures tooling. Do not treat undeclared MSW/user-event or other tooling as installed. Playwright/Axe support authored suites; a false-marker gate measures Node orchestration, while runnable acceptance additionally executes the actual build/browser/CSP/visual contract in docs/application.md.
 
 Select the smallest useful command from the
 [validation manifest](../validation.json), following
@@ -35,19 +33,15 @@ Do not add sleeps, test retries, skipped cases or weaker assertions to hide a ra
 
 ## Evidence and future integration
 
-Report actual commands, failures, source scope and limitations. Current tests do
-not establish SSR, cookie isolation in a browser, keyboard/contrast compliance,
-visual appearance or deployment. Future runnable integration must add and execute
-real build, browser/CSP and visual checks with an independently installed
-synthetic API fixture before those claims or a runnable-app merge.
+Report actual commands, failures, source scope and limitations. Local unit/governance tests do not establish SSR, browser cookies, visual appearance or deployment. Runnable integration requires all fifteen checks and real build, browser/CSP and visual evidence with an independently installed synthetic API before its merge; retain the narrower limits of each test layer.
 
 Use temporary files and resources owned by the test. Verify the resolved target
 before cleanup, include failure paths, and never delete or move another checkout,
 private state, shared Docker resources or unrelated source. No production
 endpoints, databases, storage or credentials belong in a fixture.
 
-Independent quality-helper tests belong in required governance coverage. Use owned synthetic directories/build graphs, explicit API fixture paths and metadata/lock fixtures. Do not import deferred launchers or rely on sibling checkouts. Read [testing](../../docs/testing.md) and [validation](../../docs/validation.md); no browser or application execution is established by these Node cases.
+Independent quality-helper tests belong in required governance coverage. Use owned synthetic directories/build graphs, explicit API fixture paths and metadata/lock fixtures. Do not activate launchers from a false source marker or rely on sibling checkouts. Read [testing](../../docs/testing.md) and [validation](../../docs/validation.md); no browser or application execution is established by these Node cases.
 
-Delivery tests must keep current applicationReady false. Only owned synthetic fixture roots may carry a true marker for real copy/archive/guard tests; inject Docker callbacks and bind fresh loopback health servers instead of using an engine or existing service. The existing audit regression remains in its measured Vitest unit suite, with the subprocess boundary mocked so unit tests do not contact the registry. Preserve first failure logs and distinguish these results from build/container/provider readiness.
+Delivery tests must preserve the actual source marker; never toggle a false marker to enter operations. Only owned synthetic fixture roots may carry a true marker for real copy/archive/guard tests; inject Docker callbacks and bind fresh loopback health servers instead of using an engine or existing service. The existing audit regression remains in its measured Vitest unit suite, with the subprocess boundary mocked so unit tests do not contact the registry. Preserve first failure logs and distinguish these results from build/container/provider readiness.
 
-Runner-foundation owner tests execute only disposable Node programs in explicitly marked owned fixture roots. Require readiness before input/configuration/dependency reads, inert imports, explicit loopback synthetic inputs, observable spawn/exit/cancellation failures and cleanup of the direct child created by the runner. See [runner foundation](../../docs/runner-foundation.md). Real Next.js builds, independent API installation/compatibility and browser execution remain separate future acceptance. The [browser foundation](../../docs/browser-foundation.md) publishes authored suites with required tooling type checking, installed SDK checks and owned injected Node regressions; these do not establish an executed browser, accessibility or visual result.
+Runner-foundation owner tests execute only disposable Node programs in explicitly marked owned fixture roots. Require readiness before input/configuration/dependency reads, inert imports, explicit loopback synthetic inputs, observable spawn/exit/cancellation failures and cleanup of the direct child created by the runner. See [runner foundation](../../docs/runner-foundation.md). Real Next.js builds, independent API installation/compatibility and browser execution require separate exact-tree acceptance. The [browser foundation](../../docs/browser-foundation.md) publishes authored suites with required tooling type checking, installed SDK checks and owned injected Node regressions; these do not establish an executed browser, accessibility or visual result.

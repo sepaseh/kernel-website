@@ -1,6 +1,6 @@
 {
   "name": "kernel-website-ai-guidance",
-  "description": "Non-runnable website browser foundation with pinned independent synthetic API adapter and strictly validated browser worker controls",
+  "description": "Phase-aware website guidance over explicit local product/tooling ownership; readiness, exact source inventory and canonical checks govern application acceptance",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

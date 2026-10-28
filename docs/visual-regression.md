@@ -2,11 +2,14 @@
 
 [English](visual-regression.md) · [فارسی](visual-regression.fa.md)
 
-**integration-tooling** publishes [visual environment helpers](../scripts/visual-environment.mjs)
-and [Node owner tests](../scripts/visual-environment.test.mjs), not a Playwright
-runner, scene/configuration, browser installation or screenshot baseline. There
-is no runnable page or CSS pipeline. Helper success is not a visual comparison
-or approval of the current design.
+The [visual environment helpers](../scripts/visual-environment.mjs),
+[Node owner tests](../scripts/visual-environment.test.mjs), guarded
+[visual runner](../scripts/run-visual.mjs), Playwright configuration and authored
+scenes are published tooling. The [phase marker](../.github/bootstrap-policy.json)
+keeps false-marker snapshots inert before application operations. Typed suites,
+installed SDKs and fixture-identity checks are not a browser installation, pixel
+comparison or design approval. [Application acceptance](application.md) requires
+real execution over the exact integrated pages and CSS.
 
 ## Published helper behavior
 
@@ -24,14 +27,15 @@ does not capture or approve an image. Never remove another process's lock. Follo
 
 ## Baselines and future acceptance
 
-Previous Windows screenshots and metadata are preserved as dated source material
-outside this published snapshot. They are deferred, not silently replaced or
-promoted to current compatibility evidence. Windows records establish no Linux
+Previous Windows screenshots and metadata remain dated source material; their
+presence or absence is established by the exact publication inventory. Importing
+those bytes does not refresh their review or establish current compatibility. Windows records establish no Linux
 or other-platform comparison. Source edits alone do not justify refreshing a
 baseline or changing a historical review date.
 
-Before actual comparison, publish pages/CSS, an isolated browser runner, an
-independently installed synthetic API fixture and pinned browser dependencies.
+Before actual comparison, close the application pages/CSS inventory and verify
+the isolated browser runner, [pinned independent synthetic API](api-fixture.md)
+and exact installed browser dependencies.
 Verify real platform/browser/version and capture conditions against the selected
 reviewed images. Record source fingerprints, viewport/theme/language, fonts and
 readiness, operating system and results. Review every expected PNG change; a new

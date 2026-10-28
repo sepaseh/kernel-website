@@ -2,10 +2,12 @@
 
 [English](accessibility.md) · [فارسی](accessibility.fa.md)
 
-The **integration-tooling** phase is non-runnable. Local controls and forms have
-DOM/behavior tests, but published pages, root layout, CSS, Playwright journeys and
-automated axe scans are absent. This guide and local tests establish neither
-complete WCAG conformance nor screen-reader behavior.
+Local controls/forms have DOM and behavior tests; authored Playwright/Axe cases
+are published test infrastructure. The [phase marker](../.github/bootstrap-policy.json)
+and exact execution record distinguish that source from a runnable page/CSS
+assessment. A false-marker prerequisite does not run browser scans. Neither this
+guide, local tests nor a later automated scan alone establishes complete WCAG
+conformance or screen-reader behavior. See [application acceptance](application.md).
 
 ## Published support
 

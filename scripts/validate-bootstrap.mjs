@@ -420,7 +420,29 @@ const apiFixtureFiles = [
   "scripts/api-fixture-test-support.mjs",
 ];
 const apiFixturePaths = new Set(apiFixtureFiles);
-const browserPhases = new Set(["browser-foundation", "api-fixture"]);
+const applicationGuidanceFiles = [
+  "docs/README.fa.md",
+  "docs/README.md",
+  "docs/application.fa.md",
+  "docs/application.md",
+  "docs/seo.fa.md",
+  "docs/seo.md",
+  "docs/qa/independent-website-verification.fa.md",
+  "docs/qa/independent-website-verification.md",
+  "docs/qa/requirements-audit-2026-10-24.fa.md",
+  "docs/qa/requirements-audit-2026-10-24.md",
+  "docs/qa/roadmap-status-2026-10-24.fa.md",
+  "docs/qa/roadmap-status-2026-10-24.json",
+  "docs/qa/roadmap-status-2026-10-24.md",
+  "docs/qa/source-comprehension-2026-10-24.fa.md",
+  "docs/qa/source-comprehension-2026-10-24.md",
+  "docs/qa/standalone-layout-2026-10-24.fa.md",
+  "docs/qa/standalone-layout-2026-10-24.md",
+  "docs/qa/source-originals/vitest.tooling.config.ts",
+];
+const applicationGuidancePaths = new Set(applicationGuidanceFiles);
+const apiFixturePhases = new Set(["api-fixture", "application-guidance"]);
+const browserPhases = new Set(["browser-foundation", ...apiFixturePhases]);
 const runnerPhases = new Set(["runner-foundation", ...browserPhases]);
 const deliveryPhases = new Set(["delivery-tooling", ...runnerPhases]);
 const toolingPhases = new Set(["integration-tooling", ...deliveryPhases]);
@@ -443,6 +465,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "application-guidance":
+    "Published phase-aware application acceptance guidance and dated source archives over the unchanged API fixture prerequisite. The readiness guard still refuses this non-runnable snapshot; historical reports and archived configuration are not current execution evidence or active application, browser, visual or deployment configuration.",
   "api-fixture":
     "Published immutable API fixture identity and installation checks, explicit isolated API test configuration and corrected browser runner inputs with owned synthetic Node tests. The readiness guard still refuses this non-runnable snapshot; these checks do not establish an executed API/browser integration, application build, screenshot comparison or deployment.",
   "browser-foundation":
@@ -505,7 +529,8 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
   ...(deliveryPhases.has(phase) ? deliveryToolingFiles : []),
   ...(runnerPhases.has(phase) ? runnerFoundationFiles : []),
   ...(browserPhases.has(phase) ? browserFoundationFiles : []),
-  ...(phase === "api-fixture" ? apiFixtureFiles : []),
+  ...(apiFixturePhases.has(phase) ? apiFixtureFiles : []),
+  ...(phase === "application-guidance" ? applicationGuidanceFiles : []),
 ];
 
 const rejectsProtectedPublicationPath = (file, phase) => {
@@ -526,7 +551,8 @@ const isToolingPathOutsidePhase = (file, phase) =>
     (integrationToolingPaths.has(file) || deliveryToolingPaths.has(file))) ||
   (!runnerPhases.has(phase) && runnerFoundationPaths.has(file)) ||
   (!browserPhases.has(phase) && browserFoundationPaths.has(file)) ||
-  (phase !== "api-fixture" && apiFixturePaths.has(file));
+  (!apiFixturePhases.has(phase) && apiFixturePaths.has(file)) ||
+  (phase !== "application-guidance" && applicationGuidancePaths.has(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
