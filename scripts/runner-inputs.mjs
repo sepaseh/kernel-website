@@ -117,13 +117,13 @@ export const apiFixtureRevision = "4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9";
 
 const systemGit =
   process.platform === "win32"
-    ? "C:\\Program Files\\Git\\cmd\\git.exe"
+    ? String.raw`C:\Program Files\Git\cmd\git.exe`
     : "/usr/bin/git";
 const gitEnvironment = () =>
   process.platform === "win32"
     ? {
-        PATH: "C:\\Program Files\\Git\\cmd;C:\\Windows\\System32",
-        SystemRoot: "C:\\Windows",
+        PATH: String.raw`C:\Program Files\Git\cmd;C:\Windows\System32`,
+        SystemRoot: String.raw`C:\Windows`,
       }
     : { PATH: "/usr/bin:/bin" };
 
@@ -148,7 +148,17 @@ async function gitOutput(directory, args) {
         timeout: 10_000,
         windowsHide: true,
       },
-      (error, stdout) => (error ? reject(error) : resolve(stdout.trim())),
+      (error, stdout) => {
+        if (error) {
+          reject(
+            error instanceof Error
+              ? error
+              : new Error("System Git inspection failed.", { cause: error }),
+          );
+          return;
+        }
+        resolve(stdout.trim());
+      },
     );
   });
 }

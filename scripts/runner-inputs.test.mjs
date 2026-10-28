@@ -437,10 +437,42 @@ test("API identity checks use only the fixed unlinked system Git and never read 
   const missing = new Error("The verified system Git executable disappeared");
   missing.code = "ENOENT";
   control.error = missing;
-  await assert.rejects(
-    resolveApiFixture(root, inherited),
-    (error) => error === missing,
-  );
+  await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+    assert.equal(error, missing);
+    assert.equal(error.code, "ENOENT");
+    return true;
+  });
   assert.equal(calls.length, before + 1);
   assert.equal(poisonedReads, 0);
+});
+
+test("Git callback failures preserve native Error identity or wrap non-Error values with their original cause", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { control, calls } = await createApiFixture(t, put, directory);
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+  };
+  const nativeFailure = new Error("Owned system Git process failure");
+  nativeFailure.code = "EACCES";
+  control.error = nativeFailure;
+  await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+    assert.equal(error, nativeFailure);
+    assert.equal(error.code, "EACCES");
+    return true;
+  });
+  for (const callbackValue of [
+    "Owned callback rejection",
+    { reason: "owned callback rejection" },
+  ]) {
+    control.error = callbackValue;
+    await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "System Git inspection failed.");
+      assert.equal(error.cause, callbackValue);
+      return true;
+    });
+  }
+  assert.equal(calls.length, 3);
 });
