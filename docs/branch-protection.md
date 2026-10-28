@@ -2,7 +2,7 @@
 
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
-The **foundation**, **localization**, **server-boundary**, **client-document**, **client-ui** **feature-ui**, **guidance**, **integration-tooling** **delivery-tooling** and **runner-foundation** phases remain non-runnable with
+The **foundation**, **localization**, **server-boundary**, **client-document**, **client-ui** **feature-ui**, **guidance**, **integration-tooling**, **delivery-tooling** and **runner-foundation** phases remain non-runnable with
 `applicationReady:false` and explicit source inventories. All these phases require
 these native checks:
 
