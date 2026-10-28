@@ -2,6 +2,7 @@ import path from "node:path";
 
 import {
   resolvePlaywrightCli,
+  resolvePlaywrightInstallation,
   syntheticBrowserInputs,
 } from "./browser-inputs.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
@@ -73,17 +74,32 @@ export async function assertPlaywrightParentEnvironment(root, environment) {
     throw new Error(
       "Playwright parent environment must be an explicit object.",
     );
-  if (
-    Object.getOwnPropertyNames(environment).some(
-      (key) =>
-        !parentEnvironmentKeys.has(key) &&
-        !(process.platform === "win32" && windowsRuntimeKeys.has(key)),
-    ) ||
-    Object.getOwnPropertySymbols(environment).length
-  )
+  const unexpected = Object.getOwnPropertyNames(environment).filter(
+    (key) =>
+      key !== "PLAYWRIGHT_TEST" &&
+      !parentEnvironmentKeys.has(key) &&
+      !(process.platform === "win32" && windowsRuntimeKeys.has(key)),
+  );
+  const symbolCount = Object.getOwnPropertySymbols(environment).length;
+  if (unexpected.length || symbolCount)
     throw new Error(
-      "Playwright requires an explicitly filtered parent environment; unexpected keys are forbidden.",
+      `Playwright requires an explicitly filtered parent environment; unexpected keys are forbidden: ${JSON.stringify(unexpected.slice(0, 16).map((key) => key.slice(0, 80)))} (${unexpected.length} names, ${symbolCount} symbols).`,
     );
+  const workerMarker = Object.getOwnPropertyDescriptor(
+    environment,
+    "PLAYWRIGHT_TEST",
+  );
+  if (workerMarker) {
+    if (workerMarker.value !== "1")
+      throw new Error(
+        "The reviewed Playwright worker marker must be the literal string 1.",
+      );
+    const sdk = await resolvePlaywrightInstallation(directory);
+    if (sdk.version !== "1.64.1")
+      throw new Error(
+        "The worker marker requires the reviewed installed Playwright 1.64.1 identity.",
+      );
+  }
   return directory;
 }
 
@@ -111,7 +127,7 @@ function fixtureServers(root, inputs) {
     {
       command: "node scripts/test-website-api.mjs",
       cwd: root,
-      env: inputs.apiEnvironment,
+      env: inputs.websiteEnvironment,
       reuseExistingServer: false,
       timeout: 60_000,
       url: `${inputs.apiOrigin}/health`,

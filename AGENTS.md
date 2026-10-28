@@ -1,5 +1,11 @@
 # Kernel Website guidance instructions
 
+## API fixture prerequisite
+
+The current api-fixture phase keeps applicationReady:false and the sixty-six-module product closure with 348 source files. Read [the independent fixture contract](docs/api-fixture.md). After readiness, the API adapter requires the public pinned independent Git revision 4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9, clean tracked source, independently installed dependency identities and the published src/index.ts entry. Fresh owned synthetic state and a generated test-only secret remain outside source. The Playwright launcher passes website parent settings and derives the API child port only inside its owner. The worker marker PLAYWRIGHT_TEST is accepted only as literal data value 1 with reviewed SDK1.64.1 identity; private/injection keys remain rejected. Names-only diagnostics never expose environment values.
+
+The retained foundation scope below is not runnable. Complete the same eleven-check exact isolated gate before every authorized commit/push/handoff; Node owned fixtures and mocked Git are not real API/browser evidence. Application source and its fifteen-check acceptance remain a later PR. Preserve all originals, private state, one-open-PR workflow and ordinary provider/merge requirements.
+
 Read [guidance index](.agents/README.md), [settings](.agents/settings.json), [task navigation](docs/source-navigation.md), [README](README.md), [Contributing](CONTRIBUTING.md), [phase guide](docs/bootstrap.md), [snapshot policy](.github/bootstrap-policy.json), [canonical validation](.agents/validation.json) and matching owner documentation before changes.
 
 Read matching [canonical rules](.agents/rules/guidance.md), [ADRs](docs/adr/README.md), [architecture](docs/architecture.md), [design](DESIGN.md) and [comprehension evaluation](docs/comprehension-evaluation.md). Settings/navigation are explicit local indexes, not proof of host autoload. Optional hooks and thin host adapters never replace full validation or create runtime dependencies.

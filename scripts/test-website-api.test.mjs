@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { watch } from "node:fs";
 import {
   mkdir,
   mkdtemp,
@@ -10,7 +11,10 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
+import { apiFixtureRevision } from "./runner-inputs.mjs";
 import { runWebsiteApi } from "./test-website-api.mjs";
 
 async function fixture(t, ready = true) {
@@ -48,27 +52,17 @@ async function fixture(t, ready = true) {
   };
   return { root, put, directory, inherited };
 }
-async function apiFixture(put, program) {
-  await put(
-    "api-fixture/package.json",
-    JSON.stringify({ name: "kernel-api", type: "module" }),
-  );
-  await put(
-    "api-fixture/src/index.ts",
-    "// Owned synthetic marker, not imported.",
-  );
-  await put("api-fixture/scripts/test-website-api.mjs", program);
-}
-
 test(
   "API launcher executes only the explicit owned fixture entry with sanitized API port and environment",
   { timeout: 10000 },
   async (t) => {
     const { root, put, directory, inherited } = await fixture(t);
-    await apiFixture(
+    await createApiFixture(
+      t,
       put,
+      directory,
       `import {writeFileSync} from 'node:fs';
-writeFileSync('execution.json',JSON.stringify({cwd:process.cwd(),port:process.env.PORT,host:process.env.HOSTNAME,synthetic:process.env.KERNEL_SYNTHETIC_ENV,api:process.env.API_BASE_URL,website:process.env.WEBSITE_URL,nodeOptions:process.env.NODE_OPTIONS,database:process.env.DATABASE_URL,token:process.env.TOKEN,fixture:process.env.KERNEL_API_DIRECTORY}));`,
+const keys=['NODE_ENV','HOST','PORT','BETTER_AUTH_URL','SERVER_ALLOWED_ORIGIN','BETTER_AUTH_SECRET','DATABASE_URL','LOCAL_STORAGE_PATH','SERVER_SEED_DEVELOPMENT_DATA','OTP_FIXED_CODE','STORAGE_DRIVER','SERVER_ENVIRONMENT','SERVER_RELEASE_ID','LOG_LEVEL','TEMP','TMP','API_BASE_URL','WEBSITE_URL','NODE_OPTIONS','TOKEN','KERNEL_API_DIRECTORY'];writeFileSync('execution.json',JSON.stringify({cwd:process.cwd(),environment:Object.fromEntries(keys.map(key=>[key,process.env[key]]))}));`,
     );
     assert.deepEqual(
       await runWebsiteApi({
@@ -79,19 +73,38 @@ writeFileSync('execution.json',JSON.stringify({cwd:process.cwd(),port:process.en
       }),
       { code: 0, signal: null },
     );
-    assert.deepEqual(
-      JSON.parse(
-        await readFile(path.join(directory, "execution.json"), "utf8"),
-      ),
-      {
-        cwd: directory,
-        port: "43101",
-        host: "127.0.0.1",
-        synthetic: "1",
-        api: "http://127.0.0.1:43101",
-        website: "http://127.0.0.1:43102",
-      },
+    const execution = JSON.parse(
+      await readFile(path.join(directory, "execution.json"), "utf8"),
     );
+    assert.equal(execution.cwd, directory);
+    const {
+      BETTER_AUTH_SECRET,
+      DATABASE_URL,
+      LOCAL_STORAGE_PATH,
+      TEMP,
+      TMP,
+      ...publicValues
+    } = execution.environment;
+    assert.match(BETTER_AUTH_SECRET, /^[a-f0-9]{64}$/);
+    assert.deepEqual(publicValues, {
+      NODE_ENV: "test",
+      HOST: "127.0.0.1",
+      PORT: "43101",
+      BETTER_AUTH_URL: "http://127.0.0.1:43101",
+      SERVER_ALLOWED_ORIGIN: "http://127.0.0.1:43102",
+      SERVER_SEED_DEVELOPMENT_DATA: "true",
+      OTP_FIXED_CODE: "123456",
+      STORAGE_DRIVER: "local",
+      SERVER_ENVIRONMENT: "website-synthetic",
+      SERVER_RELEASE_ID: apiFixtureRevision,
+      LOG_LEVEL: "error",
+    });
+    assert.equal(TEMP, TMP);
+    assert.match(path.basename(TEMP), /^website-api-state-/);
+    assert.equal(fileURLToPath(DATABASE_URL), path.join(TEMP, "api.sqlite"));
+    assert.equal(LOCAL_STORAGE_PATH, path.join(TEMP, "objects"));
+    await assert.rejects(readFile(fileURLToPath(DATABASE_URL)), /ENOENT/);
+    await assert.rejects(realpath(TEMP), /ENOENT/);
     assert.equal(inherited.PORT, "43102");
     assert.equal(inherited.NODE_OPTIONS, "--invalid-option");
   },
@@ -149,8 +162,13 @@ test(
   "API launcher propagates an actual owned fixture failure",
   { timeout: 10000 },
   async (t) => {
-    const { root, put, inherited } = await fixture(t);
-    await apiFixture(put, "process.exitCode=9;");
+    const { root, put, directory, inherited } = await fixture(t);
+    await createApiFixture(
+      t,
+      put,
+      directory,
+      "import{writeFileSync}from'node:fs';writeFileSync('failed-state',process.env.TEMP);process.exitCode=9;",
+    );
     await assert.rejects(
       runWebsiteApi({
         root,
@@ -160,5 +178,44 @@ test(
       }),
       /9/,
     );
+    const state = await readFile(path.join(directory, "failed-state"), "utf8");
+    await assert.rejects(realpath(state), /ENOENT/);
+  },
+);
+
+test(
+  "cancelling an actual owned API child drains it before removing fresh state",
+  { timeout: 10000 },
+  async (t) => {
+    const { root, put, directory, inherited } = await fixture(t);
+    await createApiFixture(
+      t,
+      put,
+      directory,
+      "import{writeFileSync,renameSync}from'node:fs';writeFileSync('started.tmp',process.env.TEMP);renameSync('started.tmp','started');setInterval(()=>{},60000);",
+    );
+    const controller = new AbortController();
+    const watcher = watch(directory, (_event, name) => {
+      if (String(name) === "started") controller.abort();
+    });
+    try {
+      await assert.rejects(
+        runWebsiteApi({
+          root,
+          inherited,
+          stdio: "ignore",
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(8000),
+          ]),
+        }),
+        /aborted/,
+      );
+    } finally {
+      watcher.close();
+    }
+    const state = await readFile(path.join(directory, "started"), "utf8");
+    assert.match(path.basename(state), /^website-api-state-/);
+    await assert.rejects(realpath(state), /ENOENT/);
   },
 );

@@ -4,6 +4,7 @@ import {
   access,
   mkdir,
   mkdtemp,
+  readFile,
   realpath,
   rm,
   writeFile,
@@ -12,17 +13,51 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
   assertPlaywrightParentEnvironment,
   createPlaywrightConfig,
 } from "./playwright-config.mjs";
+import { syntheticRunnerInputs } from "./runner-inputs.mjs";
 
-test("the four actual configuration entries reject the published false phase", async () => {
-  for (const mode of ["smoke", "staging", "visual", "website"])
-    await assert.rejects(
-      import(new URL(`../playwright.${mode}.config.ts`, import.meta.url)),
-      /non-runnable/,
+test("all four actual configuration entries refuse execution without required public inputs", async () => {
+  const marker = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  for (const mode of ["smoke", "staging", "visual", "website"]) {
+    const url = new URL(`../playwright.${mode}.config.ts`, import.meta.url)
+      .href;
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `delete process.env.NODE_V8_COVERAGE; await import(${JSON.stringify(url)});`,
+      ],
+      {
+        env:
+          typeof process.env.SystemRoot === "string"
+            ? { SystemRoot: process.env.SystemRoot }
+            : {},
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10000,
+      },
     );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    const missingInput =
+      mode === "smoke" || mode === "staging"
+        ? new RegExp(`${mode.toUpperCase()}_`)
+        : /KERNEL_SYNTHETIC_ENV/;
+    assert.match(
+      result.stderr,
+      marker.applicationReady ? missingInput : /non-runnable/,
+    );
+  }
 });
 
 async function fixture(t, ready = true) {
@@ -69,18 +104,19 @@ async function sdk(put) {
     "node_modules/@playwright/test/cli.js",
     'throw new Error("SDK CLI must not execute");',
   );
+  await put(
+    "node_modules/@playwright/test/index.mjs",
+    "// Owned SDK identity marker, never imported.\n",
+  );
 }
 
-async function synthetic(put, root) {
+async function synthetic(t, put, root) {
   await sdk(put);
-  await put("synthetic-api/package.json", { name: "kernel-api" });
-  await put(
-    "synthetic-api/src/index.ts",
+  await createApiFixture(
+    t,
+    put,
+    path.join(root, "synthetic-api"),
     'throw new Error("API must not execute");',
-  );
-  await put(
-    "synthetic-api/scripts/test-website-api.mjs",
-    'throw new Error("API fixture must not execute");',
   );
   return {
     API_BASE_URL: "http://127.0.0.1:43101",
@@ -175,10 +211,107 @@ test("ambient parent policy rejects private and injection key names without read
     );
 });
 
+test("the SDK worker marker accepts only literal 1 with the reviewed installed SDK identity", async (t) => {
+  const { root, put } = await fixture(t);
+  for (const value of [
+    undefined,
+    null,
+    true,
+    "0",
+    "true",
+    "--import=untrusted",
+  ])
+    await assert.rejects(
+      assertPlaywrightParentEnvironment(root, { PLAYWRIGHT_TEST: value }),
+      /literal string 1/,
+    );
+  let markerReads = 0;
+  const accessor = {};
+  Object.defineProperty(accessor, "PLAYWRIGHT_TEST", {
+    get() {
+      markerReads++;
+      throw new Error("accessor must not execute");
+    },
+  });
+  await assert.rejects(
+    assertPlaywrightParentEnvironment(root, accessor),
+    /literal string 1/,
+  );
+  assert.equal(markerReads, 0);
+  await assert.rejects(
+    assertPlaywrightParentEnvironment(root, { PLAYWRIGHT_TEST: "1" }),
+    /ENOENT/,
+  );
+  await sdk(put);
+  assert.equal(
+    await assertPlaywrightParentEnvironment(root, { PLAYWRIGHT_TEST: "1" }),
+    root,
+  );
+  for (const key of [
+    "NODE_OPTIONS",
+    "NODE_V8_COVERAGE",
+    "PW_TEST_SOURCE_TRANSFORM",
+    "PW_TEST_SOURCE_TRANSFORM_SCOPE",
+  ])
+    await assert.rejects(
+      assertPlaywrightParentEnvironment(root, {
+        PLAYWRIGHT_TEST: "1",
+        [key]: "untrusted",
+      }),
+      /filtered parent environment/,
+    );
+  const devDependencies = { "@playwright/test": "1.64.2" };
+  await put("package.json", { name: "kernel-website", devDependencies });
+  await put("package-lock.json", {
+    lockfileVersion: 3,
+    packages: {
+      "": { name: "kernel-website", devDependencies },
+      "node_modules/@playwright/test": { version: "1.64.2" },
+    },
+  });
+  await put("node_modules/@playwright/test/package.json", {
+    name: "@playwright/test",
+    version: "1.64.2",
+    bin: { playwright: "cli.js" },
+  });
+  await assert.rejects(
+    assertPlaywrightParentEnvironment(root, { PLAYWRIGHT_TEST: "1" }),
+    /reviewed installed Playwright 1.64.1/,
+  );
+});
+
+test("parent rejection reports only bounded JSON-escaped key names without reading values", async (t) => {
+  const { root } = await fixture(t);
+  let reads = 0;
+  const environment = {};
+  for (let index = 0; index < 20; index++)
+    Object.defineProperty(
+      environment,
+      `unexpected\n${index}${"a".repeat(200)}`,
+      {
+        get() {
+          reads++;
+          throw new Error("private value must not be read");
+        },
+      },
+    );
+  await assert.rejects(
+    assertPlaywrightParentEnvironment(root, environment),
+    (error) => {
+      assert.match(error.message, /unexpected\\n0/);
+      assert.match(error.message, /20 names, 0 symbols/);
+      assert.ok(error.message.length < 1600);
+      assert.equal(error.message.includes("private value"), false);
+      return true;
+    },
+  );
+  assert.equal(reads, 0);
+});
+
 test("actual SDK-parent load accepts only a filtered explicit environment and known SDK worker controls", async (t) => {
   const { put, root } = await fixture(t);
   const environment = {
-    ...(await synthetic(put, root)),
+    ...(await synthetic(t, put, root)),
     BROWSERSLIST_IGNORE_OLD_DATA: "true",
     DEBUG_COLORS: "1",
     FORCE_COLOR: "1",
@@ -191,10 +324,14 @@ test("actual SDK-parent load accepts only a filtered explicit environment and kn
   };
   await assertPlaywrightParentEnvironment(root, environment);
   const moduleUrl = new URL("./playwright-config.mjs", import.meta.url).href;
+  const fixtureSupportUrl = new URL(
+    "./api-fixture-test-support.mjs",
+    import.meta.url,
+  ).href;
   // Node's test coverage injects this startup key even with an explicit child
   // environment. The native collector is already initialized at this point;
   // remove only its key before exercising the production parent-name guard.
-  const source = `delete process.env.NODE_V8_COVERAGE; const { loadPlaywrightConfig } = await import(${JSON.stringify(moduleUrl)}); const config = await loadPlaywrightConfig(${JSON.stringify(root)}, "website"); console.log(JSON.stringify({ baseURL: config.use.baseURL, retries: config.retries }));`;
+  const source = `delete process.env.NODE_V8_COVERAGE; const childProcess = (await import('node:child_process')).default; const {apiGitMock}=await import(${JSON.stringify(fixtureSupportUrl)}); childProcess.execFile=apiGitMock(${JSON.stringify(environment.KERNEL_API_DIRECTORY)}); const { loadPlaywrightConfig } = await import(${JSON.stringify(moduleUrl)}); const config = await loadPlaywrightConfig(${JSON.stringify(root)}, "website"); console.log(JSON.stringify({ baseURL: config.use.baseURL, retries: config.retries }));`;
   const result = spawnSync(
     process.execPath,
     ["--input-type=module", "--eval", source],
@@ -234,7 +371,7 @@ test("unknown configuration and absent root-owned SDK fail before target access"
 
 test("website data uses explicit fixture origins and filtered environments without starting services", async (t) => {
   const { put, root } = await fixture(t);
-  const environment = await synthetic(put, root);
+  const environment = await synthetic(t, put, root);
   Object.defineProperty(environment, "TOKEN", {
     get() {
       throw new Error("private input read");
@@ -249,7 +386,14 @@ test("website data uses explicit fixture origins and filtered environments witho
   assert.equal(config.workers, 1);
   assert.equal(config.webServer[0].url, `${environment.API_BASE_URL}/health`);
   assert.equal(config.webServer[1].url, `${environment.WEBSITE_URL}/login`);
-  assert.equal(config.webServer[0].env.PORT, "43101");
+  const apiLauncherInputs = await syntheticRunnerInputs(
+    root,
+    config.webServer[0].env,
+  );
+  assert.equal(config.webServer[0].env.PORT, "43102");
+  assert.equal(apiLauncherInputs.websiteEnvironment.PORT, "43102");
+  assert.equal(apiLauncherInputs.apiEnvironment.PORT, "43101");
+  assert.equal(apiLauncherInputs.apiOrigin, environment.API_BASE_URL);
   assert.equal(config.webServer[1].env.PORT, "43102");
   for (const server of config.webServer) {
     assert.equal(server.cwd, root);
@@ -266,7 +410,7 @@ test("website data uses explicit fixture origins and filtered environments witho
 
 test("website configuration refuses missing or non-loopback fixture inputs", async (t) => {
   const { put, root } = await fixture(t);
-  const environment = await synthetic(put, root);
+  const environment = await synthetic(t, put, root);
   await assert.rejects(
     createPlaywrightConfig(root, "website", { environment: {} }),
     /KERNEL_SYNTHETIC_ENV/,
@@ -288,7 +432,7 @@ test("website configuration refuses missing or non-loopback fixture inputs", asy
 
 test("visual data preserves exact thresholds and denies CI updates and unguarded loading", async (t) => {
   const { put, root } = await fixture(t);
-  const environment = await synthetic(put, root);
+  const environment = await synthetic(t, put, root);
   await assert.rejects(
     createPlaywrightConfig(root, "visual", { environment }),
     /guarded visual runner/,

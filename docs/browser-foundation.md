@@ -2,9 +2,13 @@
 
 [English](browser-foundation.md) · [فارسی](browser-foundation.fa.md)
 
+## Current API fixture prerequisite
+
+The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+
 The **browser-foundation** phase publishes the browser dependency and authored
 scenario closure before application activation. Its exact maintained inventory
-contains **345 files**. The public marker remains `applicationReady:false`.
+contains **348 files**. The public marker remains `applicationReady:false`.
 There are no published Next.js pages, root layout or CSS pipeline to run, and no
 real browser, API, Docker, Lighthouse, visual-comparison or deployment result is
 claimed by this phase.
@@ -45,9 +49,7 @@ an API revision or wire compatibility. No parent/global SDK fallback is used.
 Synthetic website/API input requires canonical, distinct HTTP IPv4 loopback
 origins with explicit nonzero ports, a matching website host/port, disabled
 indexing, `KERNEL_SYNTHETIC_ENV=1` and an absolute explicit
-`KERNEL_API_DIRECTORY`. The selected API must satisfy the reviewed
-[fixture-location contract](../scripts/api-repository.mjs) and have the fixed
-`scripts/test-website-api.mjs` entry. No sibling checkout is discovered.
+`KERNEL_API_DIRECTORY`. The selected API must satisfy the reviewed [fixture-location contract](../scripts/api-repository.mjs) and the pinned independent Git/installation checks, using published src/index.ts as its entry. No sibling checkout is discovered.
 
 Only declared public settings and runtime essentials reach owned child
 processes; private state, credentials and `NODE_OPTIONS` are not test inputs.

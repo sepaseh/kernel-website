@@ -12,7 +12,9 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
+  apiFixtureRevision,
   readyRunnerRoot,
   resolveApiFixture,
   resolveNextCli,
@@ -306,20 +308,78 @@ test("explicit API fixtures must own their fixed unlinked entry and never fall b
   };
   await assert.rejects(resolveApiFixture(root, {}), /explicit clean synthetic/);
   await assert.rejects(resolveApiFixture(root, inherited), /ENOENT/);
-  await put(
-    "api-fixture/scripts/test-website-api.mjs",
-    "// Owned fixture only.",
-  );
+  await createApiFixture(t, put, directory);
   assert.deepEqual(await resolveApiFixture(root, inherited), {
     directory,
-    entry: path.join(directory, "scripts/test-website-api.mjs"),
+    entry: path.join(directory, "src/index.ts"),
+    revision: apiFixtureRevision,
   });
-  await rm(path.join(directory, "scripts"), { recursive: true });
-  await put("owned-api-scripts/test-website-api.mjs", "// synthetic");
+  await rm(path.join(directory, "src"), { recursive: true });
+  await put("owned-api-src/index.ts", "// synthetic");
   await symlink(
-    path.join(root, "owned-api-scripts"),
-    path.join(directory, "scripts"),
+    path.join(root, "owned-api-src"),
+    path.join(directory, "src"),
     "junction",
   );
-  await assert.rejects(resolveApiFixture(root, inherited), /links/);
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /explicit clean synthetic/,
+  );
+});
+
+test("API fixture resolution rejects changed revision, tracked sources, lock and installed dependency identities", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { control, calls, manifest } = await createApiFixture(
+    t,
+    put,
+    directory,
+  );
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+    PATH: "owned-path",
+    TOKEN: "must-not-read",
+  };
+  for (const patch of [
+    { revision: "a".repeat(40) },
+    { top: root },
+    { changes: " M src/index.ts" },
+  ]) {
+    const previous = { ...control };
+    Object.assign(control, patch);
+    await assert.rejects(
+      resolveApiFixture(root, inherited),
+      /clean independent checkout/,
+    );
+    Object.assign(control, previous);
+  }
+  control.error = new Error("Git could not inspect the fixture");
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /Git could not inspect/,
+  );
+  control.error = undefined;
+  await put("api-fixture/package-lock.json", { lockfileVersion: 2 });
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /manifest and lock identity/,
+  );
+  await put("api-fixture/package-lock.json", {
+    lockfileVersion: 3,
+    packages: {
+      "": manifest,
+      "node_modules/owned-api-runtime": { version: "1.0.0" },
+    },
+  });
+  await put("api-fixture/node_modules/owned-api-runtime/package.json", {
+    name: "owned-api-runtime",
+    version: "2.0.0",
+  });
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /installed lock versions/,
+  );
+  assert.deepEqual(calls[0].options.env, { PATH: "owned-path" });
+  assert.equal(calls[0].options.windowsHide, true);
 });

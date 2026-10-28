@@ -113,13 +113,30 @@ const deliveryPublishedFiles = [
   "scripts/validate-workflow-targets.mjs",
   "scripts/validate-workflow-targets.test.mjs",
 ];
-const readPublicationPolicy = async () =>
+const apiFixturePublishedFiles = [
+  "docs/api-fixture.fa.md",
+  "docs/api-fixture.md",
+  "scripts/api-fixture-test-support.mjs",
+];
+const readCurrentPublicationPolicy = async () =>
   JSON.parse(
     await readFile(
       new URL("../.github/bootstrap-policy.json", import.meta.url),
       "utf8",
     ),
   );
+const readPublicationPolicy = async () => {
+  const declared = await readCurrentPublicationPolicy();
+  return declared.phase === "api-fixture"
+    ? {
+        ...declared,
+        phase: "browser-foundation",
+        allowedFiles: declared.allowedFiles.filter(
+          (file) => !apiFixturePublishedFiles.includes(file),
+        ),
+      }
+    : declared;
+};
 const runnerPolicy = async () => {
   const declared = await readPublicationPolicy();
   return {
@@ -1041,6 +1058,96 @@ test("browser foundation inspects 345 exact authored files while refusing privat
   await symlink(
     path.join(root, "docs"),
     path.join(root, "e2e/visual/readiness.ts"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+const apiFixturePolicy = async () => {
+  const historical = await readPublicationPolicy();
+  return {
+    ...historical,
+    phase: "api-fixture",
+    allowedFiles: [...historical.allowedFiles, ...apiFixturePublishedFiles],
+  };
+};
+
+test("API fixture prerequisites close over exactly three additions without activating the application", async () => {
+  const declared = await apiFixturePolicy();
+  const historical = await readPublicationPolicy();
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 348);
+  assert.equal(validateBootstrapPolicy(historical).size, 345);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !historical.allowedFiles.includes(file))
+      .sort(),
+    [...apiFixturePublishedFiles].sort(),
+  );
+  for (const file of apiFixturePublishedFiles) {
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...historical,
+          allowedFiles: [...historical.allowedFiles, file],
+        }),
+      /declared phase/,
+      file,
+    );
+  }
+  for (const file of [
+    "src/app/page.tsx",
+    "src/app/layout.tsx",
+    "src/proxy.ts",
+    "next.config.ts",
+    ".github/workflows/browser.yml",
+    "scripts/application-checks.mjs",
+    "docs/application.md",
+    ".env.local",
+    "deploy/native/website.env",
+    "server/data/test.sqlite",
+    "docs/unlisted.md",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy({
+        ...declared,
+        allowedFiles: [...declared.allowedFiles, file],
+      }),
+    );
+  for (const change of [
+    { applicationReady: true },
+    { phase: "application" },
+    { phase: "browser-foundation" },
+    { maximumChangedFiles: 101 },
+  ])
+    assert.throws(() => validateBootstrapPolicy({ ...declared, ...change }));
+});
+
+test("API fixture snapshots inspect all348 owned files while refusing private, missing and linked input", async (context) => {
+  const declared = await apiFixturePolicy();
+  const { root, put } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "api-fixture");
+  assert.equal(result.applicationReady, false);
+  assert.equal(result.files, 348);
+  assert.match(result.scope, /readiness guard still refuses/);
+  await put(".env.local", "synthetic private marker; do not read\n");
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+  await rm(path.join(root, ".env.local"));
+  await rm(path.join(root, "scripts/api-fixture-test-support.mjs"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, "scripts/api-fixture-test-support.mjs"),
     process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);

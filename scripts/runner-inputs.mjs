@@ -1,8 +1,11 @@
+import childProcess from "node:child_process";
 import path from "node:path";
 
 import { apiRepository } from "./api-repository.mjs";
 import {
+  artifactDirectory,
   artifactFile,
+  completeArtifactWork,
   readArtifactFile,
   requireApplicationReady,
 } from "./release-files.mjs";
@@ -110,6 +113,72 @@ export async function syntheticRunnerInputs(root, inherited = process.env) {
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
 
+export const apiFixtureRevision = "4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9";
+
+const gitOutput = (directory, args, inherited) =>
+  new Promise((resolve, reject) => {
+    childProcess.execFile(
+      "git",
+      [
+        "--no-optional-locks",
+        "--no-replace-objects",
+        "-C",
+        directory,
+        "-c",
+        "core.fsmonitor=false",
+        ...args,
+      ],
+      {
+        encoding: "utf8",
+        env: runtimeEnvironment(inherited),
+        maxBuffer: 1024 * 1024,
+        timeout: 10_000,
+        windowsHide: true,
+      },
+      (error, stdout) => (error ? reject(error) : resolve(stdout.trim())),
+    );
+  });
+
+async function verifyApiInstallation(directory) {
+  const manifest = await readJson(path.join(directory, "package.json"));
+  const lock = await readJson(path.join(directory, "package-lock.json"));
+  const dependencies = manifest.dependencies;
+  const declared = lock?.packages?.[""];
+  if (
+    manifest.name !== "kernel-api" ||
+    !dependencies ||
+    typeof dependencies !== "object" ||
+    Array.isArray(dependencies) ||
+    lock?.lockfileVersion !== 3 ||
+    declared?.name !== "kernel-api" ||
+    Object.keys(dependencies).length !==
+      Object.keys(declared.dependencies ?? {}).length ||
+    Object.entries(dependencies).some(
+      ([name, version]) => declared.dependencies?.[name] !== version,
+    )
+  )
+    throw new Error("API fixture manifest and lock identity must match.");
+  const names = Object.keys(dependencies);
+  if (names.some((name) => !/^(?:@[a-z0-9-]+\/)?[a-z0-9-]+$/.test(name)))
+    throw new Error("API fixture dependency names must be ordinary packages.");
+  await completeArtifactWork(
+    names.map(async (name) => {
+      const installed = await readJson(
+        path.join(directory, "node_modules", name, "package.json"),
+      );
+      const expected = lock.packages[`node_modules/${name}`]?.version;
+      if (
+        typeof expected !== "string" ||
+        installed.name !== name ||
+        installed.version !== expected
+      )
+        throw new Error(
+          "API fixture dependencies must match their installed lock versions.",
+        );
+    }),
+  );
+}
+
 export async function resolveNextCli(root) {
   const directory = await readyRunnerRoot(root);
   const manifest = await readJson(path.join(directory, "package.json"));
@@ -141,8 +210,32 @@ export async function resolveApiFixture(root, inherited = process.env) {
     KERNEL_SYNTHETIC_ENV: inherited?.KERNEL_SYNTHETIC_ENV,
     KERNEL_API_DIRECTORY: inherited?.KERNEL_API_DIRECTORY,
   });
-  const entry = await artifactFile(
-    path.join(directory, "scripts/test-website-api.mjs"),
+  await artifactDirectory(path.join(directory, ".git"));
+  const top = await gitOutput(
+    directory,
+    ["rev-parse", "--show-toplevel"],
+    inherited,
   );
-  return { directory, entry };
+  const revision = await gitOutput(directory, ["rev-parse", "HEAD"], inherited);
+  const changes = await gitOutput(
+    directory,
+    [
+      "status",
+      "--porcelain=v1",
+      "--untracked-files=no",
+      "--ignore-submodules=none",
+    ],
+    inherited,
+  );
+  if (
+    path.resolve(top) !== directory ||
+    revision !== apiFixtureRevision ||
+    changes
+  )
+    throw new Error(
+      "API fixture must be a clean independent checkout of the pinned revision.",
+    );
+  await verifyApiInstallation(directory);
+  const entry = await artifactFile(path.join(directory, "src/index.ts"));
+  return { directory, entry, revision };
 }

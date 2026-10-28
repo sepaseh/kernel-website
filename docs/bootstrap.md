@@ -2,7 +2,11 @@
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This non-runnable publication contains sixty-six production modules, thirty-four source test files, three test-support modules and an exact 345-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
+## Current API fixture prerequisite
+
+The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+
+This non-runnable publication contains sixty-six production modules, thirty-four source test files, three test-support modules and an exact 348-file maintained inventory. The [policy](../.github/bootstrap-policy.json) enforces applicationReady:false, complete source closure and no private paths or symlinks. Only ordinary root node_modules and coverage outputs are ignored. A PR changes at most 100 GitHub file entries; inventory size is independent.
 
 The preserved guidance includes portable rules/skills, explicit source/check navigation, nine English evaluation cases with an unexecuted run template, optional host hooks and bilingual architecture/design/security records. The checker validates local paths, maintained links, canonical command projection and standalone ownership; it does not evaluate model answers, semantic completeness or whether a host loaded instructions. Component-generator/CSS configuration remains deferred.
 

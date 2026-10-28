@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { runVisual } from "./run-visual.mjs";
 import { acquireVisualLock } from "./visual-environment.mjs";
 
@@ -95,12 +96,7 @@ async function fixture(t, ready = true) {
     "src/shared/fonts/vazirmatn.css",
   ])
     await put(name, "// Owned synthetic source for explicit fingerprinting.\n");
-  await put("api-fixture/package.json", { name: "kernel-api" });
-  await put("api-fixture/src/index.ts", "// Owned structural marker.\n");
-  await put(
-    "api-fixture/scripts/test-website-api.mjs",
-    "// Owned fake API entry; not executed.\n",
-  );
+  await createApiFixture(t, put, path.join(root, "api-fixture"));
   const apiPort = await unusedPort();
   let websitePort = await unusedPort();
   while (websitePort === apiPort) websitePort = await unusedPort();

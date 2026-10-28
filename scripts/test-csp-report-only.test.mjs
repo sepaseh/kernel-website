@@ -13,6 +13,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { runCspReportOnly } from "./test-csp-report-only.mjs";
 
 async function fixture(t, ready = true) {
@@ -63,12 +64,7 @@ async function fixture(t, ready = true) {
     "// Owned fake config; not loaded by fake CLI.\n",
   );
   await put("e2e/website/csp.spec.ts", "// Owned fake browser spec.\n");
-  await put("api-fixture/package.json", { name: "kernel-api" });
-  await put("api-fixture/src/index.ts", "// Owned synthetic marker.\n");
-  await put(
-    "api-fixture/scripts/test-website-api.mjs",
-    "// Owned fake API entry; never executed here.\n",
-  );
+  await createApiFixture(t, put, path.join(root, "api-fixture"));
   const environment = {
     NODE_ENV: "production",
     API_BASE_URL: "http://127.0.0.1:43101",
@@ -84,7 +80,13 @@ async function fixture(t, ready = true) {
   return { root, put, environment };
 }
 
-test("browser runner imports stay inert and their actual CLIs refuse the false source marker", () => {
+test("browser runner imports stay inert and their actual CLIs refuse absent public inputs", async () => {
+  const marker = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
   for (const name of ["run-visual.mjs", "test-csp-report-only.mjs"]) {
     const target = new URL(name, import.meta.url);
     const importing = spawnSync(
@@ -107,7 +109,12 @@ test("browser runner imports stay inert and their actual CLIs refuse the false s
     });
     assert.ifError(executing.error);
     assert.equal(executing.status, 1);
-    assert.match(executing.stderr, /applicationReady:true/);
+    assert.match(
+      executing.stderr,
+      marker.applicationReady
+        ? /KERNEL_SYNTHETIC_ENV/
+        : /applicationReady:true/,
+    );
   }
 });
 
