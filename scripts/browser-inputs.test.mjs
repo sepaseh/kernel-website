@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
   resolvePlaywrightCli,
   resolvePlaywrightInstallation,
@@ -68,15 +69,7 @@ async function fixture(t, ready = true) {
     "node_modules/@playwright/test/index.mjs",
     "// Owned fake SDK module.\n",
   );
-  await put("api-fixture/package.json", { name: "kernel-api" });
-  await put(
-    "api-fixture/src/index.ts",
-    "// Owned structural fixture marker.\n",
-  );
-  await put(
-    "api-fixture/scripts/test-website-api.mjs",
-    "// Owned synthetic fixture entry.\n",
-  );
+  await createApiFixture(t, put, path.join(root, "api-fixture"));
   const inherited = {
     NODE_ENV: "production",
     API_BASE_URL: "http://127.0.0.1:43101",

@@ -1,6 +1,6 @@
 {
   "name": "kernel-website-ai-guidance",
-  "description": "Guidance for local contracts, catalogs, feature/UI support, deterministic integration/delivery helpers, readiness-first runners and typed authored browser suites; real application/API/browser/deployment activation remains deferred.",
+  "description": "Non-runnable website browser foundation with pinned independent synthetic API adapter and strictly validated browser worker controls",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

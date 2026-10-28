@@ -2,7 +2,11 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **browser-foundation** phase.
+## Current API fixture prerequisite
+
+The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](docs/api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+
+This standalone TypeScript project is in its **api-fixture** phase.
 `applicationReady` is **false**. The published scope contains sixty-six production
 modules, thirty-four source test files and three test-support modules:
 
@@ -37,7 +41,7 @@ journeys and deployment are not included. The installed support libraries are
 explicitly declared in [package.json](package.json); production package imports
 have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
 feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
-[345-file snapshot inventory](.github/bootstrap-policy.json).
+[348-file snapshot inventory](.github/bootstrap-policy.json).
 
 Dependabot version-update pull requests are configured with a zero limit while publication follows one open PR at a time. Repository security-update settings are separate and are not established by this local configuration. The future component-generator configuration and CSS integration are deferred.
 

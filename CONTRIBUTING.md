@@ -2,6 +2,10 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
+## Current API fixture prerequisite
+
+The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](docs/api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+
 Read [README](README.md), [AGENTS](AGENTS.md), the [phase guide](docs/bootstrap.md) and matching owner guides. Read the [local guidance index](.agents/README.md), [source navigation](docs/source-navigation.md) and [guidance evidence rule](.agents/rules/guidance.md) for instruction/index changes. This browser-foundation snapshot has sixty-six production modules, thirty-four source test files and three test-support modules. It remains non-runnable.
 
 Keep the exact source closure explicit. Pure wire contracts and catalog data have only their permitted local imports; catalog imports are erased types. Only the boundary guard's exact per-owner/package/type-only permissions admit the support libraries. Other packages, local links, test imports, computed imports and another checkout remain forbidden.

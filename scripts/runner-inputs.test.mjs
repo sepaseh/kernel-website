@@ -12,7 +12,9 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
+  apiFixtureRevision,
   readyRunnerRoot,
   resolveApiFixture,
   resolveNextCli,
@@ -306,20 +308,171 @@ test("explicit API fixtures must own their fixed unlinked entry and never fall b
   };
   await assert.rejects(resolveApiFixture(root, {}), /explicit clean synthetic/);
   await assert.rejects(resolveApiFixture(root, inherited), /ENOENT/);
-  await put(
-    "api-fixture/scripts/test-website-api.mjs",
-    "// Owned fixture only.",
-  );
+  await createApiFixture(t, put, directory);
   assert.deepEqual(await resolveApiFixture(root, inherited), {
     directory,
-    entry: path.join(directory, "scripts/test-website-api.mjs"),
+    entry: path.join(directory, "src/index.ts"),
+    revision: apiFixtureRevision,
   });
-  await rm(path.join(directory, "scripts"), { recursive: true });
-  await put("owned-api-scripts/test-website-api.mjs", "// synthetic");
+  await rm(path.join(directory, "src"), { recursive: true });
+  await put("owned-api-src/index.ts", "// synthetic");
   await symlink(
-    path.join(root, "owned-api-scripts"),
-    path.join(directory, "scripts"),
+    path.join(root, "owned-api-src"),
+    path.join(directory, "src"),
     "junction",
   );
-  await assert.rejects(resolveApiFixture(root, inherited), /links/);
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /explicit clean synthetic/,
+  );
+});
+
+test("API fixture resolution rejects changed revision, tracked sources, lock and installed dependency identities", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { control, calls, manifest } = await createApiFixture(
+    t,
+    put,
+    directory,
+  );
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+    PATH: "owned-path",
+    TOKEN: "must-not-read",
+  };
+  for (const patch of [
+    { revision: "a".repeat(40) },
+    { top: root },
+    { changes: " M src/index.ts" },
+  ]) {
+    const previous = { ...control };
+    Object.assign(control, patch);
+    await assert.rejects(
+      resolveApiFixture(root, inherited),
+      /clean independent checkout/,
+    );
+    Object.assign(control, previous);
+  }
+  control.error = new Error("Git could not inspect the fixture");
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /Git could not inspect/,
+  );
+  control.error = undefined;
+  await put("api-fixture/package-lock.json", { lockfileVersion: 2 });
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /manifest and lock identity/,
+  );
+  await put("api-fixture/package-lock.json", {
+    lockfileVersion: 3,
+    packages: {
+      "": manifest,
+      "node_modules/owned-api-runtime": { version: "1.0.0" },
+    },
+  });
+  await put("api-fixture/node_modules/owned-api-runtime/package.json", {
+    name: "owned-api-runtime",
+    version: "2.0.0",
+  });
+  await assert.rejects(
+    resolveApiFixture(root, inherited),
+    /installed lock versions/,
+  );
+  assert.deepEqual(
+    calls[0].options.env,
+    process.platform === "win32"
+      ? {
+          PATH: "C:\\Program Files\\Git\\cmd;C:\\Windows\\System32",
+          SystemRoot: "C:\\Windows",
+        }
+      : { PATH: "/usr/bin:/bin" },
+  );
+  assert.equal(calls[0].options.windowsHide, true);
+});
+
+test("API identity checks use only the fixed unlinked system Git and never read poisoned inherited launch paths", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { calls, control } = await createApiFixture(t, put, directory);
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+  };
+  let poisonedReads = 0;
+  for (const key of [
+    "PATH",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "GIT_EXEC_PATH",
+    "GIT_SSH_COMMAND",
+    "NODE_OPTIONS",
+  ])
+    Object.defineProperty(inherited, key, {
+      get() {
+        poisonedReads++;
+        throw new Error("Untrusted inherited launch control was read");
+      },
+    });
+  await resolveApiFixture(root, inherited);
+  assert.equal(poisonedReads, 0);
+  assert.equal(calls.length, 3);
+  for (const call of calls) {
+    assert.equal(
+      call.command,
+      process.platform === "win32"
+        ? "C:\\Program Files\\Git\\cmd\\git.exe"
+        : "/usr/bin/git",
+    );
+    assert.equal(path.isAbsolute(call.command), true);
+    assert.deepEqual(
+      Object.keys(call.options.env).sort(),
+      process.platform === "win32" ? ["PATH", "SystemRoot"] : ["PATH"],
+    );
+    assert.equal(call.options.env.PATH.includes("owned-path"), false);
+  }
+  const before = calls.length;
+  const missing = new Error("The verified system Git executable disappeared");
+  missing.code = "ENOENT";
+  control.error = missing;
+  await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+    assert.equal(error, missing);
+    assert.equal(error.code, "ENOENT");
+    return true;
+  });
+  assert.equal(calls.length, before + 1);
+  assert.equal(poisonedReads, 0);
+});
+
+test("Git callback failures preserve native Error identity or wrap non-Error values with their original cause", async (t) => {
+  const { root, put } = await fixture(t);
+  const directory = path.join(root, "api-fixture");
+  const { control, calls } = await createApiFixture(t, put, directory);
+  const inherited = {
+    KERNEL_SYNTHETIC_ENV: "1",
+    KERNEL_API_DIRECTORY: directory,
+  };
+  const nativeFailure = new Error("Owned system Git process failure");
+  nativeFailure.code = "EACCES";
+  control.error = nativeFailure;
+  await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+    assert.equal(error, nativeFailure);
+    assert.equal(error.code, "EACCES");
+    return true;
+  });
+  for (const callbackValue of [
+    "Owned callback rejection",
+    { reason: "owned callback rejection" },
+  ]) {
+    control.error = callbackValue;
+    await assert.rejects(resolveApiFixture(root, inherited), (error) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.message, "System Git inspection failed.");
+      assert.equal(error.cause, callbackValue);
+      return true;
+    });
+  }
+  assert.equal(calls.length, 3);
 });

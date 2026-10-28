@@ -414,7 +414,14 @@ const browserFoundationFiles = [
   "tsconfig.tooling.json",
 ];
 const browserFoundationPaths = new Set(browserFoundationFiles);
-const runnerPhases = new Set(["runner-foundation", "browser-foundation"]);
+const apiFixtureFiles = [
+  "docs/api-fixture.fa.md",
+  "docs/api-fixture.md",
+  "scripts/api-fixture-test-support.mjs",
+];
+const apiFixturePaths = new Set(apiFixtureFiles);
+const browserPhases = new Set(["browser-foundation", "api-fixture"]);
+const runnerPhases = new Set(["runner-foundation", ...browserPhases]);
 const deliveryPhases = new Set(["delivery-tooling", ...runnerPhases]);
 const toolingPhases = new Set(["integration-tooling", ...deliveryPhases]);
 const isPublishedSource = (file, phase) =>
@@ -436,6 +443,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "api-fixture":
+    "Published immutable API fixture identity and installation checks, explicit isolated API test configuration and corrected browser runner inputs with owned synthetic Node tests. The readiness guard still refuses this non-runnable snapshot; these checks do not establish an executed API/browser integration, application build, screenshot comparison or deployment.",
   "browser-foundation":
     "Published readiness-first browser configuration, visual/CSP orchestration and authored Playwright suites with installed SDK type checking and owned synthetic Node tests. The readiness guard refuses this non-runnable snapshot; authored suites are not browser, accessibility, visual, API compatibility, application build or deployment execution evidence.",
   "runner-foundation":
@@ -495,7 +504,8 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
     : []),
   ...(deliveryPhases.has(phase) ? deliveryToolingFiles : []),
   ...(runnerPhases.has(phase) ? runnerFoundationFiles : []),
-  ...(phase === "browser-foundation" ? browserFoundationFiles : []),
+  ...(browserPhases.has(phase) ? browserFoundationFiles : []),
+  ...(phase === "api-fixture" ? apiFixtureFiles : []),
 ];
 
 const rejectsProtectedPublicationPath = (file, phase) => {
@@ -515,7 +525,8 @@ const isToolingPathOutsidePhase = (file, phase) =>
   (!toolingPhases.has(phase) &&
     (integrationToolingPaths.has(file) || deliveryToolingPaths.has(file))) ||
   (!runnerPhases.has(phase) && runnerFoundationPaths.has(file)) ||
-  (phase !== "browser-foundation" && browserFoundationPaths.has(file));
+  (!browserPhases.has(phase) && browserFoundationPaths.has(file)) ||
+  (phase !== "api-fixture" && apiFixturePaths.has(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (

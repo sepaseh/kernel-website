@@ -427,6 +427,33 @@
         "format",
         "governance-coverage"
       ]
+    },
+    {
+      "id": "api-fixture",
+      "contracts": [
+        "docs/api-fixture.md",
+        "docs/runner-foundation.md",
+        "docs/browser-foundation.md"
+      ],
+      "owners": [
+        "scripts/runner-inputs.mjs",
+        "scripts/test-website-api.mjs",
+        "scripts/playwright-config.mjs"
+      ],
+      "tests": [
+        "scripts/runner-inputs.test.mjs",
+        "scripts/test-website-api.test.mjs",
+        "scripts/playwright-config.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "governance-coverage",
+        "guidance"
+      ],
+      "when": "Change pinned independent synthetic API fixture identity, fresh state, launcher settings or exact SDK worker controls"
     }
   ]
 }

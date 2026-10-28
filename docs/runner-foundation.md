@@ -2,10 +2,14 @@
 
 [English](runner-foundation.md) · [فارسی](runner-foundation.fa.md)
 
+## Current API fixture prerequisite
+
+The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+
 The **runner-foundation** phase adds controlled Node process wrappers before the
 browser SDKs, application entry points and integration suites. Its original inventory
 contained 317 files; the current [browser foundation](browser-foundation.md) extends
-that exact closure to 345 files without activating the application. The public source marker remains `applicationReady:false`;
+that exact closure to 348 files without activating the application. The public source marker remains `applicationReady:false`;
 the website, API, server and analyzer entry operations reject it before reading environment/configuration,
 resolving dependencies, opening output or spawning a child. Do not change the
 marker to run this incomplete website. Imports are inert: no dotenv loading,
@@ -25,11 +29,7 @@ environment mutation, service startup or installed CLI discovery occurs.
 No public operation implicitly discovers another checkout. Next resolution uses
 the selected website's exact manifest, lock and installed `node_modules/next`
 identity/version, with unlinked paths; no parent/global CLI fallback is allowed.
-The API resolver requires `KERNEL_SYNTHETIC_ENV=1`, an absolute explicit
-`KERNEL_API_DIRECTORY` and its fixed `scripts/test-website-api.mjs` entry. Its
-structural markers establish neither an immutable revision nor installed
-dependencies or wire compatibility. Future integration acceptance must establish
-those separately before using a real independently installed synthetic API.
+The API resolver requires KERNEL_SYNTHETIC_ENV=1 and an explicit absolute KERNEL_API_DIRECTORY. It verifies the independent clean Git checkout at public revision 4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9 and matching manifest, lock and installed direct-dependency identities, then selects published src/index.ts. These checks do not attest all installed bytes or wire compatibility; real integration still requires the later application gate.
 
 Environment input is explicit. Website settings include production `NODE_ENV`,
 `API_BASE_URL`, `HOSTNAME` and `PORT`, with public website/indexing/CSP settings.
