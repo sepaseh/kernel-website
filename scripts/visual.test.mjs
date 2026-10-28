@@ -192,7 +192,7 @@ test("visual arguments and every nonempty CI update marker fail before SDK or ba
 });
 
 test("comparison uses actual host metadata, verified SDK and public explicit origins with the real owned fake CLI", async (t) => {
-  const { root, environment, metadataPath, reviewed } = await fixture(t);
+  const { root, put, environment, metadataPath, reviewed } = await fixture(t);
   const result = await runVisual(root, {
     environment,
     get platform() {
@@ -228,7 +228,20 @@ test("comparison uses actual host metadata, verified SDK and public explicit ori
   assert.equal(report.mode, "compare");
   assert.equal(report.outcome, "passed");
   assert.equal(report.exitCode, 0);
-  assert.match(report.sourceFingerprint, /^[a-f0-9]{64}$/);
+  // Reference digests include the declared filenames and the fixture's exact
+  // known bytes in source order, independently of asynchronous read completion.
+  assert.equal(
+    report.sourceFingerprint,
+    "d5827da0f9f6d6ccd9892564cf9183e999620e96e6a47f147feff025fe8167ac",
+  );
+  await put("src/website/home/Home.tsx", "// Changed owned source bytes.\n");
+  await runVisual(root, { environment });
+  assert.equal(
+    (await json(root, "test-results/visual/environment.json"))
+      .sourceFingerprint,
+    "dad8340ad201302989a5559b2c52b12af43f48067ea3aa163c83218feb6ac4c4",
+  );
+  assert.deepEqual(await json(root, metadataPath), reviewed);
   await lockReleased(root);
 });
 

@@ -120,10 +120,13 @@ async function requireNoNextLock(root) {
 }
 
 async function fingerprintSources(root) {
+  const contents = await completeArtifactWork(
+    sourceInputs.map((relative) => readArtifactFile(path.join(root, relative))),
+  );
   const fingerprint = createHash("sha256");
-  for (const relative of sourceInputs) {
+  for (const [index, relative] of sourceInputs.entries()) {
     fingerprint.update(relative);
-    fingerprint.update(await readArtifactFile(path.join(root, relative)));
+    fingerprint.update(contents[index]);
   }
   return fingerprint.digest("hex");
 }
