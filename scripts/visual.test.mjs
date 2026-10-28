@@ -448,9 +448,10 @@ test(
   { timeout: 10000 },
   async (t) => {
     const { root, put, environment, metadataPath } = await fixture(t);
+    // Publish the complete marker before the watcher can stop its writer.
     await put(
       "node_modules/@playwright/test/cli.js",
-      `import{writeFileSync}from'node:fs';writeFileSync('capture-started','ready');setInterval(()=>{},60000);`,
+      `import{renameSync,writeFileSync}from'node:fs';writeFileSync('capture-started.tmp','ready');renameSync('capture-started.tmp','capture-started');setInterval(()=>{},60000);`,
     );
     const controller = new AbortController();
     const watcher = watch(root, (_event, name) => {
