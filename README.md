@@ -2,7 +2,7 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **delivery-tooling** phase.
+This standalone TypeScript project is in its **runner-foundation** phase.
 `applicationReady` is **false**. The published scope contains sixty-six production
 modules, thirty-four source test files and three test-support modules:
 
@@ -37,7 +37,7 @@ journeys and deployment are not included. The installed support libraries are
 explicitly declared in [package.json](package.json); production package imports
 have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
 feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
-[303-file snapshot inventory](.github/bootstrap-policy.json).
+[317-file snapshot inventory](.github/bootstrap-policy.json).
 
 Dependabot version-update pull requests are configured with a zero limit while publication follows one open PR at a time. Repository security-update settings are separate and are not established by this local configuration. The future component-generator configuration and CSS integration are deferred.
 
@@ -68,6 +68,8 @@ Each PR may change at most **100 GitHub file entries**. This limit applies to th
 PR diff, not the total repository inventory. No hosted CI, review or Sonar result
 is established merely by these local files.
 
-The retained integration tooling provides four independent quality helpers: explicit synthetic API fixture location, bundle/budget measurement, an allowlisted performance environment and visual metadata/locking utilities. Three Node owner-test files exercise them using disposable synthetic files. Read [testing](docs/testing.md), [validation](docs/validation.md), [performance](docs/website-performance.md), [visual limits](docs/visual-regression.md), [CSP](docs/website-csp.md), [accessibility](docs/accessibility.md) and [test reliability](docs/test-reliability.md). These helpers do not start an API or a browser; application and delivery runners remain deferred.
+The retained integration tooling provides four independent quality helpers: explicit synthetic API fixture location, bundle/budget measurement, an allowlisted performance environment and visual metadata/locking utilities. Three Node owner-test files exercise them using disposable synthetic files. Read [testing](docs/testing.md), [validation](docs/validation.md), [performance](docs/website-performance.md), [visual limits](docs/visual-regression.md), [CSP](docs/website-csp.md), [accessibility](docs/accessibility.md) and [test reliability](docs/test-reliability.md). These helpers do not start an API or a browser; the readiness-first Node runner foundation below extends this evidence without activating the application.
 
 Delivery preparation adds eight Node helpers for owned artifact copying/packaging, phase readiness, explicit health checks, public configuration validation/rendering, scoped cleanup and target validation. Six Node owner-test files join measured governance coverage; existing audit regression cases retain their measured Vitest unit ownership. The [delivery guides](docs/deployment.md), [release operations](docs/release-operations.md), [releasing](docs/releasing.md), [staging](docs/staging.md) and passive native/Docker templates describe future operator acceptance. The source remains non-runnable: core CLIs reject its false readiness marker before operations. Synthetic fixture success is not a Next.js build, installed API, container, deployment or release. [Changelog](CHANGELOG.md) distinguishes imported history from current evidence.
+
+The [runner foundation](docs/runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.

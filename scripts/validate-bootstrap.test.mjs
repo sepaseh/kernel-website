@@ -16,6 +16,22 @@ import {
   validateBootstrapPolicy,
 } from "./validate-bootstrap.mjs";
 
+const runnerPublishedFiles = [
+  "docs/runner-foundation.fa.md",
+  "docs/runner-foundation.md",
+  "scripts/analyze-website-performance.mjs",
+  "scripts/analyze-website-performance.test.mjs",
+  "scripts/runner-inputs.mjs",
+  "scripts/runner-inputs.test.mjs",
+  "scripts/runner-process.mjs",
+  "scripts/runner-process.test.mjs",
+  "scripts/start-website.mjs",
+  "scripts/start-website.test.mjs",
+  "scripts/test-website-api.mjs",
+  "scripts/test-website-api.test.mjs",
+  "scripts/test-website-server.mjs",
+  "scripts/test-website-server.test.mjs",
+];
 const deliveryPublishedFiles = [
   ".dockerignore",
   ".env.example",
@@ -74,8 +90,18 @@ const readPublicationPolicy = async () =>
       "utf8",
     ),
   );
-const integrationPolicy = async () => {
+const deliveryPolicy = async () => {
   const declared = await readPublicationPolicy();
+  return {
+    ...declared,
+    phase: "delivery-tooling",
+    allowedFiles: declared.allowedFiles.filter(
+      (file) => !runnerPublishedFiles.includes(file),
+    ),
+  };
+};
+const integrationPolicy = async () => {
+  const declared = await deliveryPolicy();
   return {
     ...declared,
     phase: "integration-tooling",
@@ -642,7 +668,9 @@ test("integration tooling closes over every helper, owner test, guide pair and m
           ...declared,
           allowedFiles: [...declared.allowedFiles, file],
         }),
-      /closed published inventory/,
+      runnerPublishedFiles.includes(file)
+        ? /unique, exact paths within their declared phase/
+        : /closed published inventory/,
       file,
     );
   assert.throws(
@@ -682,7 +710,7 @@ test("integration tooling inspects exact owned files and rejects missing, privat
 });
 
 test("delivery tooling closes over exactly49 additions to the historical254-file integration phase", async () => {
-  const declared = await readPublicationPolicy();
+  const declared = await deliveryPolicy();
   const historical = await integrationPolicy();
   assert.equal(declared.phase, "delivery-tooling");
   assert.equal(declared.applicationReady, false);
@@ -715,7 +743,7 @@ test("delivery tooling closes over exactly49 additions to the historical254-file
 });
 
 test("delivery tooling admits only its four exact public examples and rejects runtime, private or foreign paths", async () => {
-  const declared = await readPublicationPolicy();
+  const declared = await deliveryPolicy();
   assert.deepEqual(
     declared.allowedFiles
       .filter((file) => /(?:^|\/)(?:\.env|[^/]+\.env)(?:\.|$)/.test(file))
@@ -786,7 +814,7 @@ test("delivery tooling admits only its four exact public examples and rejects ru
 });
 
 test("delivery tooling inspects303 files without activation and rejects missing, private or linked examples", async (context) => {
-  const declared = await readPublicationPolicy();
+  const declared = await deliveryPolicy();
   const { root, put } = await fixture(context, declared);
   const result = await inspectBootstrap(root);
   assert.equal(result.phase, "delivery-tooling");
@@ -807,6 +835,88 @@ test("delivery tooling inspects303 files without activation and rejects missing,
   await symlink(
     path.join(root, "docs"),
     path.join(root, ".env.example"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+test("runner foundation requires its exact fourteen additions and preserves the non-runnable delivery closure", async () => {
+  const declared = await readPublicationPolicy();
+  const historical = await deliveryPolicy();
+  assert.equal(declared.phase, "runner-foundation");
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 317);
+  assert.equal(validateBootstrapPolicy(historical).size, 303);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !historical.allowedFiles.includes(file))
+      .sort(),
+    [...runnerPublishedFiles].sort(),
+  );
+  for (const file of runnerPublishedFiles) {
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...historical,
+          allowedFiles: [...historical.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  }
+  for (const file of [
+    "playwright.config.ts",
+    "scripts/test-website-csp.mjs",
+    "scripts/test-website-performance.mjs",
+    "e2e/website/accessibility.spec.ts",
+    "deploy/docker/smoke.mjs",
+    "src/app/page.tsx",
+    ".env.local",
+    "deploy/native/website.env",
+    "docs/foreign.md",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy({ ...declared, applicationReady: true }),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy({ ...declared, maximumChangedFiles: 101 }),
+  );
+});
+
+test("runner foundation inspects 317 exact files and rejects private, missing or linked inputs", async (context) => {
+  const declared = await readPublicationPolicy();
+  const { root, put } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "runner-foundation");
+  assert.equal(result.files, 317);
+  assert.equal(result.applicationReady, false);
+  assert.match(result.scope, /readiness guard refuses/);
+  await put(".env.local", "synthetic private marker; do not read\n");
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+  await rm(path.join(root, ".env.local"));
+  await rm(path.join(root, "scripts/start-website.mjs"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, "scripts/start-website.mjs"),
     process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);

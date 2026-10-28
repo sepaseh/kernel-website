@@ -1,0 +1,83 @@
+# Node runner foundation
+
+[English](runner-foundation.md) · [فارسی](runner-foundation.fa.md)
+
+The **runner-foundation** phase adds controlled Node process wrappers before the
+browser SDKs, application entry points and integration suites. Its exact inventory
+contains 317 files. The public source marker remains `applicationReady:false`;
+the website, API, server and analyzer entry operations reject it before reading environment/configuration,
+resolving dependencies, opening output or spawning a child. Do not change the
+marker to run this incomplete website. Imports are inert: no dotenv loading,
+environment mutation, service startup or installed CLI discovery occurs.
+
+## Owners and contracts
+
+| Owner                                                                         | Behavior                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [runner-process.mjs](../scripts/runner-process.mjs)                           | Starts one owned direct child with an explicit command, arguments, working directory and environment; reports spawn, exit, signal and cancellation failures and drains the close event. CLI signal listeners are scoped and removed. |
+| [runner-inputs.mjs](../scripts/runner-inputs.mjs)                             | Checks readiness first, rejects dotenv presence without reading contents, derives an explicit public environment and validates local Next identity or the selected synthetic API script.                                             |
+| [start-website.mjs](../scripts/start-website.mjs)                             | Validates explicit website settings, prepares the guarded standalone files and awaits its owned Node server.                                                                                                                         |
+| [test-website-api.mjs](../scripts/test-website-api.mjs)                       | Requires explicit synthetic loopback settings and an absolute API fixture location, validates its fixed entry and awaits the owned Node fixture.                                                                                     |
+| [test-website-server.mjs](../scripts/test-website-server.mjs)                 | Runs the selected root's verified Next build, prepares standalone files and serves only after success; explicit skip-build mode requires an existing guarded build ID.                                                               |
+| [analyze-website-performance.mjs](../scripts/analyze-website-performance.mjs) | Runs the verified local Next analysis commands and writes bounded output to an exclusively created owned artifact; failure preserves unrelated existing files.                                                                       |
+
+No public operation implicitly discovers another checkout. Next resolution uses
+the selected website's exact manifest, lock and installed `node_modules/next`
+identity/version, with unlinked paths; no parent/global CLI fallback is allowed.
+The API resolver requires `KERNEL_SYNTHETIC_ENV=1`, an absolute explicit
+`KERNEL_API_DIRECTORY` and its fixed `scripts/test-website-api.mjs` entry. Its
+structural markers establish neither an immutable revision nor installed
+dependencies or wire compatibility. Future integration acceptance must establish
+those separately before using a real independently installed synthetic API.
+
+Environment input is explicit. Website settings include production `NODE_ENV`,
+`API_BASE_URL`, `HOSTNAME` and `PORT`, with public website/indexing/CSP settings.
+Only allowlisted runtime essentials and declared public settings reach children;
+credentials, `NODE_OPTIONS` and the rest of the parent environment are omitted.
+Synthetic execution additionally requires two distinct `http://127.0.0.1:PORT`
+origins, a matching website host/port and explicit disabled indexing. No default
+API origin or dotenv fallback is supplied.
+
+The generic process helper is called after the entry operation has checked readiness; it does not own a source root or repeat that policy check. It owns the direct child object it created. Cancellation and
+idempotent stopping use bounded termination, escalation and close draining on
+that object; no global PID lookup, process-tree termination or unrelated process
+cleanup is performed. This contract does not supervise child descendants.
+Operators must independently provide containment for a future runtime requiring
+descendant supervision. Filesystem checks assume a single writer and physical
+unlinked roots; they do not make portable path operations race-proof.
+
+## Actual verification
+
+The six Node owner files are
+[process lifecycle](../scripts/runner-process.test.mjs),
+[inputs](../scripts/runner-inputs.test.mjs),
+[standalone startup](../scripts/start-website.test.mjs),
+[API startup](../scripts/test-website-api.test.mjs),
+[build/server sequencing](../scripts/test-website-server.test.mjs) and
+[analysis output](../scripts/analyze-website-performance.test.mjs).
+Positive cases execute disposable Node programs inside owned synthetic projects
+carrying explicit ready markers. They verify real child execution and failures,
+not only mocked callbacks. Negative cases keep the false marker and prove inputs
+and side effects remain untouched. Local files and processes belong to each test;
+real dotenv, developer APIs, operator state and production are not fixtures.
+
+The [canonical manifest](../.agents/validation.json) retains all eleven full
+checks. These owners join measured governance coverage and Sonar through existing
+source selectors, without exclusions or weaker thresholds. Focused development
+verification can run:
+
+```sh
+node --test scripts/runner-process.test.mjs scripts/runner-inputs.test.mjs scripts/start-website.test.mjs scripts/test-website-api.test.mjs scripts/test-website-server.test.mjs scripts/analyze-website-performance.test.mjs
+```
+
+An authorized commit, push or PR handoff still requires fresh Node and pinned
+Python installation plus `npm run validate -- full` on the exact isolated tree.
+The existing 66 product modules, source-test ownership and font checks are unchanged.
+
+There is no real Next.js build/start, independent API compatibility, browser/CSP,
+accessibility, visual comparison, Lighthouse, Docker or deployment result here.
+The browser SDKs/suites remain a separate publication prerequisite, followed by
+application composition and its full fifteen-check gate. Before a runnable merge,
+observe genuine build, e2e and visual jobs and make them required. See
+[testing](testing.md), [validation](validation.md), [phase policy](bootstrap.md)
+and [delivery acceptance](deployment.md).
