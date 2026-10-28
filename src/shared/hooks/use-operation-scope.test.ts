@@ -1,11 +1,29 @@
 // @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { describe, expect, it } from "vitest";
 
 import { useOperationScope } from "./use-operation-scope";
 
 describe("operation mount ownership", () => {
+  it("keeps work captured in the committed layout phase active through passive effects", () => {
+    const operations: ReturnType<ReturnType<typeof useOperationScope>>[] = [];
+    const { result, unmount } = renderHook(() => {
+      const capture = useOperationScope();
+      useLayoutEffect(() => {
+        operations.push(capture());
+      }, [capture]);
+      return capture;
+    });
+
+    expect(operations).toHaveLength(1);
+    expect(result.current()()).toBe(true);
+    expect(operations[0]()).toBe(true);
+
+    unmount();
+    expect(operations[0]()).toBe(false);
+  });
+
   it("lets an operation finish only while its originating mount is active", () => {
     const { result, rerender, unmount } = renderHook(() => useOperationScope());
     const capture = result.current;

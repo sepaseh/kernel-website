@@ -3,8 +3,9 @@
 [English](runner-foundation.md) · [فارسی](runner-foundation.fa.md)
 
 The **runner-foundation** phase adds controlled Node process wrappers before the
-browser SDKs, application entry points and integration suites. Its exact inventory
-contains 317 files. The public source marker remains `applicationReady:false`;
+browser SDKs, application entry points and integration suites. Its original inventory
+contained 317 files; the current [browser foundation](browser-foundation.md) extends
+that exact closure to 345 files without activating the application. The public source marker remains `applicationReady:false`;
 the website, API, server and analyzer entry operations reject it before reading environment/configuration,
 resolving dependencies, opening output or spawning a child. Do not change the
 marker to run this incomplete website. Imports are inert: no dotenv loading,
@@ -72,12 +73,15 @@ node --test scripts/runner-process.test.mjs scripts/runner-inputs.test.mjs scrip
 
 An authorized commit, push or PR handoff still requires fresh Node and pinned
 Python installation plus `npm run validate -- full` on the exact isolated tree.
-The existing 66 product modules, source-test ownership and font checks are unchanged.
+The existing 66-module product inventory, source-test ownership and font checks
+are retained. The current phase also corrects operation-token activation timing;
+see [session ownership](session.md).
 
 There is no real Next.js build/start, independent API compatibility, browser/CSP,
 accessibility, visual comparison, Lighthouse, Docker or deployment result here.
-The browser SDKs/suites remain a separate publication prerequisite, followed by
-application composition and its full fifteen-check gate. Before a runnable merge,
+The [browser foundation](browser-foundation.md) now publishes the SDK-backed
+authored suites and guarded orchestration. Application composition and its full
+fifteen-check gate remain the next activation prerequisite. Before a runnable merge,
 observe genuine build, e2e and visual jobs and make them required. See
 [testing](testing.md), [validation](validation.md), [phase policy](bootstrap.md)
 and [delivery acceptance](deployment.md).

@@ -4,7 +4,7 @@ Describe the concrete problem, resulting behavior and focused scope.
 
 ## Publication phase
 
-- Phase: runner-foundation; applicationReady:false.
+- Phase: browser-foundation; applicationReady:false.
 - Exact head/base or isolated snapshot:
 - GitHub changed-file entries (maximum 100):
 

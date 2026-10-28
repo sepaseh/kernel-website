@@ -2,7 +2,7 @@
 
 The published phase uses Vitest, real React/RTL, next-intl, Radix and next-themes
 with isolated jsdom, synthetic fetch responses and Node governance tests. Do not
-introduce MSW, user-event or browser tooling as if it were already installed.
+introduce MSW, user-event or undeclared browser tooling as if it were already installed. Playwright and Axe are declared for typed authored suites; the full phase gate executes their Node orchestration tests, not a browser.
 
 Select the smallest useful command from the
 [validation manifest](../validation.json), following
@@ -50,4 +50,4 @@ Independent quality-helper tests belong in required governance coverage. Use own
 
 Delivery tests must keep current applicationReady false. Only owned synthetic fixture roots may carry a true marker for real copy/archive/guard tests; inject Docker callbacks and bind fresh loopback health servers instead of using an engine or existing service. The existing audit regression remains in its measured Vitest unit suite, with the subprocess boundary mocked so unit tests do not contact the registry. Preserve first failure logs and distinguish these results from build/container/provider readiness.
 
-Runner-foundation owner tests execute only disposable Node programs in explicitly marked owned fixture roots. Require readiness before input/configuration/dependency reads, inert imports, explicit loopback synthetic inputs, observable spawn/exit/cancellation failures and cleanup of the direct child created by the runner. See [runner foundation](../../docs/runner-foundation.md). Real Next.js builds, independent API installation/compatibility and browser SDK/suites remain separate future acceptance.
+Runner-foundation owner tests execute only disposable Node programs in explicitly marked owned fixture roots. Require readiness before input/configuration/dependency reads, inert imports, explicit loopback synthetic inputs, observable spawn/exit/cancellation failures and cleanup of the direct child created by the runner. See [runner foundation](../../docs/runner-foundation.md). Real Next.js builds, independent API installation/compatibility and browser execution remain separate future acceptance. The [browser foundation](../../docs/browser-foundation.md) publishes authored suites with required tooling type checking, installed SDK checks and owned injected Node regressions; these do not establish an executed browser, accessibility or visual result.

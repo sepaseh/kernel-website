@@ -1,9 +1,9 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 
 export function useOperationScope() {
   const scope = useRef({ active: false });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const current = { active: true };
     scope.current = current;
     return () => {

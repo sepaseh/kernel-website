@@ -3,10 +3,13 @@
 [English](testing.md) · [فارسی](testing.fa.md)
 
 Use the [canonical manifest](../.agents/validation.json) for commands and
-[validation](validation.md) for scope and sequencing. The **runner-foundation**
-phase has an exact 317-file inventory and remains non-runnable with
-applicationReady:false. Its 66 production modules, 34 source test files and three
-source test-support modules are unchanged. Four retained integration helpers with
+[validation](validation.md) for scope and sequencing. The **browser-foundation**
+phase has an exact 345-file inventory and remains non-runnable with
+applicationReady:false. Its inventory retains 66 production modules, 34 source
+test files and three source test-support modules. The existing operation-scope
+hook now activates its mount token in layout setup, with a regression covering
+the earlier passive-activation gap; see [session ownership](session.md).
+Four retained integration helpers with
 three Node owner-test files and eight delivery helpers with six Node owner-test
 files retain their previous scope. The Node runner foundation adds six measured modules and six Node owner files; all actual runner operations reject the current false marker.
 
@@ -17,7 +20,8 @@ files retain their previous scope. The Node runner foundation adds six measured 
 | Governance/tools    | Snapshot/import/CI/guidance guards, portable hooks and owner tests for explicit API location, bundle data/budgets and performance/visual environment helpers.                                            |
 | Delivery contracts  | Artifact copying/packaging, readiness guards, public configuration, explicit health targets, cleanup and target validation use owned synthetic files, injected operations or owned loopback listeners.   |
 | Audit regression    | The existing eleven audit regression cases remain in measured Vitest unit coverage; they are not moved to the Node governance runner.                                                                    |
-| Runtime integration | Pages, layout/CSS, browser journeys, independent API installation/compatibility, actual screenshot comparisons, Lighthouse and deployment remain deferred.                                               |
+| Browser authorship  | Thirteen authored e2e TypeScript files and four configurations are type-checked with installed Playwright/Axe. Four Node owner files measure guarded/injected behavior; no browser is launched.          |
+| Runtime integration | Pages, layout/CSS, executed browser journeys, independent API installation/compatibility, actual screenshot comparisons, Lighthouse and deployment remain deferred.                                      |
 
 The retained integration owners are [API location](../scripts/api-repository.test.mjs),
 [performance helpers](../scripts/website-performance.test.mjs) and
@@ -64,4 +68,4 @@ Before runnable publication, add and observe genuine build, browser, both CSP-mo
 and compatible visual checks. Local tests do not establish SSR, browser cookies,
 complete accessibility, deployment, production OTP or field performance.
 
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.

@@ -6,7 +6,7 @@ maps published owners, contracts and tests. [validation.json](validation.json) o
 commands, profiles and CI execution. [evaluation/cases.json](evaluation/cases.json)
 supplies source-grounded questions and observable criteria.
 
-This runner-foundation phase preserves the non-runnable feature snapshot. The source has
+This browser-foundation phase preserves the non-runnable feature snapshot. The source has
 local authentication/account forms and support modules; pages, a root layout, the
 CSS pipeline, browser journeys and deployment remain future integration work.
 Read [the phase guide](../docs/bootstrap.md) before selecting checks or claiming
@@ -47,3 +47,5 @@ The integration-tooling phase adds four independently tested quality helpers and
 Delivery preparation adds owned artifact/configuration/target helpers and passive operator templates. [Delivery](../docs/deployment.md) and [operations](../docs/release-operations.md) define their synthetic evidence. Every core CLI gates on the unlinked public readiness marker; this source phase remains false with no bypass and no new build, service or operational provider workflow.
 
 The [runner foundation](../docs/runner-foundation.md) adds inert imports, readiness-first explicit inputs and owned direct-child lifecycle/CLI wrappers. Six Node owner files exercise real disposable Node children, failure, cancellation and bounded analysis output. The source marker stays false; no real Next build, independent API, browser or Docker execution is claimed.
+
+The [browser foundation](../docs/browser-foundation.md) adds typed authored suites, four guarded Playwright configurations and visual/CSP orchestration with four measured Node owner files. Installed Playwright/Axe packages close the authored test dependencies; no browser binary, independent API or application is executed by the eleven-check gate.

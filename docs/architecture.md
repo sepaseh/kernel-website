@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The runner-foundation phase publishes one independently installable root TypeScript package,
+The browser-foundation phase publishes one independently installable root TypeScript package,
 local feature/UI support and its maintained instructions. It is not a runnable
 Next.js application: routes, root layout, request adapter, global CSS, browser
 fixture and deployment are deferred. The accepted runtime direction remains
@@ -64,10 +64,10 @@ integration; support tests and static guidance checks do not establish it.
 
 ## Deterministic quality tooling
 
-The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects; production source remains unchanged. No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.
+The four independent helpers under scripts keep test fixture location, synthetic bundle measurements, environment construction and visual metadata/locking outside product modules. Their three Node owner-test files use owned temporary projects and remain outside product-runtime composition. The current phase also corrects mount-token activation timing in the existing [operation owner](session.md). No other checkout is an imported source dependency, and this phase launches no API, browser or deployment process. [Testing](testing.md) and [validation](validation.md) describe actual evidence and deferred acceptance.
 
 ## Delivery preparation boundary
 
 Eight Node delivery helpers own public configuration, explicit readiness checks, file/archive policy, packaging, cleanup and target validation. Their six owner-test files operate owned synthetic trees, injected Docker callbacks and owned loopback health servers. Operator templates remain passive. The source phase stays false; core CLIs read only the unlinked public readiness marker and refuse operations before configuration/network/artifact access. A synthetic ready marker is test data, not delivered application readiness. [Delivery](deployment.md), [operations](release-operations.md) and [security review](security/authentication-review.md) separate current local contracts from later runtime acceptance.
 
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.

@@ -9,8 +9,8 @@ owning functions; an index is not proof of semantic completeness or automatic
 instruction loading.
 
 This map covers the published non-runnable support and feature scope. It must not
-point to deferred routes, layout/CSS, browser suites or deployment as if they were
-present. [Architecture](architecture.md) and [ADRs](adr/README.md) distinguish
+describe authored browser suites as executed journeys, or point to deferred routes,
+layout/CSS or deployment as if they were present. [Architecture](architecture.md) and [ADRs](adr/README.md) distinguish
 accepted design from delivered integration.
 
 - For forms and session races, inspect feature owners, HTTP modules/types and
@@ -41,4 +41,4 @@ For deterministic quality tooling, start with the integration-tooling task in th
 
 For delivery-tooling, inspect the published readiness/copy/package, public configuration, explicit health, scoped cleanup and target-validation owners through the delivery-tooling machine task. [Deployment preparation](deployment.md) and [release operations](release-operations.md) describe synthetic evidence and passive templates. The required check is measured governance coverage; core CLIs reject operations when `applicationReady:false`, before configuration reads, network or artifact access. Remote workflows remain deferred.
 
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.

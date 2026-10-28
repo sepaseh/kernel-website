@@ -16,6 +16,36 @@ import {
   validateBootstrapPolicy,
 } from "./validate-bootstrap.mjs";
 
+const browserPublishedFiles = [
+  "docs/browser-foundation.fa.md",
+  "docs/browser-foundation.md",
+  "e2e/operations/smoke.spec.ts",
+  "e2e/operations/staging.spec.ts",
+  "e2e/visual/readiness.ts",
+  "e2e/visual/website.spec.ts",
+  "e2e/website/accessibility.spec.ts",
+  "e2e/website/client-boundaries.spec.ts",
+  "e2e/website/csp.spec.ts",
+  "e2e/website/font-performance.spec.ts",
+  "e2e/website/helpers.ts",
+  "e2e/website/performance.spec.ts",
+  "e2e/website/seo.spec.ts",
+  "e2e/website/session-isolation.spec.ts",
+  "e2e/website/website.spec.ts",
+  "playwright.smoke.config.ts",
+  "playwright.staging.config.ts",
+  "playwright.visual.config.ts",
+  "playwright.website.config.ts",
+  "scripts/browser-inputs.mjs",
+  "scripts/browser-inputs.test.mjs",
+  "scripts/playwright-config.mjs",
+  "scripts/playwright-config.test.mjs",
+  "scripts/run-visual.mjs",
+  "scripts/test-csp-report-only.mjs",
+  "scripts/test-csp-report-only.test.mjs",
+  "scripts/visual.test.mjs",
+  "tsconfig.tooling.json",
+];
 const runnerPublishedFiles = [
   "docs/runner-foundation.fa.md",
   "docs/runner-foundation.md",
@@ -90,8 +120,18 @@ const readPublicationPolicy = async () =>
       "utf8",
     ),
   );
-const deliveryPolicy = async () => {
+const runnerPolicy = async () => {
   const declared = await readPublicationPolicy();
+  return {
+    ...declared,
+    phase: "runner-foundation",
+    allowedFiles: declared.allowedFiles.filter(
+      (file) => !browserPublishedFiles.includes(file),
+    ),
+  };
+};
+const deliveryPolicy = async () => {
+  const declared = await runnerPolicy();
   return {
     ...declared,
     phase: "delivery-tooling",
@@ -668,7 +708,8 @@ test("integration tooling closes over every helper, owner test, guide pair and m
           ...declared,
           allowedFiles: [...declared.allowedFiles, file],
         }),
-      runnerPublishedFiles.includes(file)
+      runnerPublishedFiles.includes(file) ||
+        browserPublishedFiles.includes(file)
         ? /unique, exact paths within their declared phase/
         : /closed published inventory/,
       file,
@@ -841,7 +882,7 @@ test("delivery tooling inspects303 files without activation and rejects missing,
 });
 
 test("runner foundation requires its exact fourteen additions and preserves the non-runnable delivery closure", async () => {
-  const declared = await readPublicationPolicy();
+  const declared = await runnerPolicy();
   const historical = await deliveryPolicy();
   assert.equal(declared.phase, "runner-foundation");
   assert.equal(declared.applicationReady, false);
@@ -902,7 +943,7 @@ test("runner foundation requires its exact fourteen additions and preserves the 
 });
 
 test("runner foundation inspects 317 exact files and rejects private, missing or linked inputs", async (context) => {
-  const declared = await readPublicationPolicy();
+  const declared = await runnerPolicy();
   const { root, put } = await fixture(context, declared);
   const result = await inspectBootstrap(root);
   assert.equal(result.phase, "runner-foundation");
@@ -917,6 +958,89 @@ test("runner foundation inspects 317 exact files and rejects private, missing or
   await symlink(
     path.join(root, "docs"),
     path.join(root, "scripts/start-website.mjs"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+test("browser foundation requires exactly twenty-eight additions over the retained runner snapshot", async () => {
+  const declared = await readPublicationPolicy();
+  const historical = await runnerPolicy();
+  assert.equal(declared.phase, "browser-foundation");
+  assert.equal(declared.applicationReady, false);
+  assert.equal(validateBootstrapPolicy(declared).size, 345);
+  assert.equal(validateBootstrapPolicy(historical).size, 317);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !historical.allowedFiles.includes(file))
+      .sort(),
+    [...browserPublishedFiles].sort(),
+  );
+  for (const file of browserPublishedFiles) {
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...historical,
+          allowedFiles: [...historical.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  }
+  for (const file of [
+    "e2e/website/foreign.spec.ts",
+    "playwright.config.ts",
+    "scripts/run-website-performance.mjs",
+    "knip.json",
+    "deploy/docker/smoke.mjs",
+    ".github/workflows/browser.yml",
+    "src/app/page.tsx",
+    ".env.local",
+    "deploy/native/website.env",
+    "docs/foreign.md",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  for (const change of [
+    { applicationReady: true },
+    { maximumChangedFiles: 101 },
+    { phase: "runner-foundation" },
+  ])
+    assert.throws(() => validateBootstrapPolicy({ ...declared, ...change }));
+});
+
+test("browser foundation inspects 345 exact authored files while refusing private, missing and linked inputs", async (context) => {
+  const declared = await readPublicationPolicy();
+  const { root, put } = await fixture(context, declared);
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "browser-foundation");
+  assert.equal(result.files, 345);
+  assert.equal(result.applicationReady, false);
+  assert.match(result.scope, /authored suites are not browser/);
+  await put(".env.local", "synthetic private marker; do not read\n");
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+  await rm(path.join(root, ".env.local"));
+  await rm(path.join(root, "e2e/visual/readiness.ts"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+  await symlink(
+    path.join(root, "docs"),
+    path.join(root, "e2e/visual/readiness.ts"),
     process.platform === "win32" ? "junction" : "dir",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);
