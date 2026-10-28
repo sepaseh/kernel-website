@@ -31,3 +31,8 @@ esac
 
 [ -r /etc/kernel/tls/fullchain.pem ] || fail "Missing mounted fullchain.pem."
 [ -r /etc/kernel/tls/privkey.pem ] || fail "Missing mounted privkey.pem."
+key_mode=$(stat -c '%a' /etc/kernel/tls/privkey.pem)
+case "$key_mode" in
+  400|440|600|640) ;;
+  *) fail "privkey.pem must deny group writes and all other-user access." ;;
+esac

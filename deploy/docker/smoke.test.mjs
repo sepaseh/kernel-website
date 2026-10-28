@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { EventEmitter } from "node:events";
 import {
   access,
   mkdir,
@@ -10,12 +11,246 @@ import {
   writeFile,
 } from "node:fs/promises";
 import http from "node:http";
+import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { apiFixtureRevision } from "../../scripts/runner-inputs.mjs";
-import { runDockerProcess, runDockerSmoke } from "./smoke.mjs";
+import {
+  createDockerFixtureRequest,
+  runDockerProcess,
+  runDockerSmoke,
+} from "./smoke.mjs";
+
+test("synthetic TLS uses only a claimed Compose volume and a root networkless certificate helper", async (context) => {
+  const { root, options, state } = await syntheticSmoke(context);
+  const result = await runDockerSmoke(root, options);
+  assert.deepEqual(state.override.services.gateway.volumes, [
+    {
+      type: "volume",
+      source: "fixture-tls",
+      target: "/etc/kernel/tls",
+      read_only: true,
+      volume: { nocopy: true },
+    },
+  ]);
+  assert.deepEqual(state.override.services["fixture-certificate"].volumes, [
+    {
+      type: "volume",
+      source: "fixture-tls",
+      target: "/tls",
+      volume: { nocopy: true },
+    },
+  ]);
+  assert.equal(
+    state.override.volumes["fixture-tls"].name,
+    state.project + "_fixture-tls",
+  );
+  assert.equal(
+    state.override.volumes["fixture-data"].name,
+    state.project + "_fixture-data",
+  );
+  assert.deepEqual(
+    state.volumePreflights.sort((left, right) => left.localeCompare(right)),
+    [
+      "name=^" + state.project + "_fixture-data$",
+      "name=^" + state.project + "_fixture-tls$",
+    ],
+  );
+  assert.equal(state.volumes.size, 0);
+  assert.ok(state.cleanup.includes("compose"));
+  assert.ok(
+    result.verified.includes(
+      "generated certificate trust and hostname verification",
+    ),
+  );
+  assert.equal(
+    state.calls.some((call) => call[0] === "run"),
+    false,
+  );
+  assert.equal(
+    state.calls.some((call) => call[0] === "volume" && call[1] === "rm"),
+    false,
+  );
+  await assert.rejects(access(state.fixture), { code: "ENOENT" });
+});
+
+test("unowned named-volume collisions are refused before adoption and helper failures drain owned volumes", async (context) => {
+  for (const volumeCollision of ["fixture-tls", "fixture-data"]) {
+    const { root, options, state } = await syntheticSmoke(context, {
+      volumeCollision,
+    });
+    await assert.rejects(
+      runDockerSmoke(root, options),
+      /fixture volume already exists/,
+    );
+    assert.equal(
+      state.calls.some((call) => call[0] === "compose"),
+      false,
+    );
+    assert.equal(
+      state.calls.some((call) => call[0] === "buildx" && call[1] === "create"),
+      false,
+    );
+    assert.equal(
+      state.calls.some((call) => call[0] === "volume" && call[1] === "rm"),
+      false,
+    );
+    await assert.rejects(access(state.fixture), { code: "ENOENT" });
+  }
+  const { root, options, state } = await syntheticSmoke(context, {
+    certificateFailure: true,
+  });
+  await assert.rejects(
+    runDockerSmoke(root, options),
+    /certificate helper failed/,
+  );
+  assert.equal(state.volumes.size, 0);
+  assert.ok(state.cleanup.includes("compose"));
+  assert.equal(state.builder, false);
+  await assert.rejects(access(state.fixture), { code: "ENOENT" });
+});
+
+test("generated fixture trust keeps certificate and hostname verification enabled", async (context) => {
+  const root = await fixture(context);
+  const certificate = Buffer.from("owned generated public CA");
+  const calls = [];
+  context.mock.method(https, "request", (url, options, respond) => {
+    calls.push({ url, options });
+    const outgoing = new EventEmitter();
+    outgoing.end = () =>
+      queueMicrotask(() => {
+        const response = new EventEmitter();
+        response.statusCode = 200;
+        response.headers = { "content-type": "text/plain" };
+        respond(response);
+        response.emit("data", Buffer.from("owned response"));
+        response.emit("end");
+      });
+    return outgoing;
+  });
+  const request = await createDockerFixtureRequest(root, certificate);
+  const response = await request("https://www.kernel.test:9443/login", {
+    method: "GET",
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.text, "owned response");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.ca, certificate);
+  assert.equal(calls[0].options.rejectUnauthorized, true);
+  assert.equal(calls[0].options.agent, false);
+  assert.equal(calls[0].options.checkServerIdentity, undefined);
+  assert.equal(calls[0].options.servername, undefined);
+  calls[0].options.lookup(
+    "www.kernel.test",
+    { all: false },
+    (error, address, family) => {
+      assert.equal(error, null);
+      assert.equal(address, "127.0.0.1");
+      assert.equal(family, 4);
+    },
+  );
+  calls[0].options.lookup(
+    "www.kernel.test",
+    { all: true },
+    (error, addresses) => {
+      assert.equal(error, null);
+      assert.deepEqual(addresses, [{ address: "127.0.0.1", family: 4 }]);
+    },
+  );
+  for (const options of [
+    { rejectUnauthorized: false },
+    { ca: Buffer.from("unowned replacement CA") },
+    { checkServerIdentity: () => undefined },
+    { servername: "other.kernel.test" },
+    { agent: {} },
+    { lookup: () => {} },
+    { socketPath: "unowned socket" },
+    null,
+    [],
+    { [Symbol("unowned")]: true },
+  ])
+    await assert.rejects(
+      request("https://www.kernel.test:9443/login", options),
+      /options|overrides/,
+    );
+  await assert.rejects(request("https://other.kernel.test:9443/login"), {
+    code: "ERR_ASSERTION",
+  });
+  assert.equal(calls.length, 1);
+});
+
+test("fixture trust requires readiness and only a bounded public certificate", async (context) => {
+  const root = await fixture(context);
+  for (const certificate of [
+    undefined,
+    "public string",
+    Buffer.alloc(0),
+    Buffer.alloc(64 * 1024 + 1),
+  ])
+    await assert.rejects(
+      createDockerFixtureRequest(root, certificate),
+      /bounded public certificate/,
+    );
+  const falseRoot = await fixture(context, false);
+  await assert.rejects(
+    createDockerFixtureRequest(falseRoot, Buffer.from("unused")),
+    /applicationReady/,
+  );
+});
+
+test(
+  "CSP transitions remain sequential while independent assets drain together",
+  { timeout: 5000 },
+  async (context) => {
+    const { root, options, state } = await syntheticSmoke(context);
+    const original = options.request;
+    const completedModes = [];
+    let pending = [];
+    const modes = [];
+    options.request = async (address, requestOptions) => {
+      const url = new URL(address);
+      if (url.pathname === "/login" && url.protocol === "https:") {
+        assert.equal(pending.length, 0);
+        modes.push(state.mode);
+        return original(address, requestOptions);
+      }
+      if (url.pathname === "/_next/a.js" || url.pathname === "/font.woff2") {
+        const mode = state.mode;
+        return new Promise((resolve) => {
+          pending.push(resolve);
+          if (pending.length === 2) {
+            const batch = pending;
+            pending = [];
+            completedModes.push(mode);
+            batch.forEach((finish) => finish({ status: 200 }));
+          }
+        });
+      }
+      return original(address, requestOptions);
+    };
+    await runDockerSmoke(root, options);
+    assert.deepEqual(modes, ["report-only", "enforce"]);
+    assert.deepEqual(completedModes, ["report-only", "enforce"]);
+    assert.deepEqual(pending, []);
+  },
+);
+
+test("missing or oversized generated public CA fails before making fixture requests", async (context) => {
+  for (const certificate of [Buffer.alloc(0), Buffer.alloc(64 * 1024 + 1)]) {
+    const { root, options, state } = await syntheticSmoke(context, {
+      certificate,
+    });
+    delete options.request;
+    await assert.rejects(
+      runDockerSmoke(root, options),
+      /public TLS certificate.*bounded/,
+    );
+    await assert.rejects(access(state.fixture), { code: "ENOENT" });
+    assert.equal(state.builder, false);
+  }
+});
 
 async function fixture(context, ready = true) {
   const parent = path.resolve(os.tmpdir());
@@ -53,7 +288,13 @@ const nodeOperation = (cwd, source, options = {}) => ({
 
 async function syntheticSmoke(context, controls = {}) {
   const root = await fixture(context);
-  const state = { calls: [], builder: false, images: new Set(), cleanup: [] };
+  const state = {
+    calls: [],
+    builder: false,
+    images: new Set(),
+    volumes: new Set(),
+    cleanup: [],
+  };
   const options = {
     inherited: {
       KERNEL_SYNTHETIC_ENV: "1",
@@ -118,19 +359,66 @@ async function syntheticSmoke(context, controls = {}) {
         state.images.delete(operation.at(-1));
         state.cleanup.push("image");
       }
+      if (
+        operation[0] === "volume" &&
+        operation[1] === "ls" &&
+        operation.at(-1).startsWith("name=^")
+      ) {
+        state.volumePreflights ??= [];
+        state.volumePreflights.push(operation.at(-1));
+        if (
+          controls.volumeCollision &&
+          operation.at(-1).endsWith("_" + controls.volumeCollision + "$")
+        )
+          return "foreign-volume";
+      }
       if (operation[0] === "compose") {
         const envFile = operation[operation.indexOf("--env-file") + 1];
         const values = await readFile(envFile, "utf8");
+        state.mode = values.match(/^WEBSITE_CSP_MODE=(.+)$/m)[1];
         state.release = values.match(/^RELEASE_ID=(.+)$/m)[1];
         state.project = operation[operation.indexOf("--project-name") + 1];
         const overridePath = operation[operation.lastIndexOf("-f") + 1];
         state.override = JSON.parse(await readFile(overridePath, "utf8"));
+        if (operation.includes("run")) {
+          assert.deepEqual(operation.slice(-5), [
+            "run",
+            "--rm",
+            "-T",
+            "--no-deps",
+            "fixture-certificate",
+          ]);
+          assert.equal(configuration.capture, true);
+          const helper = state.override.services["fixture-certificate"];
+          assert.equal(helper.user, "0:0");
+          assert.equal(helper.network_mode, "none");
+          assert.equal(helper.read_only, true);
+          assert.deepEqual(helper.profiles, ["certificate"]);
+          assert.deepEqual(helper.entrypoint, ["sh", "-eu", "-c"]);
+          const script = helper.command[0];
+          assert.match(script, /umask 077/);
+          assert.match(script, /chown 0:101 \/tls/);
+          assert.match(script, /chmod 0750 \/tls/);
+          assert.match(script, /chmod 0640 \/tls\/privkey\.pem/);
+          assert.match(script, /chmod 0644 \/tls\/fullchain\.pem/);
+          assert.match(script, /cat \/tls\/fullchain\.pem$/);
+          assert.doesNotMatch(script, /cat \/tls\/privkey\.pem/);
+          state.volumes.add(state.project + "_fixture-tls");
+          if (controls.certificateFailure)
+            throw new Error("Owned certificate helper failed");
+          return (
+            controls.certificate ?? "owned synthetic public certificate"
+          ).toString("utf8");
+        }
+        if (operation.includes("up"))
+          state.volumes.add(state.project + "_fixture-data");
         if (operation.includes("build")) {
           state.images.add(`${state.project}/website:${state.release}`);
           state.images.add(`${state.project}/gateway:${state.release}`);
           assert.equal(env.BUILDX_BUILDER, state.builderName);
         }
         if (operation.includes("down")) {
+          state.volumes.clear();
           state.cleanup.push("compose");
           assert.equal(signal, undefined);
         }
@@ -147,8 +435,10 @@ async function syntheticSmoke(context, controls = {}) {
         return {
           status: 200,
           headers: {
-            "content-security-policy": "script-src 'nonce-owned'",
-            "content-security-policy-report-only": "script-src 'nonce-owned'",
+            [state.mode === "enforce"
+              ? "content-security-policy"
+              : "content-security-policy-report-only"]:
+              "script-src 'nonce-owned'",
             "x-robots-tag": "noindex",
           },
           text: '<script src="/_next/a.js"></script><link href="/font.woff2"><link href="/_next/a.js"><link href="https://invalid.test/ignore.css">',

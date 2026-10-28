@@ -154,7 +154,14 @@ async function fixture(t, ready = true) {
 }
 
 function orchestration(f, tweaks = {}) {
-  const trace = { starts: [], stops: [], samples: [], builds: 0 };
+  const trace = {
+    starts: [],
+    stops: [],
+    samples: [],
+    builds: 0,
+    activeSamples: 0,
+    maximumConcurrentSamples: 0,
+  };
   const service =
     (name) =>
     async ({ signal, environment }) => {
@@ -196,7 +203,7 @@ function orchestration(f, tweaks = {}) {
         [0.91, 0.57, 0.8][(trace.samples.length - 1) % 3],
         options_.args.at(-1),
       );
-      return startOwnedProcess({
+      const owned = startOwnedProcess({
         ...options_,
         args: [
           "--input-type=module",
@@ -204,6 +211,15 @@ function orchestration(f, tweaks = {}) {
           "process.stdout.write(" + JSON.stringify(JSON.stringify(value)) + ")",
         ],
       });
+      trace.activeSamples++;
+      trace.maximumConcurrentSamples = Math.max(
+        trace.maximumConcurrentSamples,
+        trace.activeSamples,
+      );
+      return {
+        ...owned,
+        completion: owned.completion.finally(() => trace.activeSamples--),
+      };
     },
     ...tweaks,
   };
@@ -328,10 +344,33 @@ test("twelve owned samples produce exact advisory medians and clean services in 
   assert.equal(run.trace.builds, 1);
   assert.deepEqual(run.trace.stops, ["website", "api"]);
   assert.equal(run.trace.samples.length, 12);
+  assert.equal(run.trace.maximumConcurrentSamples, 1);
+  assert.equal(run.trace.activeSamples, 0);
   const summary = JSON.parse(
     await readFile(path.join(accepted.output, "summary.json"), "utf8"),
   );
   assert.equal(summary.results.length, 12);
+  assert.deepEqual(
+    summary.results.map(({ profile, route, run: sampleRun }) => [
+      profile,
+      route,
+      sampleRun,
+    ]),
+    [
+      ["mobile", "/", 1],
+      ["mobile", "/", 2],
+      ["mobile", "/", 3],
+      ["mobile", "/login", 1],
+      ["mobile", "/login", 2],
+      ["mobile", "/login", 3],
+      ["desktop", "/", 1],
+      ["desktop", "/", 2],
+      ["desktop", "/", 3],
+      ["desktop", "/login", 1],
+      ["desktop", "/login", 2],
+      ["desktop", "/login", 3],
+    ],
+  );
   assert.equal(summary.summaries.length, 4);
   assert.ok(summary.summaries.every((item) => item.score === 80));
   assert.equal(summary.samplesPerProfileAndRoute, 3);
@@ -347,6 +386,110 @@ test("twelve owned samples produce exact advisory medians and clean services in 
   assert.equal(
     await readFile(path.join(accepted.output, "summary.json"), "utf8"),
     JSON.stringify(summary, null, 2) + "\n",
+  );
+});
+
+test("cancellation between samples skips every later task and preserves completed reports", async (t) => {
+  const f = await fixture(t);
+  const controller = new AbortController();
+  const run = orchestration(f, { signal: controller.signal });
+  const start = run.options.start;
+  run.options.start = (options) => {
+    const owned = start(options);
+    if (run.trace.samples.length !== 2) return owned;
+    return {
+      ...owned,
+      completion: owned.completion.then(() =>
+        controller.abort(new Error("halt after second sample")),
+      ),
+    };
+  };
+  await assert.rejects(
+    runWebsitePerformance(f.root, run.options),
+    /halt after second sample/,
+  );
+  assert.equal(run.trace.samples.length, 2);
+  assert.equal(run.trace.maximumConcurrentSamples, 1);
+  assert.deepEqual([...run.trace.stops].sort(), ["api", "website"]);
+  const [folder] = await readdir(path.join(f.root, ".lighthouseci/website"));
+  assert.deepEqual(
+    (await readdir(path.join(f.root, ".lighthouseci/website", folder))).sort(),
+    [
+      "home-mobile-1.html",
+      "home-mobile-1.json",
+      "home-mobile-2.html",
+      "home-mobile-2.json",
+      "pending.json",
+    ],
+  );
+});
+
+test("sample failure drains services sequentially in reverse order and retains every cleanup failure", async (t) => {
+  const f = await fixture(t);
+  const stopped = [];
+  let activeStops = 0;
+  let maximumConcurrentStops = 0;
+  const failOnStop =
+    (name) =>
+    async ({ signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener(
+          "abort",
+          () => {
+            stopped.push(name);
+            activeStops++;
+            maximumConcurrentStops = Math.max(
+              maximumConcurrentStops,
+              activeStops,
+            );
+            Promise.resolve().then(() => {
+              activeStops--;
+              reject(new Error(name + " cleanup failure"));
+            });
+          },
+          { once: true },
+        );
+      });
+  const payload = result();
+  payload.lhr.runtimeError = { message: "synthetic failed first sample" };
+  let samples = 0;
+  const run = orchestration(f, {
+    runApi: failOnStop("api"),
+    runWebsite: failOnStop("website"),
+    start: (options) => {
+      samples++;
+      return startOwnedProcess({
+        ...options,
+        args: [
+          "--input-type=module",
+          "-e",
+          "process.stdout.write(" +
+            JSON.stringify(JSON.stringify(payload)) +
+            ")",
+        ],
+      });
+    },
+  });
+  const messages = (error) =>
+    error instanceof AggregateError
+      ? error.errors.flatMap(messages)
+      : [error.message];
+  await assert.rejects(runWebsitePerformance(f.root, run.options), (error) => {
+    assert.deepEqual(messages(error), [
+      "Lighthouse reported a runtime failure.",
+      "website cleanup failure",
+      "api cleanup failure",
+    ]);
+    return true;
+  });
+  assert.equal(samples, 1);
+  assert.deepEqual(stopped, ["website", "api"]);
+  assert.equal(maximumConcurrentStops, 1);
+  assert.equal(activeStops, 0);
+  const [folder] = await readdir(path.join(f.root, ".lighthouseci/website"));
+  assert.deepEqual(
+    await readdir(path.join(f.root, ".lighthouseci/website", folder)),
+    ["pending.json"],
   );
 });
 

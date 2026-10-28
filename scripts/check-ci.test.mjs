@@ -72,6 +72,32 @@ test("all six operational sources are required and malformed YAML is rejected", 
   }
 });
 
+test("operational mappings are order independent while required input names remain exact", async () => {
+  const sources = await operationalContents();
+  const reordered = Object.fromEntries(
+    Object.entries(sources)
+      .reverse()
+      .map(([name, source]) => {
+        const workflow = parse(source);
+        workflow.on = Object.fromEntries(Object.entries(workflow.on).reverse());
+        if (workflow.on.workflow_dispatch?.inputs)
+          workflow.on.workflow_dispatch.inputs = Object.fromEntries(
+            Object.entries(workflow.on.workflow_dispatch.inputs).reverse(),
+          );
+        return [name, stringify(workflow)];
+      }),
+  );
+  assert.doesNotThrow(() => validateOperationalWorkflows(reordered));
+  const wrong = parse(reordered.dast);
+  const inputs = wrong.on.workflow_dispatch.inputs;
+  const [name] = Object.keys(inputs);
+  inputs.foreign_input = inputs[name];
+  delete inputs[name];
+  assert.throws(() =>
+    validateOperationalWorkflows({ ...reordered, dast: stringify(wrong) }),
+  );
+});
+
 test("only CodeQL may run automatically and target operations stay on main", async () => {
   for (const name of [
     "dast",

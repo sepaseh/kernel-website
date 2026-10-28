@@ -4,6 +4,11 @@ client_max_body_size 64k;
 client_body_timeout 15s;
 client_header_timeout 15s;
 send_timeout 60s;
+client_body_temp_path /var/cache/nginx/client_temp;
+proxy_temp_path /var/cache/nginx/proxy_temp;
+fastcgi_temp_path /var/cache/nginx/fastcgi_temp;
+uwsgi_temp_path /var/cache/nginx/uwsgi_temp;
+scgi_temp_path /var/cache/nginx/scgi_temp;
 
 ssl_certificate /etc/kernel/tls/fullchain.pem;
 ssl_certificate_key /etc/kernel/tls/privkey.pem;
@@ -13,30 +18,30 @@ ssl_session_timeout 1d;
 ssl_session_tickets off;
 
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen 8080 default_server;
+    listen [::]:8080 default_server;
     server_name _;
     return 444;
 }
 
 server {
-    listen 80;
-    listen [::]:80;
+    listen 8080;
+    listen [::]:8080;
     server_name ${WEBSITE_HOST};
     return 308 https://$host:${HTTPS_PORT}$request_uri;
 }
 
 server {
-    listen 443 ssl default_server;
-    listen [::]:443 ssl default_server;
+    listen 8443 ssl default_server;
+    listen [::]:8443 ssl default_server;
     server_name _;
     ssl_reject_handshake on;
     return 444;
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
+    listen 8443 ssl;
+    listen [::]:8443 ssl;
     http2 on;
     server_name ${WEBSITE_HOST};
     add_header Strict-Transport-Security "max-age=31536000" always;

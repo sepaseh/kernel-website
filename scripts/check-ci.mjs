@@ -402,7 +402,7 @@ const operationalFixtureInstallation = [
   'git clone --no-checkout https://github.com/sepaseh/kernel-api.git "$KERNEL_API_DIRECTORY"',
   'git -C "$KERNEL_API_DIRECTORY" checkout --detach 4755d62d14fb9d53cbe9d6246ca9be6bb4a3a7a9',
   'npm --prefix "$KERNEL_API_DIRECTORY" ci',
-  'printf \'KERNEL_API_DIRECTORY=%s\\n\' "$KERNEL_API_DIRECTORY" >> "$GITHUB_ENV"',
+  String.raw`printf 'KERNEL_API_DIRECTORY=%s\n' "$KERNEL_API_DIRECTORY" >> "$GITHUB_ENV"`,
 ].join("\n");
 const checkoutStep = {
   uses: checkoutAction,
@@ -559,7 +559,7 @@ function assertOperationalTriggers(workflow, name, policy) {
   if (name === "codeql") {
     if (
       Object.keys(workflow.on ?? {})
-        .sort()
+        .sort((left, right) => left.localeCompare(right))
         .join(",") !== "pull_request,push,schedule,workflow_dispatch" ||
       workflow.on.push?.branches?.join(",") !== "main" ||
       workflow.on.pull_request?.branches?.join(",") !== "main" ||
@@ -577,8 +577,12 @@ function assertOperationalTriggers(workflow, name, policy) {
     throw new Error("Operational target and release work must remain manual.");
   const inputs = workflow.on.workflow_dispatch?.inputs ?? {};
   if (
-    Object.keys(inputs).sort().join(",") !==
-      [...policy.inputs].sort().join(",") ||
+    Object.keys(inputs)
+      .sort((left, right) => left.localeCompare(right))
+      .join(",") !==
+      [...policy.inputs]
+        .sort((left, right) => left.localeCompare(right))
+        .join(",") ||
     Object.values(inputs).some(
       (input) => input.type !== "string" || input.required !== true,
     )
@@ -653,8 +657,12 @@ function assertOperationalJob(workflow, job, name, policy) {
 export function validateOperationalWorkflows(contents) {
   if (
     !isRecord(contents) ||
-    Object.keys(contents).sort().join(",") !==
-      Object.keys(operationalPolicies).sort().join(",")
+    Object.keys(contents)
+      .sort((left, right) => left.localeCompare(right))
+      .join(",") !==
+      Object.keys(operationalPolicies)
+        .sort((left, right) => left.localeCompare(right))
+        .join(",")
   )
     throw new Error("All six operational workflow sources are required.");
   for (const [name, policy] of Object.entries(operationalPolicies)) {

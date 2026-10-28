@@ -31,3 +31,9 @@ and rollback before authorized execution. See
 [deployment acceptance](../../docs/deployment.md),
 [operations](../../docs/release-operations.md) and
 [validation](../../docs/validation.md). The canonical manifest registers the manual `npm run test:docker` command separately from the fifteen-check full profile; importing its module remains inert.
+
+The image dependency layer uses `npm ci --ignore-scripts`; the locked packages must build without implicitly running dependency lifecycle scripts. The gateway runs as `nginx` UID/GID `101`, with owned configuration, PID and temporary/cache paths. Its internal listeners are `8080` and `8443`; Compose preserves the externally selected `HTTP_PORT` and `HTTPS_PORT` and the public redirect/forwarding values.
+
+The mounted TLS directory must remain owner-controlled and traversable by group `101` (for example mode `0750`). The private key must be readable by the nginx user/group without world access; a root-owned key can use group `101` and mode `0640`. Startup rejects world-accessible keys and unreadable files. Existing root-only keys need an explicitly reviewed operator permission change; no tool changes real operator certificate files automatically.
+
+Disposable smoke trusts only the public certificate generated in its fresh owned Linux TLS volume as the local test CA. Only the public certificate is captured on the host; the private key stays inside that volume, so Docker Desktop host-bind permission translation does not affect it. Certificate-chain and hostname verification stay enabled. The confined temporary certificate helper runs as root only to generate the fixture and set its group/modes: directory group `101`/`0750`, private key root:`101`/`0640`, public certificate `0644`. The gateway itself remains nonroot. Generated volume names are checked before creation, and owned volumes are removed during cleanup, including helper failures.

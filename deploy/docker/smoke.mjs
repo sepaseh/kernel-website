@@ -138,7 +138,22 @@ const freePort = () =>
     });
   });
 
-async function fixtureRequest(address, { body, signal, ...options } = {}) {
+function requestOptions(options) {
+  if (!options || typeof options !== "object" || Array.isArray(options))
+    throw new Error("Synthetic request options must be an explicit object.");
+  const allowed = new Set(["body", "signal", "method", "headers"]);
+  if (
+    Object.getOwnPropertySymbols(options).length ||
+    Object.getOwnPropertyNames(options).some((key) => !allowed.has(key))
+  )
+    throw new Error(
+      "Synthetic requests reject transport and TLS option overrides.",
+    );
+  return options;
+}
+
+async function fixtureRequest(address, certificate, options = {}) {
+  const { body, signal, method, headers } = requestOptions(options);
   const url = new URL(address);
   assert.equal(url.hostname, "www.kernel.test");
   assert.ok(["http:", "https:"].includes(url.protocol));
@@ -146,8 +161,12 @@ async function fixtureRequest(address, { body, signal, ...options } = {}) {
     const outgoing = (url.protocol === "https:" ? https : http).request(
       url,
       {
-        ...options,
-        rejectUnauthorized: false,
+        method,
+        headers,
+        agent: false,
+        ...(url.protocol === "https:"
+          ? { ca: certificate, rejectUnauthorized: true }
+          : {}),
         signal,
         timeout: 15_000,
         lookup: (_host, flags, callback) =>
@@ -182,12 +201,26 @@ async function fixtureRequest(address, { body, signal, ...options } = {}) {
   });
 }
 
+/** Trust only the generated fixture certificate and retain normal TLS hostname checks. */
+export async function createDockerFixtureRequest(root, certificate) {
+  await readyRunnerRoot(root);
+  if (
+    !Buffer.isBuffer(certificate) ||
+    certificate.length === 0 ||
+    certificate.length > 64 * 1024
+  )
+    throw new Error(
+      "Synthetic TLS trust requires a bounded public certificate buffer.",
+    );
+  return (address, options) => fixtureRequest(address, certificate, options);
+}
+
 const apiDockerfile = [
   "FROM node:24.18.0-bookworm-slim AS synthetic-api",
   "WORKDIR /app",
   "COPY package.json package-lock.json ./",
   "ENV NODE_ENV=production",
-  "RUN npm ci --omit=dev",
+  "RUN npm ci --omit=dev --ignore-scripts",
   "COPY src ./src",
   "COPY drizzle ./drizzle",
   "RUN mkdir -p /var/lib/kernel-api && chown node:node /var/lib/kernel-api",
@@ -237,7 +270,13 @@ async function exportApiContext(api, fixture, environment, signal) {
   return context;
 }
 
-async function writeComposeFixture({ fixture, images, origin, httpsPort }) {
+async function writeComposeFixture({
+  fixture,
+  images,
+  origin,
+  httpsPort,
+  project,
+}) {
   const envFile = path.join(fixture, "compose.env");
   const override = path.join(fixture, "fixture.json");
   const health =
@@ -275,47 +314,96 @@ async function writeComposeFixture({ fixture, images, origin, httpsPort }) {
           image: images[1],
           depends_on: { "fixture-api": { condition: "service_healthy" } },
         },
-        gateway: { image: images[2] },
+        gateway: {
+          image: images[2],
+          volumes: [
+            {
+              type: "volume",
+              source: "fixture-tls",
+              target: "/etc/kernel/tls",
+              read_only: true,
+              volume: { nocopy: true },
+            },
+          ],
+        },
+        "fixture-certificate": {
+          image: images[2],
+          profiles: ["certificate"],
+          user: "0:0",
+          network_mode: "none",
+          read_only: true,
+          entrypoint: ["sh", "-eu", "-c"],
+          command: [
+            [
+              "umask 077",
+              "chown 0:101 /tls",
+              "chmod 0750 /tls",
+              "openssl req -x509 -newkey rsa:2048 -noenc -keyout /tls/privkey.pem -out /tls/fullchain.pem -days 1 -subj /CN=www.kernel.test -addext subjectAltName=DNS:www.kernel.test -addext basicConstraints=critical,CA:TRUE",
+              "chown 0:101 /tls/privkey.pem /tls/fullchain.pem",
+              "chmod 0640 /tls/privkey.pem",
+              "chmod 0644 /tls/fullchain.pem",
+              "cat /tls/fullchain.pem",
+            ].join("\n"),
+          ],
+          volumes: [
+            {
+              type: "volume",
+              source: "fixture-tls",
+              target: "/tls",
+              volume: { nocopy: true },
+            },
+          ],
+        },
       },
-      volumes: { "fixture-data": {} },
+      volumes: {
+        "fixture-data": { name: project + "_fixture-data" },
+        "fixture-tls": { name: project + "_fixture-tls" },
+      },
     }),
     { flag: "wx" },
   );
   return { envFile, override };
 }
 
+async function verifyCspMode(request, compose, values, envFile, origin, mode) {
+  await writeFile(
+    envFile,
+    values
+      .map((value) =>
+        value.startsWith("WEBSITE_CSP_MODE=")
+          ? "WEBSITE_CSP_MODE=" + mode
+          : value,
+      )
+      .join("\n") + "\n",
+  );
+  await compose(["up", "-d", "--wait", "--wait-timeout", "120"]);
+  const page = await request(origin + "/login");
+  assert.equal(page.status, 200);
+  const header =
+    mode === "enforce"
+      ? "content-security-policy"
+      : "content-security-policy-report-only";
+  assert.match(page.headers[header], /nonce-/);
+  assert.match(page.headers["x-robots-tag"], /noindex/);
+  const assets = [
+    ...page.text.matchAll(
+      /(?:href|src)="([^" ]+(?:\.js|\.css|\.woff2)[^" ]*)"/g,
+    ),
+  ]
+    .map((item) => item[1])
+    .filter((value) => value.startsWith("/"));
+  assert.ok(assets.length > 0);
+  await completeArtifactWork(
+    [...new Set(assets)].map(async (asset) =>
+      assert.equal((await request(new URL(asset, origin))).status, 200),
+    ),
+  );
+}
+
 async function verifyDeployment(request, compose, values, envFile, origin) {
-  for (const mode of ["report-only", "enforce"]) {
-    await writeFile(
-      envFile,
-      values
-        .map((value) =>
-          value.startsWith("WEBSITE_CSP_MODE=")
-            ? `WEBSITE_CSP_MODE=${mode}`
-            : value,
-        )
-        .join("\n") + "\n",
-    );
-    await compose(["up", "-d", "--wait", "--wait-timeout", "120"]);
-    const page = await request(`${origin}/login`);
-    assert.equal(page.status, 200);
-    const header =
-      mode === "enforce"
-        ? "content-security-policy"
-        : "content-security-policy-report-only";
-    assert.match(page.headers[header], /nonce-/);
-    assert.match(page.headers["x-robots-tag"], /noindex/);
-    const assets = [
-      ...page.text.matchAll(
-        /(?:href|src)="([^" ]+(?:\.js|\.css|\.woff2)[^" ]*)"/g,
-      ),
-    ]
-      .map((item) => item[1])
-      .filter((value) => value.startsWith("/"));
-    assert.ok(assets.length > 0);
-    for (const asset of new Set(assets))
-      assert.equal((await request(new URL(asset, origin))).status, 200);
-  }
+  // Both phases mutate the same Compose service: drain all checks before changing mode.
+  await verifyCspMode(request, compose, values, envFile, origin, "report-only");
+  await verifyCspMode(request, compose, values, envFile, origin, "enforce");
   const login = await request(`${origin}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json", Origin: origin },
@@ -341,36 +429,42 @@ async function verifyDeployment(request, compose, values, envFile, origin) {
   assert.match(account.headers["cache-control"], /no-store/);
 }
 
-async function startDeployment({ project, compose, docker, images, tls }) {
+async function startDeployment(compose) {
   await compose(["config", "--quiet"]);
   await compose(["build"]);
-  await docker([
-    "run",
-    "--rm",
-    "--name",
-    `${project}-certificate`,
-    "--entrypoint",
-    "openssl",
-    "--mount",
-    `type=bind,source=${tls.replaceAll("\\", "/")},target=/tls`,
-    images[2],
-    "req",
-    "-x509",
-    "-newkey",
-    "rsa:2048",
-    "-noenc",
-    "-keyout",
-    "/tls/privkey.pem",
-    "-out",
-    "/tls/fullchain.pem",
-    "-days",
-    "1",
-    "-subj",
-    "/CN=www.kernel.test",
-    "-addext",
-    "subjectAltName=DNS:www.kernel.test",
-  ]);
+  const encoded = await compose(
+    ["run", "--rm", "-T", "--no-deps", "fixture-certificate"],
+    { capture: true },
+  );
+  const certificate = Buffer.from(encoded, "utf8");
+  if (certificate.length === 0 || certificate.length > 64 * 1024)
+    throw new Error(
+      "The generated public TLS certificate must be nonempty and bounded.",
+    );
   await compose(["up", "-d", "--wait", "--wait-timeout", "180"]);
+  return certificate;
+}
+
+async function assertFixtureVolumesAvailable(docker, project) {
+  await completeArtifactWork(
+    ["fixture-data", "fixture-tls"].map(async (name) => {
+      const found = await docker(
+        [
+          "volume",
+          "ls",
+          "--quiet",
+          "--filter",
+          "name=^" + project + "_" + name + "$",
+        ],
+        { capture: true },
+      );
+      assert.equal(
+        found.trim(),
+        "",
+        "A generated fixture volume already exists; refusing to reuse it.",
+      );
+    }),
+  );
 }
 
 /** Verify disposable Docker resources without operator state or target traffic. */
@@ -426,6 +520,7 @@ export async function runDockerSmoke(root = repository, options = {}) {
     });
     await assertWebsiteBuilderAvailable(docker, project);
     await assertWebsiteResourcesAvailable(docker, project, images);
+    await assertFixtureVolumesAvailable(docker, project);
     const [httpsPort, httpPort] = await Promise.all([
       (options.port ?? freePort)(),
       (options.port ?? freePort)(),
@@ -439,6 +534,7 @@ export async function runDockerSmoke(root = repository, options = {}) {
       images,
       origin,
       httpsPort,
+      project,
     });
     const values = [
       `RELEASE_ID=${release}`,
@@ -495,9 +591,12 @@ export async function runDockerSmoke(root = repository, options = {}) {
       images[0],
       apiContext,
     ]);
-    await startDeployment({ project, compose, docker, images, tls });
+    const certificate = await startDeployment(compose);
+    const trustedRequest =
+      options.request ??
+      (await createDockerFixtureRequest(directory, certificate));
     const request = (address, requestOptions = {}) =>
-      (options.request ?? fixtureRequest)(address, {
+      trustedRequest(address, {
         ...requestOptions,
         signal,
       });
@@ -519,6 +618,7 @@ export async function runDockerSmoke(root = repository, options = {}) {
       apiRevision: api.revision,
       verified: [
         "TLS redirect",
+        "generated certificate trust and hostname verification",
         "standalone public/static/fonts",
         "runtime report-only/enforce",
         "noindex",

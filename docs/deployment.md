@@ -43,3 +43,5 @@ with the matching previous artifact/configuration and per-release writable cache
 API authorization, persistence, migrations and data recovery remain the
 independent API owner's responsibility. No deployment, rollback or infrastructure
 change is performed by publishing these helpers or guides.
+
+The Docker gateway uses a nonroot `nginx` UID/GID `101`, internal listeners `8080/8443` and unchanged public port selections. Its read-only TLS mount must permit that identity to traverse the certificate directory and read the private key without world access. The owned smoke client verifies the generated certificate chain and hostname against its explicit test CA. See [Docker TLS permissions](../deploy/docker/README.md) before an authorized container run; existing operator-owned certificates are never migrated automatically.

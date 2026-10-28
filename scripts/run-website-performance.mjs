@@ -17,6 +17,7 @@ import {
 } from "./check-bundle-website.mjs";
 import {
   artifactFile,
+  completeArtifactWork,
   ensureArtifactDirectory,
   readArtifactFile,
 } from "./release-files.mjs";
@@ -350,7 +351,9 @@ function ownedService(name, action, inputs, parentSignal) {
 
 async function readyService(url, service, signal) {
   const deadline = Date.now() + 60_000;
-  while (Date.now() < deadline) {
+  const attempt = async () => {
+    if (Date.now() >= deadline)
+      throw new Error("Owned Lighthouse service did not become ready.");
     signal?.throwIfAborted();
     service.assertAlive();
     try {
@@ -372,8 +375,9 @@ async function readyService(url, service, signal) {
       service.assertAlive();
     }
     await setTimeout(100, undefined, { signal });
-  }
-  throw new Error("Owned Lighthouse service did not become ready.");
+    return attempt();
+  };
+  return attempt();
 }
 
 async function writeReport(directory, filename, value) {
@@ -451,6 +455,41 @@ const median = (values) =>
     Math.floor(values.length / 2)
   ];
 
+const samplePlan = ["mobile", "desktop"].flatMap((profile) =>
+  ["/", "/login"].flatMap((route) =>
+    [1, 2, 3].map((run) => ({ profile, route, run })),
+  ),
+);
+
+async function captureAndPersistSample(context, sample) {
+  const { directory, inputs, installation, services, options, environment } =
+    context;
+  const { profile, route, run } = sample;
+  options.signal?.throwIfAborted();
+  services.forEach((service) => service.assertAlive());
+  const result = await captureSample(
+    options.start ?? startOwnedProcess,
+    directory,
+    environment,
+    profile,
+    route,
+    options.signal,
+    options.maximumOutputBytes,
+  );
+  const values = sampleResult(
+    result,
+    installation.version,
+    inputs.websiteOrigin,
+    route,
+  );
+  const name = (route === "/" ? "home" : "login") + "-" + profile + "-" + run;
+  await completeArtifactWork([
+    writeReport(options.output, name + ".html", result.report[0]),
+    writeReport(options.output, name + ".json", result.report[1]),
+  ]);
+  return { profile, route, run, ...values };
+}
+
 async function gatherSamples(
   directory,
   inputs,
@@ -458,39 +497,27 @@ async function gatherSamples(
   services,
   options,
 ) {
-  const results = [];
   const environment = {
     ...inputs.websiteEnvironment,
     KERNEL_API_DIRECTORY: inputs.apiDirectory,
     PLAYWRIGHT_BROWSERS_PATH: "0",
   };
-  for (const profile of ["mobile", "desktop"])
-    for (const route of ["/", "/login"])
-      for (let run = 1; run <= 3; run++) {
-        options.signal?.throwIfAborted();
-        services.forEach((service) => service.assertAlive());
-        const result = await captureSample(
-          options.start ?? startOwnedProcess,
-          directory,
-          environment,
-          profile,
-          route,
-          options.signal,
-          options.maximumOutputBytes,
-        );
-        const values = sampleResult(
-          result,
-          installation.version,
-          inputs.websiteOrigin,
-          route,
-        );
-        const name =
-          (route === "/" ? "home" : "login") + "-" + profile + "-" + run;
-        await writeReport(options.output, name + ".html", result.report[0]);
-        await writeReport(options.output, name + ".json", result.report[1]);
-        results.push({ profile, route, run, ...values });
-      }
-  return results;
+  const context = {
+    directory,
+    inputs,
+    installation,
+    services,
+    options,
+    environment,
+  };
+  return samplePlan.reduce(
+    (previous, sample) =>
+      previous.then(async (results) => [
+        ...results,
+        await captureAndPersistSample(context, sample),
+      ]),
+    Promise.resolve([]),
+  );
 }
 
 function summarizeSamples(results) {
@@ -514,20 +541,23 @@ function summarizeSamples(results) {
 }
 
 async function drainServices(services, originalFailure) {
-  let failure = originalFailure;
-  for (const service of services.reverse()) {
-    try {
-      await service.stop();
-    } catch (error) {
-      failure = failure
-        ? new AggregateError(
-            [failure, error],
-            "Lighthouse run and owned service cleanup failed.",
-          )
-        : error;
-    }
-  }
-  return failure;
+  return [...services].reverse().reduce(
+    (previous, service) =>
+      previous.then(async (failure) => {
+        try {
+          await service.stop();
+          return failure;
+        } catch (error) {
+          return failure
+            ? new AggregateError(
+                [failure, error],
+                "Lighthouse run and owned service cleanup failed.",
+              )
+            : error;
+        }
+      }),
+    Promise.resolve(originalFailure),
+  );
 }
 
 /** Produce twelve isolated local lab samples and advisory medians, never a deployment gate. */
