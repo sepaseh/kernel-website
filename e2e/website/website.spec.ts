@@ -160,37 +160,89 @@ test("registers through the real API, restores the cookie session and updates ac
   await page.reload();
   const account = page.getByTestId("account-content");
   await expect(account).toBeVisible();
+  const profileForm = account.locator("form").filter({
+    has: page.getByLabel(english.firstName, { exact: true }),
+  });
   await account.getByLabel(english.firstName, { exact: true }).fill("Updated");
+  const profileSaved = page.waitForResponse(
+    (response) =>
+      response.url() === `${websiteOrigin}/api/account/update-profile` &&
+      response.request().method() === "PATCH",
+  );
   await account
     .getByRole("button", { name: english.accountSaveProfile, exact: true })
     .click();
+  expect((await profileSaved).ok()).toBe(true);
+  await expect(profileForm.getByRole("status")).toHaveText(
+    english.accountProfileUpdated,
+  );
+  await expect(profileForm).toHaveAttribute("aria-busy", "false");
   await expect(
     account.getByLabel(english.firstName, { exact: true }),
   ).toHaveValue("Updated");
+  const usernameForm = account.locator("form").filter({
+    has: page.getByLabel(english.accountUsername, { exact: true }),
+  });
   await account
     .getByLabel(english.accountUsername, { exact: true })
     .fill("website_tester_11");
+  const usernameSaved = page.waitForResponse(
+    (response) =>
+      response.url() === `${websiteOrigin}/api/account/update-username` &&
+      response.request().method() === "POST",
+  );
   await account
     .getByRole("button", { name: english.accountSaveUsername, exact: true })
     .click();
+  expect((await usernameSaved).ok()).toBe(true);
+  await expect(usernameForm.getByRole("status")).toHaveText(
+    english.accountUsernameUpdated,
+  );
+  await expect(usernameForm).toHaveAttribute("aria-busy", "false");
   const emailForm = account.locator("form").filter({
     has: page.getByLabel(english.accountEmailLabel, { exact: true }),
   });
   await emailForm
     .getByLabel(english.accountEmailLabel, { exact: true })
     .fill("website11@example.com");
+  const emailCodeRequested = page.waitForResponse(
+    (response) =>
+      response.url() ===
+        `${websiteOrigin}/api/account/request-email-verification` &&
+      response.request().method() === "POST",
+  );
   await emailForm
     .getByRole("button", { name: english.sendCode, exact: true })
     .click();
+  expect((await emailCodeRequested).ok()).toBe(true);
+  await expect(emailForm.getByRole("status")).toHaveText(english.codeRequested);
+  await expect(emailForm).toHaveAttribute("aria-busy", "false");
   await emailForm.getByLabel(english.otp, { exact: true }).fill("000000");
+  const invalidEmailCode = page.waitForResponse(
+    (response) =>
+      response.url() === `${websiteOrigin}/api/account/verify-email` &&
+      response.request().method() === "POST",
+  );
   await emailForm
     .getByRole("button", { name: english.accountVerifyEmail, exact: true })
     .click();
+  expect((await invalidEmailCode).ok()).toBe(false);
   await expect(page.getByRole("alert").first()).toBeVisible();
+  await expect(emailForm).toHaveAttribute("aria-busy", "false");
   await emailForm.getByLabel(english.otp, { exact: true }).fill(fixtureCode);
+  const emailVerified = page.waitForResponse(
+    (response) =>
+      response.url() === `${websiteOrigin}/api/account/verify-email` &&
+      response.request().method() === "POST",
+  );
   await emailForm
     .getByRole("button", { name: english.accountVerifyEmail, exact: true })
     .click();
+  expect((await emailVerified).ok()).toBe(true);
+  await expect(emailForm.getByRole("status")).toHaveText(
+    english.accountEmailVerified,
+  );
+  await expect(emailForm).toHaveAttribute("aria-busy", "false");
   await page.reload();
   await expect(
     account.getByLabel(english.firstName, { exact: true }),

@@ -107,8 +107,14 @@ test("blocks or reports nonce-less scripts, while trusted inline scripts execute
 test("blocks or reports unauthorized style elements without breaking nonce-bearing theme styles", async ({
   page,
 }) => {
-  await page.goto(websiteOrigin);
-  const result = await page.evaluate(async () => {
+  const response = await page.goto(websiteOrigin);
+  const documentNonce = nonceFrom(response?.headers()[header] ?? "");
+  if (!documentNonce)
+    throw new Error(
+      "The navigation CSP header must provide a style probe nonce.",
+    );
+  expect(documentNonce).toMatch(/^[A-Za-z0-9+/]{24}$/);
+  const result = await page.evaluate(async (nonce) => {
     const probe = document.createElement("p");
     probe.id = "kernel-csp-style-probe";
     probe.textContent = "Style policy probe";
@@ -121,7 +127,7 @@ test("blocks or reports unauthorized style elements without breaking nonce-beari
     const untrustedApplied = getComputedStyle(probe).color === "rgb(1, 2, 3)";
     untrusted.remove();
     const trusted = document.createElement("style");
-    trusted.nonce = document.querySelector("script")!.nonce;
+    trusted.nonce = nonce;
     trusted.textContent =
       "#kernel-csp-style-probe { color: rgb(3, 2, 1) !important; }";
     document.head.append(trusted);
@@ -130,7 +136,7 @@ test("blocks or reports unauthorized style elements without breaking nonce-beari
     trusted.remove();
     probe.remove();
     return { untrustedApplied, trustedApplied };
-  });
+  }, documentNonce);
   expect(result).toEqual({
     untrustedApplied: !enforcing,
     trustedApplied: true,
