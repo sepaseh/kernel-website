@@ -71,7 +71,7 @@
     },
     {
       "id": "active-language",
-      "when": "Change API-owned settings-language validation, catalog selection or supported aliases; no visitor negotiation or framework adapter is published.",
+      "when": "Change API-owned settings-language validation, catalog selection, supported aliases or the request/server language adapters; visitor negotiation remains forbidden.",
       "owners": [
         "src/shared/settings/language.ts",
         "src/i18n/catalogs.ts",
@@ -221,7 +221,7 @@
     },
     {
       "id": "integration-tooling",
-      "when": "Change deterministic bundle measurements, explicit synthetic API-location validation, performance environment isolation, visual metadata or owned lock/port helpers. Browser/API launchers and runtime activation remain deferred.",
+      "when": "Change deterministic bundle measurements, explicit synthetic API-location validation, performance environment isolation, visual metadata or owned lock/port helpers. Actual API/browser execution belongs to application acceptance and requires current evidence.",
       "owners": [
         "scripts/api-repository.mjs",
         "scripts/check-bundle-website.mjs",
