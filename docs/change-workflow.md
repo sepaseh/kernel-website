@@ -19,8 +19,10 @@ sending messages, committing and publishing need authorization for their actual 
 - Write observable acceptance scenarios: trigger, result, failure/authorization
   boundary and verification. Include applicable session races, language/cache
   privacy and recovery behavior.
-- Identify the publication phase. The present phase has no runnable page, CSS,
-  browser fixture or deployment; do not present future integration as completed.
+- Read the publication marker and exact source inventory. Distinguish a
+  false-marker prerequisite from application activation under the
+  [application contract](application.md). Source, authored suites and historical
+  results do not establish current build, browser or deployment execution.
 
 ## Reusable task record
 

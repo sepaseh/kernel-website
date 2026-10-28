@@ -8,8 +8,9 @@ Use HttpOnly session cookies through the narrowly allowlisted same-origin
 auth/account boundary. Forwarding support preserves native Set-Cookie headers
 and API statuses/errors, rejects foreign mutation Origins, removes successful
 authentication credential fields from JSON and marks responses private/no-store.
-Website JavaScript does not store bearer credentials. Mounting the route and
-verifying browser cookie isolation remain later integration work.
+Website JavaScript does not store bearer credentials. The
+[application contract](../application.md) requires real mounted-route and browser
+cookie-isolation evidence; false-marker helper tests do not establish it.
 
 The independent API owns password handling, authorization, persisted sessions
 and revocation semantics after password change or recovery. Production OTP

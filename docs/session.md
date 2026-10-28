@@ -22,7 +22,9 @@ The kernel:session-expired listener starts a fresh read and is removed on unmoun
 Accepted mutation data can replace only its own loaded snapshot; a callback
 captured before a newer session cannot overwrite that session. Consumers outside
 the provider fail explicitly. Cookie isolation and full login/logout browser
-journeys require the later runnable application and API fixture.
+journeys require actual exact-tree execution under the [application contract](application.md)
+and [pinned independent API fixture](api-fixture.md), regardless of which source
+phase first introduced this provider. Local owner tests cannot replace that evidence.
 
 ## Form operation ownership
 

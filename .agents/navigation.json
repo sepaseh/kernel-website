@@ -3,7 +3,7 @@
   "tasks": [
     {
       "id": "design-ui",
-      "when": "Design or restyle published local components/forms or prepare a design-tool handoff; framework/CSS/browser integration remains future work.",
+      "when": "Design or restyle published local components/forms or prepare a design-tool handoff; inspect marker/inventory and distinguish component tests from application/browser acceptance.",
       "owners": [
         "src/components/ui",
         "src/shared/ui",
@@ -14,7 +14,8 @@
         "DESIGN.md",
         ".agents/skills/design-ui/SKILL.md",
         ".agents/rules/website.md",
-        ".agents/rules/localization.md"
+        ".agents/rules/localization.md",
+        "docs/application.md"
       ],
       "tests": [
         "src/components/ui/primitives.test.tsx",
@@ -233,7 +234,7 @@
     },
     {
       "id": "delivery-tooling",
-      "when": "Change readiness-guarded artifact preparation, public configuration rendering, explicit health/target validation, owned cleanup or inert deployment references. No application build, API, Docker/browser launch, release or workflow activation is established.",
+      "when": "Change guarded artifact/configuration/health/cleanup owners or passive deployment references. Actual application, engine, browser, release and provider operations require their own execution evidence and authorization.",
       "owners": [
         "scripts/release-files.mjs",
         "scripts/prepare-standalone.mjs",
@@ -295,7 +296,8 @@
       "contracts": [
         ".agents/rules/guidance.md",
         "docs/comprehension-evaluation.md",
-        "docs/bootstrap.md"
+        "docs/bootstrap.md",
+        "docs/application.md"
       ],
       "tests": [
         "scripts/guidance.test.mjs",
@@ -343,7 +345,7 @@
     },
     {
       "id": "runner-foundation",
-      "when": "Change readiness-first local Node runner inputs, owned direct-child lifecycle, standalone/API fixture launching or bounded analysis output. Real application, API compatibility, actual browser execution and deployment remain deferred.",
+      "when": "Change readiness-first local Node inputs, owned direct-child lifecycle, explicit API fixture launch or bounded analysis output; inspect the marker and distinguish Node fixtures from actual application/API/browser evidence.",
       "owners": [
         "scripts/analyze-website-performance.mjs",
         "scripts/runner-inputs.mjs",
@@ -357,7 +359,8 @@
         "docs/runner-foundation.md",
         "scripts/release-files.mjs",
         "scripts/api-repository.mjs",
-        ".agents/rules/testing.md"
+        ".agents/rules/testing.md",
+        "docs/application.md"
       ],
       "tests": [
         "scripts/analyze-website-performance.test.mjs",
@@ -379,7 +382,7 @@
     },
     {
       "id": "browser-foundation",
-      "when": "Change readiness-first Playwright configuration, installed browser SDK identity, visual/CSP orchestration or authored website/visual/operations suites. This phase type-checks suites but does not execute a browser or an independent API.",
+      "when": "Change guarded Playwright/SDK configuration, visual/CSP orchestration or authored suites. Type checks and Node callbacks do not establish browser execution; actual acceptance follows the source marker.",
       "owners": [
         "scripts/browser-inputs.mjs",
         "scripts/playwright-config.mjs",
@@ -396,7 +399,8 @@
         "tsconfig.tooling.json",
         "scripts/runner-inputs.mjs",
         "scripts/release-files.mjs",
-        ".agents/rules/testing.md"
+        ".agents/rules/testing.md",
+        "docs/application.md"
       ],
       "tests": [
         "scripts/browser-inputs.test.mjs",
@@ -433,7 +437,8 @@
       "contracts": [
         "docs/api-fixture.md",
         "docs/runner-foundation.md",
-        "docs/browser-foundation.md"
+        "docs/browser-foundation.md",
+        "docs/application.md"
       ],
       "owners": [
         "scripts/runner-inputs.mjs",

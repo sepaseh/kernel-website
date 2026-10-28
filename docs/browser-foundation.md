@@ -2,16 +2,21 @@
 
 [English](browser-foundation.md) · [فارسی](browser-foundation.fa.md)
 
-## Current API fixture prerequisite
+## Source phase and evidence
 
-The api-fixture phase retains the non-runnable browser source and applicationReady:false, with an exact 348-file inventory and the same eleven-check gate. [Independent API fixture](api-fixture.md) defines the pinned public API adapter, fresh owned state, launcher port contract and strict SDK worker control. The foundation sections below retain their earlier phase scope; their prior structural-only API entry is superseded by the explicit revision/installation checks and published src/index.ts entry described in that guide. No real API/browser execution is established for this false snapshot. A later application PR needs its complete fifteen-check execution and protected merge transition.
+The browser foundation introduced the SDK-backed authored scenarios before
+application activation. Read the [source marker](../.github/bootstrap-policy.json)
+for the current exact inventory and [application contract](application.md) for
+activation acceptance. The current `application-guidance` snapshot retains
+`applicationReady:false` and the eleven-check foundation profile. Its authored
+suites and owner tests establish no real browser/API execution or visual comparison.
+Pages, root layout and the CSS pipeline must arrive with the complete runnable
+application and fresh evidence, rather than a marker-only activation.
 
-The **browser-foundation** phase publishes the browser dependency and authored
-scenario closure before application activation. Its exact maintained inventory
-contains **348 files**. The public marker remains `applicationReady:false`.
-There are no published Next.js pages, root layout or CSS pipeline to run, and no
-real browser, API, Docker, Lighthouse, visual-comparison or deployment result is
-claimed by this phase.
+[Independent API fixture](api-fixture.md) defines the pinned public revision,
+installation identity checks, fresh owned state, launcher port contract and SDK
+worker control. These API checks supplement the browser SDK checks below; their
+synthetic owner tests do not establish real wire compatibility.
 
 ## Published owners
 
@@ -37,8 +42,9 @@ Playwright and its Axe integration are exact local development dependencies.
 Strict [tooling typechecking](../tsconfig.tooling.json) includes all thirteen
 authored e2e TypeScript files and four configurations against the installed SDK
 types. This is compilation evidence, not a browser installation or execution.
-The current full profile registers no browser, Lighthouse, Knip or deployment
-execution command and creates no new provider workflow.
+The false-marker profile registers no browser, Lighthouse, Knip or deployment
+execution command. A runnable application must register and pass the complete
+application profile; operational workflows have their own later acceptance.
 
 The resolver checks the selected root's package name, exact declared Playwright
 version, lockfile entry, installed package name/version and fixed unlinked CLI
@@ -66,9 +72,9 @@ context. Direct website SDK invocation must use an explicitly filtered parent,
 as the owned visual/CSP launchers do; `createPlaywrightConfig` is a data factory,
 not a replacement for this executable boundary.
 
-Browser provisioning is deferred; visual children use the selected installation's
-project-local browser location. Neither installation of the npm SDK nor a fake
-probe in an owner test establishes a provisioned browser.
+Application acceptance requires provisioning the matching browser; visual children
+use the selected installation's project-local browser location. Neither installation
+of the npm SDK nor a fake probe in an owner test establishes a provisioned browser.
 
 Website and visual configurations describe fresh owned API/website fixtures and
 refuse to reuse an existing service. Authored helpers derive their origins from
@@ -86,12 +92,13 @@ authorization and acceptance evidence.
 
 ## Authored scenarios and visual evidence
 
-The nine [website](../e2e/website/website.spec.ts) source files describe future
+The nine [website](../e2e/website/website.spec.ts) scenario source files describe
 authentication/account, session isolation, client boundaries, language/direction,
 SEO, CSP, accessibility, font and performance checks. Their
 [shared fixture helpers](../e2e/website/helpers.ts) remain test infrastructure.
 The SEO scenario's additional standalone process uses the reviewed readiness,
-unlinked-file and direct-child lifecycle owners. Its page behavior is unexecuted.
+unlinked-file and direct-child lifecycle owners. Page behavior requires actual
+execution on the proposed application tree; the false-marker gate does not run it.
 
 Two [visual source files](../e2e/visual/website.spec.ts) describe the scenes and
 [font-readiness expectations](../e2e/visual/readiness.ts). The visual configuration
@@ -102,8 +109,9 @@ reviewer/time; update mode invalidates prior approval before capture can change
 an image. An unsuccessful or partial capture must remain pending.
 
 Previous PNGs and review metadata remain preserved historical material outside
-this snapshot. This phase neither imports them as current evidence nor creates,
-refreshes or approves a baseline. See [visual limits](visual-regression.md),
+this snapshot. Historical metadata cannot attest current compatibility; a later
+application must run the matching reviewed baseline under the visual contract.
+This documentation change creates or approves no baseline. See [visual limits](visual-regression.md),
 [fonts](fonts.md) and [accessibility](accessibility.md).
 
 Two operation files describe [release smoke](../e2e/operations/smoke.spec.ts) and
@@ -116,9 +124,10 @@ The four Node owner files join measured governance coverage and source analysis.
 They exercise readiness ordering with poisoned option/environment getters,
 owned synthetic SDK manifests and fake CLI/module programs, explicit input
 rejection, configuration contents, owned stopping and failure/cleanup paths.
-No test starts a real browser, Next.js application, independent API or Docker
-engine. Installed SDK types participate in strict compilation; the authored
-browser cases are not executed or reported as skipped successes.
+These owner tests start no real browser, Next.js application, independent API or
+Docker engine. Installed SDK types participate in strict compilation. The
+false-marker profile does not execute authored browser cases or report them as
+skipped successes; application acceptance requires their separate real execution.
 
 Focused development checks may run the four Node owners:
 
@@ -127,17 +136,18 @@ node --test scripts/browser-inputs.test.mjs scripts/playwright-config.test.mjs s
 ```
 
 Before an authorized commit, push or PR handoff, fresh Node and pinned Python
-installation and all eleven [canonical full checks](../.agents/validation.json)
-must pass on the exact isolated proposed tree. Keep the existing unit,
+installation and the complete [canonical profile](../.agents/validation.json)
+must pass on the exact isolated proposed tree, retaining all eleven checks while
+the marker is false. Keep the existing unit,
 governance and font thresholds, source closure and complete provider preflight.
 See [validation](validation.md), [testing](testing.md) and
 [test reliability](test-reliability.md).
 
-The original Docker smoke launcher, Lighthouse performance launcher and Knip
-configuration remain preserved for application activation. That later phase
-must supply actual pages/layout/CSS, an independently installed synthetic API,
-browser provisioning, applicable reviewed baselines and real build, e2e and
-visual jobs. Observe those jobs passing and make them required before a runnable
-merge. The current foundation preserves the [runner limits](runner-foundation.md),
+Application activation must supply pages/layout/CSS, Knip, an independently
+installed synthetic API, browser provisioning, applicable reviewed baselines and
+real build, e2e and visual jobs. Observe those jobs passing and make them required
+before a runnable merge. The preserved Docker smoke and Lighthouse launchers
+belong to the separate operations acceptance; they do not replace the application
+gate. These owners preserve the [runner limits](runner-foundation.md),
 including direct-child ownership rather than descendant supervision, and does
 not establish SSR, cookies in a browser, visual quality or a release.

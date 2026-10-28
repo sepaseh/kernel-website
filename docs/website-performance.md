@@ -2,10 +2,13 @@
 
 [English](website-performance.md) · [فارسی](website-performance.fa.md)
 
-**integration-tooling** publishes independently testable bundle/environment tools
-over unchanged local website support. Pages/layout/CSS, a production build,
-browser/Lighthouse/analyzer runners and measured lab/field results remain absent.
-No external metrics transport is enabled.
+Bundle/environment helpers, readiness-first process/analyzer runners and
+authored browser cases are maintained source. The [publication marker](../.github/bootstrap-policy.json)
+identifies whether the exact inventory contains application composition. With
+`applicationReady:false`, those tools do not establish a production build, browser
+measurement, Lighthouse run or field dataset. [Application acceptance](application.md)
+requires real build/budget/browser evidence; optional lab and field analysis
+retain their own evidence and authorization. No default external metrics transport exists.
 
 ## Published tooling
 
@@ -30,7 +33,9 @@ synthetic child environment. The clean-website preflight checks relevant dotenv
 existence without loading, moving or overwriting values. These helpers do not
 start processes or prove an API is installed. [API location](../scripts/api-repository.mjs)
 requires KERNEL_SYNTHETIC_ENV=1 and an absolute explicit KERNEL_API_DIRECTORY;
-marker validation is separate from an immutable installed fixture and real execution.
+the [fixture adapter](api-fixture.md) additionally verifies the immutable public
+revision, clean source and independently installed dependency identity. Those
+checks remain separate from actual API/browser execution.
 
 ## Retained source support
 
@@ -39,7 +44,8 @@ the framework hook; its owner test mocks that boundary. The
 [delivery helper](../src/shared/performance/web-vitals.ts) provides only permitted
 standard numeric fields to explicitly subscribed consumers, without default
 transport, storage or replay. Consumer failure cannot corrupt another delivery.
-This is not a mounted root layout, enabled RUM service, field INP or p75 dataset.
+The callback and its mocked owner test alone establish neither root-layout
+mounting nor an enabled RUM service, field INP or p75 dataset.
 Do not sum successive metric values or treat a missing interaction metric as zero.
 
 [Client message selection](../src/i18n/client-messages.ts) retains explicit scoped
@@ -47,10 +53,12 @@ keys. [Font integrity](fonts.md) verifies real source/subset binaries, license,
 hashes and metadata, preserving the language preload policy. These helpers do not
 prove browser transfer, shaping, computed CSS or page rendering performance.
 
-## Future runnable evidence
+## Application and measurement evidence
 
-Publish real app integration and an independently installed synthetic API fixture
-before build/bundle, browser, font-shaping, Lighthouse or analyzer execution. Use
+Require the real application inventory and independently installed
+[pinned synthetic API](api-fixture.md) before build/bundle, browser, font-shaping,
+Lighthouse or analyzer execution. Availability of one runner does not activate
+an unpublished operation. Use
 owned temporary state, allowlisted environments and loopback-only targets;
 sequence shared build outputs and clean only owned resources. Record exact
 source/build, tool/browser versions, settings, all samples, failures and cleanup.
@@ -58,7 +66,7 @@ source/build, tool/browser versions, settings, all samples, failures and cleanup
 Keep lab observations separate from field metrics, and advisory scores separate
 from mandatory correctness/budget failures. Do not hide content, delay work past
 an audit window, remove real session behavior or refresh baselines to improve a
-score. A deferred analyzer graph is not itself a transfer/performance measurement.
+score. An analyzer graph is not itself a transfer/performance measurement.
 Use [testing](testing.md), [visual regression](visual-regression.md) and
 [canonical validation](validation.md). This guide records no current browser or
 performance pass.

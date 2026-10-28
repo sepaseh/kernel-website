@@ -3,24 +3,26 @@
 [English](reviews.md) · [فارسی](reviews.fa.md)
 
 For each HTTP, authentication, session, artifact/configuration or deployment
-reference change, review its threat boundary and actual source/tests. The
-**delivery-tooling** phase keeps `applicationReady:false`: local tests and static
-templates do not establish a secured service, a provider scan or a deployment.
+reference change, review its threat boundary and actual source/tests. Select the
+scope from the [publication marker](../../.github/bootstrap-policy.json) and
+[application contract](../application.md). Local tests, authored suites and static
+templates do not establish a secured service, provider scan or deployment.
 Run the complete [canonical gate](../validation.md) before an authorized
 commit/push/PR handoff and preserve audit/test failures.
 
 Review file exclusions and linked-path rejection, immutable output ownership,
-untrusted public configuration, target validation and cleanup errors. The current
-CLI readiness guard prevents delivery operations in this non-runnable phase;
+untrusted public configuration, target validation and cleanup errors. The
+CLI readiness guard prevents application/delivery operations when the marker is false;
 synthetic fixtures explicitly declaring readiness test the contract rather than
 the missing application. A name-based file filter cannot discover every secret
 inside allowed content. Never introduce real dotenv, keys, developer state,
 production accounts or buckets into a fixture.
 
 The existing Dependabot version-update limits remain zero; publishing this policy
-does not activate update PRs or prove provider security-update settings. CodeQL,
-DAST and release/staging activation remain separate future work. Do not describe
-their deferred definitions as active scheduled scans. Native Sonar and required
+does not activate update PRs or prove provider security-update settings. Verify
+CodeQL, DAST and release/staging definitions and actual runs independently.
+A plan, absent workflow or manual definition is not an active scheduled scan.
+Publishing a workflow does not authorize dispatch, production access or a release. Native Sonar and required
 checks still need exact-head provider evidence under the
 [branch policy](../branch-protection.md).
 

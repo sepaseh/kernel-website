@@ -2,10 +2,13 @@
 
 [English](server-boundary.md) · [فارسی](server-boundary.fa.md)
 
-This phase publishes framework-independent API forwarding and document CSP policy
-helpers with synthetic Node tests. The wider [guidance phase](bootstrap.md) contains sixty-six production modules, thirty-four source test files and three test-support modules; these HTTP/CSP helpers remain framework independent. `applicationReady:false` remains
-mandatory. No Next.js route, request nonce generator, renderer or browser behavior
-is provided or verified by these helpers.
+The forwarding and CSP owners below are framework-independent helpers. Read the
+[source marker](../.github/bootstrap-policy.json) and [phase contract](bootstrap.md)
+before claiming document or route integration. The `application-guidance`
+snapshot retains sixty-six production modules, thirty-four source test files and
+three test-support modules with `applicationReady:false`. Its isolated unit tests
+verify helper behavior; routes, request nonce generation and browser enforcement
+require the separate [application acceptance contract](application.md).
 
 ## API forwarding
 
@@ -45,14 +48,16 @@ attach headers or establish that a browser enforces CSP.
 
 ## Validation and remaining publication
 
-Run the entire eleven-check `npm run validate -- full` gate on this exact isolated
-snapshot before commit, push or PR handoff. It includes measured unit/governance
-coverage, strict inventory and closed imports, without contacting an existing API or loading dotenv.
+Run the complete phase-specific `npm run validate -- full` gate on the exact
+isolated snapshot before commit, push or PR handoff. The current false-marker
+profile has eleven checks, including measured unit/governance coverage, strict
+inventory and closed imports, without contacting an existing API or loading dotenv.
 Tests mock fetch and use synthetic Web streams; they never contact an existing API.
 
-Later focused PRs must publish Next.js routes, the server-only nonce adapter and
-request-header replacement, translation rendering, actual UI, framework metadata integration and browser
-fixtures. Before any runnable-app merge, introduce the complete fifteen-check
-application gate, observe real build/e2e/visual jobs pass and make their contexts
-required. This phase's pass cannot establish those results. The [branch policy](branch-protection.md)
+Application activation must publish Next.js routes, the server-only nonce adapter,
+request-header replacement, translation rendering, UI, framework metadata and
+browser fixtures together with their tests. Before any runnable-app merge,
+introduce the complete fifteen-check application gate, observe real
+build/e2e/visual jobs pass and make their contexts required. A false-marker gate
+cannot establish those results. The [branch policy](branch-protection.md)
 and [CodeRabbit preflight](sonarqube.md#before-requesting-coderabbit) remain mandatory.

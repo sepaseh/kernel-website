@@ -2,8 +2,13 @@
 
 [English](localization.md) · [فارسی](localization.fa.md)
 
-The current [guidance phase](bootstrap.md) publishes complete local website catalogs, a plain lazy loader registry and explicit client message selection. Local components use real next-intl in isolated tests. It remains non-runnable with
-`applicationReady:false`: request-scoped Next.js adapters, application message providers, screens and browser-rendered translation behavior are not included.
+Complete local website catalogs, a plain lazy loader registry and explicit client
+message selection define the localization contract. Local components use real
+next-intl in isolated tests. Read the [publication marker](../.github/bootstrap-policy.json):
+with `applicationReady:false`, these tests do not execute request-scoped Next.js
+adapters, application providers or browser-rendered pages. The
+[application contract](application.md) requires those owners to preserve the same
+API authority and client message boundaries.
 
 ## Catalog ownership
 
@@ -55,9 +60,9 @@ linguistic quality assessment.
 The exact publication guard requires every catalog, its type, registry, tests
 and this bilingual guide. Production boundary checks reject runtime data
 imports, foreign packages, omitted adapters and cross-checkout dependencies.
-All eleven checks in the [canonical full gate](../.agents/validation.json) run on
-every PR and produce real unit/governance coverage for the published scope.
+The [canonical full gate](../.agents/validation.json) runs on every PR for its
+declared scope: eleven checks for false-marker prerequisites, all fifteen for
+application activation. Keep genuine unit/governance coverage of every published
+production module.
 
-[Client message selections](../src/i18n/client-messages.ts) and their owner tests cover explicit root/auth/account key boundaries, shared-key retention and missing/nested-value rejection across all ten languages. [Local UI/session tests](client-ui.md) exercise a real next-intl provider with synthetic EN/FA data. Feature form tests use [scoped fixture messages](../src/test/feature-session.tsx) from the explicit auth/account selections, so complete catalogs cannot hide a missing client key. Request-scoped Next.js integration, application provider rendering and bootstrap error-page use belong to the later runtime owners.
-Browser, accessibility and reviewed visual validation still require the runnable
-application and its independently published synthetic API fixture.
+[Client message selections](../src/i18n/client-messages.ts) and their owner tests cover explicit root/auth/account key boundaries, shared-key retention and missing/nested-value rejection across all ten languages. [Local UI/session tests](client-ui.md) exercise a real next-intl provider with synthetic EN/FA data. Feature form tests use [scoped fixture messages](../src/test/feature-session.tsx) from the explicit auth/account selections, so complete catalogs cannot hide a missing client key. Request-scoped Next.js integration, application providers and bootstrap error pages must consume the same local data contract. Browser, accessibility and reviewed visual validation require actual execution of the exact runnable snapshot against the [pinned independent synthetic API](api-fixture.md), including unavailable-settings failures and API-supplied direction.

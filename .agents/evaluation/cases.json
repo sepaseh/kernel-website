@@ -27,7 +27,7 @@
     {
       "id": "language-authority",
       "prompt": {
-        "en": "Trace API-owned active language validation into local catalog selection, without operator settings or an unpublished framework adapter."
+        "en": "Trace API-owned language validation into local catalog selection. Inspect the marker/inventory before describing framework adapters or their execution."
       },
       "taskIds": ["active-language"],
       "evidence": [
@@ -38,7 +38,7 @@
       ],
       "mustExplain": [
         "Uncached API settings select one supported language/direction; unavailable or unsupported settings fail explicitly.",
-        "All ten local flat catalogs are complete; request/layout adapters and browser negotiation are not published."
+        "All ten flat catalogs are complete. Request/layout composition must be confirmed in the exact source inventory; visitor negotiation remains forbidden and support tests do not verify SSR."
       ],
       "mustNot": [
         "Add a visitor language selector, silently fall back to English or claim SSR/header redirects have been verified."
@@ -70,7 +70,7 @@
     {
       "id": "proxy-origin-boundary",
       "prompt": {
-        "en": "Inspect origin, credentials and body/route restrictions in the pure forwarding helper and distinguish them from future route wiring."
+        "en": "Inspect origin, credentials and route/body restrictions in the forwarding helper; establish framework wiring and its evidence from the actual phase."
       },
       "taskIds": ["auth-session"],
       "evidence": [
@@ -83,7 +83,7 @@
         "Cookie/private responses remain no-store; synthetic Request/Response tests validate the helper, not a deployed gateway or real browser."
       ],
       "mustNot": [
-        "Bypass the helper, import API implementation or claim an unpublished Next route or TLS gateway ran."
+        "Bypass the helper, import API implementation or claim a route/TLS gateway ran without current source and execution evidence."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
@@ -102,7 +102,7 @@
       ],
       "mustExplain": [
         "SEO uses an explicitly valid public HTTPS origin and opt-in production indexing rather than upstream or request Host.",
-        "Data/metadata/JSON-LD helpers do not publish robots, sitemap, social images, SSR content or Search Console verification."
+        "Metadata/data/JSON-LD helper coverage does not itself demonstrate real robots/sitemap/social-image routes, SSR or Search Console verification; inspect actual application composition and results."
       ],
       "mustNot": [
         "Infer real discovery routes, published URLs or field indexing from helper coverage or the existence of ten catalogs."
@@ -127,14 +127,14 @@
         "Optional Web Vitals preserve metric semantics and have no default transport; static-markup and local tests do not prove browser loading, field INP or p75."
       ],
       "mustNot": [
-        "Claim enabled RUM, runnable CSS/header integration, initial transfer size or real performance measurements from helper tests."
+        "Claim enabled RUM, initial transfer size, runnable CSS/header integration or real performance measurements without actual current-scope evidence."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
     {
       "id": "nonce-rollout",
       "prompt": {
-        "en": "Explain what the pure CSP policy helper does and what still needs nonce generation and framework/gateway integration."
+        "en": "Trace pure CSP policy ownership and use the marker/inventory to identify required nonce/framework/gateway composition and actual evidence."
       },
       "taskIds": ["website-csp"],
       "evidence": [
@@ -144,8 +144,8 @@
         "SECURITY.md"
       ],
       "mustExplain": [
-        "Separate helpers parse report-only/enforce mode and construct a mode-independent CSP policy from a supplied nonce. Choosing the enforcing or report-only response header belongs to future framework wiring; report-only does not block violations.",
-        "Nonce generation, incoming-header removal, response wiring, HTML caching and gateway rollout need unpublished adapters and future browser evidence."
+        "Policy helpers parse modes and construct a nonce policy. Header selection belongs to framework wiring and must be confirmed in the source; report-only does not block violations.",
+        "Nonce generation, incoming-header removal, response wiring, HTML caching and gateway rollout require actual adapters and current browser evidence, not helper tests."
       ],
       "mustNot": [
         "Claim fresh per-response nonces, a collector, deployed CSP or both browser modes are already verified."
@@ -163,10 +163,11 @@
         ".agents/validation.json",
         "scripts/validate-bootstrap.mjs",
         ".agents/rules/pull-requests.md",
-        "docs/bootstrap.md"
+        "docs/bootstrap.md",
+        "docs/application.md"
       ],
       "mustExplain": [
-        "The guidance snapshot remains applicationReady:false with unchanged production closure and required isolated full validation; a PR changes no more than100 entries.",
+        "Read the canonical marker, exact inventory and full manifest. The application-guidance snapshot is false with the unchanged66-module product closure and eleven checks; runnable integration requires all fifteen and genuine current build/browser/visual acceptance. Each PR changes at most100 entries.",
         "Provider requests require successful latest exact-head non-CodeRabbit checks, matching genuine Sonar analysis and an all-severity complete zero-unresolved report, cooldown and no in-flight duplicate.",
         "Runtime build/browser/visual/deployment evidence and current-head approval cannot be inferred from local guidance or a skipped review."
       ],
@@ -193,10 +194,11 @@
         "src/components/ui/button.tsx",
         "src/shared/ui/FormField.tsx",
         "src/features/login/Login.tsx",
-        "src/i18n/client-messages.ts"
+        "src/i18n/client-messages.ts",
+        "docs/application.md"
       ],
       "mustExplain": [
-        "Read the canonical design contract/skill and actual primitives before selecting tools; CSS tokens, a root layout and generator configuration are future integration work.",
+        "Read the design contract/skill, marker and actual primitives before selecting tools. Confirm CSS, root layout and generator ownership against the inventory; missing composition belongs to application acceptance.",
         "Preserve native submit semantics, pending/error states, API-owned locale/direction, ten flat catalogs, scoped messages, theme and cookie/session ownership.",
         "A concept/editable design is separate evidence from runnable integration or a hosted preview; instruction loading and external tool actions require actual observed evidence and existing authorization."
       ],

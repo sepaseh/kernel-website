@@ -3,8 +3,11 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 These accepted decisions define source/service ownership and the website's intended
-runtime, HTTP, language and session boundaries. Implementation notes distinguish
-published local support from later runnable integration. An accepted decision is
+runtime, HTTP, language and session boundaries. Delivery status comes from the
+[publication marker](../../.github/bootstrap-policy.json), exact inventory and
+[application acceptance](../application.md), rather than the ADR status.
+Implementation notes distinguish false-marker support evidence from executed
+application and deployment evidence. An accepted decision is
 not evidence that a build, browser journey or deployment has run. Read owner
 source and tests before changing a boundary.
 

@@ -15,8 +15,11 @@ have one bare root key; exclusive account/auth keys use explicit prefixes in the
 same flat object. Catalog changes are local. Paths, DTOs, cookies and settings
 still require release-time HTTP compatibility with the independent API.
 
-Reveal and its test live under website/home. Preferences is shared support for
-future shell reuse; Header/Footer integration is not published in this phase.
+Reveal and its test live under website/home. Preferences retains shared semantic
+ownership when composed by an application shell. Header/Footer composition must
+be present in the exact application inventory and covered under the
+[application contract](../application.md); a false-marker prerequisite is not
+evidence of that integration.
 No runtime source dependency on another checkout or installed local source
 package is permitted. One independently installable root package must remain.
 

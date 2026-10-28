@@ -16,9 +16,10 @@ variables. Providers and translation execution stay outside pure catalog data;
 client code selects explicit root/auth/account key groups.
 
 The accepted URL design has unprefixed canonical routes and no visitor language
-switch, cookie or browser negotiation. Routes, HTML lang/dir, metadata and legacy
-prefix redirects still require later runtime integration and tests; their behavior
-is not established by this support phase.
+switch, cookie or browser negotiation. Application acceptance must verify routes,
+HTML lang/dir, metadata and legacy prefix redirects on the exact runtime tree.
+False-marker support tests do not establish those behaviors. Use the
+[application contract](../application.md) without changing API language authority.
 
 Read [registry](../../src/i18n/catalog-data/locales.ts),
 [language loader](../../src/shared/settings/language.ts),

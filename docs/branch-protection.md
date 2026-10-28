@@ -2,9 +2,7 @@
 
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
-The **foundation**, **localization**, **server-boundary**, **client-document**, **client-ui** **feature-ui**, **guidance**, **integration-tooling**, **delivery-tooling**, **runner-foundation** and **browser-foundation** phases remain non-runnable with
-`applicationReady:false` and explicit source inventories. All these phases require
-these native checks:
+Use the [source marker](../.github/bootstrap-policy.json) and [application contract](application.md) to identify actual scope. All false-marker publication phases, including API fixture and application guidance, keep the following ordinary native protected checks:
 
 | Required published-phase check | Expected GitHub App         |
 | ------------------------------ | --------------------------- |
