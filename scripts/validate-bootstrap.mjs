@@ -383,7 +383,39 @@ const runnerFoundationFiles = [
   "scripts/test-website-server.test.mjs",
 ];
 const runnerFoundationPaths = new Set(runnerFoundationFiles);
-const deliveryPhases = new Set(["delivery-tooling", "runner-foundation"]);
+const browserFoundationFiles = [
+  "docs/browser-foundation.fa.md",
+  "docs/browser-foundation.md",
+  "e2e/operations/smoke.spec.ts",
+  "e2e/operations/staging.spec.ts",
+  "e2e/visual/readiness.ts",
+  "e2e/visual/website.spec.ts",
+  "e2e/website/accessibility.spec.ts",
+  "e2e/website/client-boundaries.spec.ts",
+  "e2e/website/csp.spec.ts",
+  "e2e/website/font-performance.spec.ts",
+  "e2e/website/helpers.ts",
+  "e2e/website/performance.spec.ts",
+  "e2e/website/seo.spec.ts",
+  "e2e/website/session-isolation.spec.ts",
+  "e2e/website/website.spec.ts",
+  "playwright.smoke.config.ts",
+  "playwright.staging.config.ts",
+  "playwright.visual.config.ts",
+  "playwright.website.config.ts",
+  "scripts/browser-inputs.mjs",
+  "scripts/browser-inputs.test.mjs",
+  "scripts/playwright-config.mjs",
+  "scripts/playwright-config.test.mjs",
+  "scripts/run-visual.mjs",
+  "scripts/test-csp-report-only.mjs",
+  "scripts/test-csp-report-only.test.mjs",
+  "scripts/visual.test.mjs",
+  "tsconfig.tooling.json",
+];
+const browserFoundationPaths = new Set(browserFoundationFiles);
+const runnerPhases = new Set(["runner-foundation", "browser-foundation"]);
+const deliveryPhases = new Set(["delivery-tooling", ...runnerPhases]);
 const toolingPhases = new Set(["integration-tooling", ...deliveryPhases]);
 const isPublishedSource = (file, phase) =>
   foundationSource.has(file) ||
@@ -404,6 +436,8 @@ const isPublishedSource = (file, phase) =>
   (["client-ui", "feature-ui"].includes(phase) && clientUiSource.has(file)) ||
   (phase === "feature-ui" && featureUiSource.has(file));
 const publicationScopes = {
+  "browser-foundation":
+    "Published readiness-first browser configuration, visual/CSP orchestration and authored Playwright suites with installed SDK type checking and owned synthetic Node tests. The readiness guard refuses this non-runnable snapshot; authored suites are not browser, accessibility, visual, API compatibility, application build or deployment execution evidence.",
   "runner-foundation":
     "Published readiness-first Node process/input, standalone/API fixture and analysis runners with owned local subprocess tests. The readiness guard refuses this non-runnable snapshot; no real Next.js build/start, independent API compatibility, browser, Docker or deployment execution is established.",
   "delivery-tooling":
@@ -460,7 +494,8 @@ const requiredPublicationFiles = (phase, sourcePhase) => [
     ? [...maintainedSupportFiles, ...integrationToolingFiles]
     : []),
   ...(deliveryPhases.has(phase) ? deliveryToolingFiles : []),
-  ...(phase === "runner-foundation" ? runnerFoundationFiles : []),
+  ...(runnerPhases.has(phase) ? runnerFoundationFiles : []),
+  ...(phase === "browser-foundation" ? browserFoundationFiles : []),
 ];
 
 const rejectsProtectedPublicationPath = (file, phase) => {
@@ -475,6 +510,12 @@ const rejectsProtectedPublicationPath = (file, phase) => {
     (localSettingsPath && (!deliveryPhase || !publicDeliveryExamples.has(file)))
   );
 };
+
+const isToolingPathOutsidePhase = (file, phase) =>
+  (!toolingPhases.has(phase) &&
+    (integrationToolingPaths.has(file) || deliveryToolingPaths.has(file))) ||
+  (!runnerPhases.has(phase) && runnerFoundationPaths.has(file)) ||
+  (phase !== "browser-foundation" && browserFoundationPaths.has(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
@@ -508,10 +549,7 @@ export const validateBootstrapPolicy = (policy) => {
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
-      (!toolingPhases.has(policy.phase) && integrationToolingPaths.has(file)) ||
-      (!toolingPhases.has(policy.phase) && deliveryToolingPaths.has(file)) ||
-      (policy.phase !== "runner-foundation" &&
-        runnerFoundationPaths.has(file)) ||
+      isToolingPathOutsidePhase(file, policy.phase) ||
       files.has(file)
     )
       throw new Error(

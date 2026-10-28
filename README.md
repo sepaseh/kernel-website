@@ -2,7 +2,7 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This standalone TypeScript project is in its **runner-foundation** phase.
+This standalone TypeScript project is in its **browser-foundation** phase.
 `applicationReady` is **false**. The published scope contains sixty-six production
 modules, thirty-four source test files and three test-support modules:
 
@@ -32,12 +32,12 @@ Portable [guidance](.agents/README.md), [source navigation](docs/source-navigati
 Read [forms](docs/forms.md), [client UI](docs/client-ui.md), [session ownership](docs/session.md),
 [client/document support](docs/client-document.md), [fonts](docs/fonts.md) and
 [server boundary](docs/server-boundary.md) for behavior and remaining integration.
-Next.js pages, root layout, request/translation adapters, a CSS pipeline, browser
+Next.js pages, root layout, request/translation adapters, a CSS pipeline, executed browser
 journeys and deployment are not included. The installed support libraries are
 explicitly declared in [package.json](package.json); production package imports
 have exact owner, identity and runtime/type-only permissions. Next.js supplies erased document types, the isolated Web Vitals hook adapter and
 feature-local link/router boundaries without a framework entry point. Read [localization](docs/localization.md) and the exact
-[317-file snapshot inventory](.github/bootstrap-policy.json).
+[345-file snapshot inventory](.github/bootstrap-policy.json).
 
 Dependabot version-update pull requests are configured with a zero limit while publication follows one open PR at a time. Repository security-update settings are separate and are not established by this local configuration. The future component-generator configuration and CSS integration are deferred.
 
@@ -72,4 +72,4 @@ The retained integration tooling provides four independent quality helpers: expl
 
 Delivery preparation adds eight Node helpers for owned artifact copying/packaging, phase readiness, explicit health checks, public configuration validation/rendering, scoped cleanup and target validation. Six Node owner-test files join measured governance coverage; existing audit regression cases retain their measured Vitest unit ownership. The [delivery guides](docs/deployment.md), [release operations](docs/release-operations.md), [releasing](docs/releasing.md), [staging](docs/staging.md) and passive native/Docker templates describe future operator acceptance. The source remains non-runnable: core CLIs reject its false readiness marker before operations. Synthetic fixture success is not a Next.js build, installed API, container, deployment or release. [Changelog](CHANGELOG.md) distinguishes imported history from current evidence.
 
-The [runner foundation](docs/runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.
+The [runner foundation](docs/runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](docs/browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.

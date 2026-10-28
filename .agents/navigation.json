@@ -343,7 +343,7 @@
     },
     {
       "id": "runner-foundation",
-      "when": "Change readiness-first local Node runner inputs, owned direct-child lifecycle, standalone/API fixture launching or bounded analysis output. Real application, API compatibility, browser SDK/suites and deployment remain deferred.",
+      "when": "Change readiness-first local Node runner inputs, owned direct-child lifecycle, standalone/API fixture launching or bounded analysis output. Real application, API compatibility, actual browser execution and deployment remain deferred.",
       "owners": [
         "scripts/analyze-website-performance.mjs",
         "scripts/runner-inputs.mjs",
@@ -372,6 +372,57 @@
         "snapshot",
         "ci-policy",
         "guidance",
+        "lint",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
+      "id": "browser-foundation",
+      "when": "Change readiness-first Playwright configuration, installed browser SDK identity, visual/CSP orchestration or authored website/visual/operations suites. This phase type-checks suites but does not execute a browser or an independent API.",
+      "owners": [
+        "scripts/browser-inputs.mjs",
+        "scripts/playwright-config.mjs",
+        "scripts/run-visual.mjs",
+        "scripts/test-csp-report-only.mjs",
+        "playwright.smoke.config.ts",
+        "playwright.staging.config.ts",
+        "playwright.visual.config.ts",
+        "playwright.website.config.ts"
+      ],
+      "contracts": [
+        ".github/bootstrap-policy.json",
+        "docs/browser-foundation.md",
+        "tsconfig.tooling.json",
+        "scripts/runner-inputs.mjs",
+        "scripts/release-files.mjs",
+        ".agents/rules/testing.md"
+      ],
+      "tests": [
+        "scripts/browser-inputs.test.mjs",
+        "scripts/playwright-config.test.mjs",
+        "scripts/test-csp-report-only.test.mjs",
+        "scripts/visual.test.mjs",
+        "scripts/validate-bootstrap.test.mjs",
+        "e2e/operations/smoke.spec.ts",
+        "e2e/operations/staging.spec.ts",
+        "e2e/visual/readiness.ts",
+        "e2e/visual/website.spec.ts",
+        "e2e/website/accessibility.spec.ts",
+        "e2e/website/client-boundaries.spec.ts",
+        "e2e/website/csp.spec.ts",
+        "e2e/website/font-performance.spec.ts",
+        "e2e/website/helpers.ts",
+        "e2e/website/performance.spec.ts",
+        "e2e/website/seo.spec.ts",
+        "e2e/website/session-isolation.spec.ts",
+        "e2e/website/website.spec.ts"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "typecheck",
         "lint",
         "format",
         "governance-coverage"

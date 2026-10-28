@@ -1,16 +1,21 @@
-# Canonical validation for delivery tooling
+# Canonical validation for browser foundation
 
 [English](validation.md) · [فارسی](validation.fa.md)
 
 [.agents/validation.json](../.agents/validation.json) is the sole command/profile
-inventory. **runner-foundation** retains eleven required checks over the exact
-317-file non-runnable inventory. Four retained integration helpers with three Node
+inventory. **browser-foundation** retains eleven required checks over the exact
+345-file non-runnable inventory. Four retained integration helpers with three Node
 owner-test files and eight delivery helpers with six Node owner-test files stay in
 required governance coverage, not unexecuted advisory entries. The existing eleven
 audit regression cases remain in the Vitest unit suite; their runner and coverage
 owner are unchanged. settings.recommendedChecks is a checked full-profile projection.
 [Contributing](../CONTRIBUTING.md) owns installation, authorization and exact-tree
 handoff requirements.
+
+The required `typecheck` command checks both `tsconfig.json` and
+`tsconfig.tooling.json` against the installed dependencies. The second project
+checks all thirteen authored e2e TypeScript files and four Playwright
+configurations; compilation does not execute a browser, an API or a journey.
 
 Use the pinned Node and its bundled npm, and Python3.14.4 with pinned font
 requirements in a disposable environment outside the checkout. After fresh
@@ -72,4 +77,4 @@ API fixture, extend application checks, observe genuine build/browser/CSP/visual
 jobs and require their verified contexts. Historical reports and baseline metadata
 cannot replace that evidence.
 
-The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. Browser SDK/suites and application activation remain future work.
+The [runner foundation](runner-foundation.md) adds six Node modules and six measured Node owner-test files for explicit inputs, direct-child lifecycle, standalone/API fixture launching and bounded analysis output. The website, API, server and analyzer entry operations read the public readiness marker first and refuses this snapshot with applicationReady:false. Imports do not load dotenv, mutate the environment or launch a service. Tests run owned synthetic Node programs, including failure and cancellation; they do not execute a real Next.js build/start, independent API, browser, Docker engine or lab analysis. The unchanged eleven-check gate measures the new tooling without weakening thresholds or excluding source. The [browser foundation](browser-foundation.md) now adds typed authored suites, readiness-first Playwright configuration and visual/CSP orchestration. Four Node owner files measure guards and injected behavior; browser binaries, independent APIs and real browser/visual execution remain deferred.
