@@ -26,6 +26,8 @@ Publishing a workflow does not authorize dispatch, production access or a releas
 checks still need exact-head provider evidence under the
 [branch policy](../branch-protection.md).
 
+The published CodeQL source defines automatic main/PR/weekly JavaScript/TypeScript analysis with pinned actions, no application autobuild and job-scoped security-event upload permission. Confirm actual host support, permissions and each analysis result independently. DAST, release, packaging, staging and deployment smoke stay manual main-only workflows; their target validation, artifact scope, environment filtering and least permissions are checked as source policy, not as completed scans or deployments.
+
 As a human review policy, review security assumptions at least quarterly and
 before a public launch: API compatibility and ownership, cookies/origins, CSP/cache
 behavior, TLS renewal, target identity, release rollback and recovery evidence.

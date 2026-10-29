@@ -2,7 +2,7 @@
 
 [English](deployment.md) · [فارسی](deployment.fa.md)
 
-The application phase provides runnable Next.js composition, CSS and build/start commands with `applicationReady:true`. The local delivery helpers and deployment references below retain separate operational acceptance. A complete application gate is required for its source, but it does not execute or certify a Docker engine, installed Linux service, certificate, release or deployed target.
+The operations phase retains runnable Next.js composition, CSS and build/start commands with `applicationReady:true` and supplies guarded packaging and Docker-smoke source. Their local preparation, container execution and external deployment have separate acceptance. The complete fifteen-check application gate is still required, but it does not execute or certify a Docker engine, installed Linux service, certificate, release or deployed target.
 
 ## Published preparation contracts
 
@@ -34,7 +34,7 @@ boundaries. They are not deployment instructions for this snapshot. Read
 
 ## Acceptance before a runnable deployment
 
-Deployment acceptance must use the actual application artifact and its exact-tree fifteen-check [validation profile](validation.md), including real production build/bundle, independently installed synthetic API/browser/CSP and current visual comparison. Record source, toolchain, platform, artifact hash and actual results. Retained local helper tests do not establish engine/service compatibility; later operational runner/workflow publication must close its own dependencies and acceptance.
+Deployment acceptance must use the actual application artifact and its exact-tree fifteen-check [validation profile](validation.md), including real production build/bundle, independently installed synthetic API/browser/CSP and current visual comparison. Record source, toolchain, platform, artifact hash and actual results. Retained local helper tests and the published operational runners do not establish engine/service compatibility. Run the guarded container smoke or separately authorized target checks on the intended platform and retain their actual results.
 
 Before operator activation, verify trusted hosts/forwarding, same-origin API
 cookies, request-time settings, CSP/cache behavior, assets/fonts, explicit health
@@ -43,3 +43,5 @@ with the matching previous artifact/configuration and per-release writable cache
 API authorization, persistence, migrations and data recovery remain the
 independent API owner's responsibility. No deployment, rollback or infrastructure
 change is performed by publishing these helpers or guides.
+
+The Docker gateway uses a nonroot `nginx` UID/GID `101`, internal listeners `8080/8443` and unchanged public port selections. Its read-only TLS mount must permit that identity to traverse the certificate directory and read the private key without world access. The owned smoke client verifies the generated certificate chain and hostname against its explicit test CA. See [Docker TLS permissions](../deploy/docker/README.md) before an authorized container run; existing operator-owned certificates are never migrated automatically.

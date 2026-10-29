@@ -28,7 +28,8 @@ const inspectFixture = async (fixture, parent) => {
   assert.ok(path.basename(directory).startsWith("kernel-website-docker-"));
   let stat;
   try {
-    stat = await lstat(directory);
+    // Windows file identifiers can exceed Number's integer precision.
+    stat = await lstat(directory, { bigint: true });
   } catch (error) {
     if (error.code === "ENOENT") return { directory };
     throw error;
@@ -150,8 +151,8 @@ export async function cleanupWebsiteDocker({
       errors.push(new Error(`Could not remove ${label}.`, { cause }));
     }
   };
-  // The certificate helper is not a Compose service and may survive an
-  // interrupted attached Docker CLI even though its normal run uses --rm.
+  // The one-off certificate helper may survive an interrupted attached
+  // Docker CLI even though its normal run uses --rm.
   const certificate = `${project}-certificate`;
   if (imageNames.length)
     await attempt("the test certificate container", async () => {

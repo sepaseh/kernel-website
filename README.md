@@ -2,7 +2,7 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-This independent TypeScript frontend uses the [source marker and exact inventory](.github/bootstrap-policy.json) for publication scope and the [canonical manifest](.agents/validation.json) for required commands. The application phase publishes Next App Router pages, a root layout, CSS and request adapters with `applicationReady:true`, 90 product modules, 38 source test files and three source test-support modules. Readiness describes the complete source closure; exact-tree acceptance still requires the full gate and actual provider evidence.
+This independent TypeScript frontend uses the [source marker and exact inventory](.github/bootstrap-policy.json) for publication scope and the [canonical manifest](.agents/validation.json) for commands. The operations phase retains complete Next App Router composition with `applicationReady:true` and adds the final development and operational tools: 420 source files, 90 product modules, 38 source test files and three source test-support modules. Readiness describes source completeness; exact-tree acceptance and any external operation still require their own actual evidence.
 
 Local product owners provide authentication/account forms, reviewed UI primitives, session/theme providers, ten complete 107-key flat catalogs, cookie/no-store HTTP and forwarding, API-owned language/direction, pure CSP/SEO support, optional private Web Vitals and licensed self-hosted fonts. Read [architecture](docs/architecture.md), [forms](docs/forms.md), [session](docs/session.md), [localization](docs/localization.md), [client/document support](docs/client-document.md) and [fonts](docs/fonts.md).
 
@@ -23,6 +23,8 @@ npm run validate -- full
 The current profile has fifteen required checks, including dead-code analysis, a real production build and bundle budget, browser journeys in enforcing/report-only CSP modes and Windows visual comparison. Real React/RTL, Radix, next-intl and next-themes also run in isolated unit environments with synthetic HTTP; navigation/motion mocks retain their documented limits. All product source, governance scripts and actual font binaries remain measured. Generated coverage and browser reports are not committed.
 
 [Contributing](CONTRIBUTING.md), [testing](docs/testing.md) and [validation](docs/validation.md) define exact-tree acceptance. Every PR executes the full declared profile, including documentation. Each changes at most 100 GitHub entries. Keep one website PR open and create authorized PRs ready for review. Observe hosted CI, Sonar and review results for the current head; files alone do not prove provider success.
+
+The manifest separately registers four manual operations (`deploy:package`, `test:smoke`, `test:staging`, `test:docker`) and advisory `perf:website`; none is executed by the required full profile. Review their explicit inputs and authorization in [operations](docs/release-operations.md), [staging](docs/staging.md), [Docker](deploy/docker/README.md) and [performance](docs/website-performance.md). [components.json](components.json) is optional generator metadata for the existing UI; generator use is not a runtime dependency.
 
 ## Integration and operations
 

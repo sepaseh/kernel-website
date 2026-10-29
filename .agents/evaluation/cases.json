@@ -218,6 +218,39 @@
         "Introduce another UI stack, visitor language controls or duplicate tokens; claim universal autoload, visual/browser readiness or upload/publication without authorization."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage", "guidance"]
+    },
+    {
+      "id": "operations-ownership",
+      "prompt": {
+        "en": "Trace guarded operational source from explicit inputs through pinned SDK/API identities, direct-child and Docker resource ownership, report publication and cleanup. Distinguish source tests, the required application gate, actual lab/container execution and remote operator actions."
+      },
+      "taskIds": ["operations", "application", "api-fixture"],
+      "evidence": [
+        "scripts/operations-checks.mjs",
+        "scripts/run-website-performance.mjs",
+        "deploy/docker/smoke.mjs",
+        "scripts/operations-checks.test.mjs",
+        "scripts/run-website-performance.test.mjs",
+        "deploy/docker/smoke.test.mjs",
+        ".agents/validation.json",
+        "docs/release-operations.md"
+      ],
+      "mustExplain": [
+        "The complete application gate retains fifteen required checks; optional manual/advisory operational commands cannot enter full or weaken existing coverage.",
+        "Readiness precedes configuration, dependencies or operations. Explicit target allowlists and filtered SDK environments do not prove a remote target is non-production or authorize dispatch.",
+        "Real Docker/lab runs require current owned execution evidence. Lighthouse measures twelve local samples and medians, not field INP; reports and summaries must preserve failures and owned cleanup."
+      ],
+      "mustNot": [
+        "Infer deployment, provider security-scan, release or production readiness from source publication, injected callbacks or historical QA.",
+        "Read operator dotenv, credentials or state or clean shared Docker resources."
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "governance-coverage",
+        "dead-code"
+      ]
     }
   ]
 }

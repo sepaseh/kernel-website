@@ -148,7 +148,7 @@ const readCurrentPublicationPolicy = async () =>
   );
 const readGuidancePublicationPolicy = async () => {
   const current = await readCurrentPublicationPolicy();
-  return current.phase === "application"
+  return ["application", "operations"].includes(current.phase)
     ? {
         ...current,
         phase: "application-guidance",
@@ -769,7 +769,11 @@ test("integration tooling closes over every helper, owner test, guide pair and m
         }),
       runnerPublishedFiles.includes(file) ||
         browserPublishedFiles.includes(file) ||
-        ["knip.json", "e2e/visual/baselines/win32/metadata.json"].includes(file)
+        [
+          "knip.json",
+          "e2e/visual/baselines/win32/metadata.json",
+          "scripts/run-website-performance.mjs",
+        ].includes(file)
         ? /unique, exact paths within their declared phase/
         : /closed published inventory/,
       file,
@@ -1403,4 +1407,157 @@ test("application snapshot admits only owned generated root directories and neve
   await rm(path.join(root, ".next"));
   await rm(path.join(root, "src/app/layout.tsx"));
   await assert.rejects(inspectBootstrap(root), /missing declared files/);
+});
+
+const operationsPublishedFiles = [
+  ".github/workflows/codeql.yml",
+  ".github/workflows/dast.yml",
+  ".github/workflows/deployment-smoke.yml",
+  ".github/workflows/package-release.yml",
+  ".github/workflows/release.yml",
+  ".github/workflows/staging.yml",
+  "components.json",
+  "deploy/docker/smoke.mjs",
+  "deploy/docker/smoke.test.mjs",
+  "scripts/operations-checks.mjs",
+  "scripts/operations-checks.test.mjs",
+  "scripts/run-website-performance.mjs",
+  "scripts/run-website-performance.test.mjs",
+];
+const operationsPolicy = () =>
+  policy({
+    phase: "operations",
+    applicationReady: true,
+    allowedFiles: publicationInventory("operations"),
+  });
+
+test("operations add exactly thirteen owned tools to all407 runnable application files", () => {
+  const declared = operationsPolicy();
+  const application = applicationPolicy();
+  assert.equal(declared.allowedFiles.length, 420);
+  assert.equal(validateBootstrapPolicy(declared).size, 420);
+  assert.deepEqual(
+    declared.allowedFiles
+      .filter((file) => !application.allowedFiles.includes(file))
+      .sort(),
+    [...operationsPublishedFiles].sort(),
+  );
+  for (const file of declared.allowedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: declared.allowedFiles.filter((entry) => entry !== file),
+        }),
+      /mandatory/,
+      file,
+    );
+  for (const file of operationsPublishedFiles)
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...application,
+          allowedFiles: [...application.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+  for (const change of [
+    { applicationReady: false },
+    { phase: "application" },
+    { maximumChangedFiles: 101 },
+    { schemaVersion: 2 },
+  ])
+    assert.throws(() => validateBootstrapPolicy({ ...declared, ...change }));
+});
+
+test("operations refuse loose deployment, workflow, source and private additions", () => {
+  const declared = operationsPolicy();
+  for (const file of [
+    ".github/workflows/unlisted.yml",
+    "deploy/docker/unlisted.mjs",
+    "deploy/native/api.env.example",
+    "deploy/docker/.env.local",
+    "deploy/docker/credentials.json",
+    "deploy/docker/tls/key.pem",
+    "scripts/operations-extra.mjs",
+    "docs/unlisted.md",
+    "src/app/unlisted/page.tsx",
+    "../kernel-api/src/index.ts",
+    "server/data/ignored.sqlite",
+    ".env.local",
+    "deploy/**",
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy({
+          ...declared,
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      undefined,
+      file,
+    );
+});
+
+test("operations inspect the complete source without running tools and preserve generated-root boundaries", async (context) => {
+  const declared = operationsPolicy();
+  const { root, put } = await fixture(context, declared);
+  for (const filename of [
+    "deploy/docker/smoke.mjs",
+    "scripts/run-website-performance.mjs",
+    "scripts/operations-checks.mjs",
+  ])
+    await put(
+      filename,
+      "throw new Error('source inspection must never run operations');\n",
+    );
+  for (const directory of [
+    ".lighthouseci",
+    ".next",
+    "dist",
+    "playwright-report",
+    "test-results",
+  ])
+    await put(`${directory}/owned-output.txt`, "owned generated fixture\n");
+
+  const result = await inspectBootstrap(root);
+  assert.equal(result.files, 420);
+  assert.equal(result.phase, "operations");
+  assert.equal(result.applicationReady, true);
+  assert.match(result.scope, /do not establish a Docker engine/);
+  for (const file of [
+    ".env.local",
+    "deploy/docker/unlisted.mjs",
+    "dist-unlisted/output.json",
+  ]) {
+    await put(file, "unexpected fixture data; must not be read\n");
+    await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+    await rm(path.join(root, file));
+    if (file.startsWith("dist-unlisted/"))
+      await rm(path.join(root, "dist-unlisted"), { recursive: true });
+  }
+  for (const directory of [".lighthouseci", "dist"]) {
+    await rm(path.join(root, directory), { recursive: true });
+    await put(directory, "not a generated directory\n");
+    await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
+    await rm(path.join(root, directory));
+    await symlink(
+      path.join(root, "docs"),
+      path.join(root, directory),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
+    await rm(path.join(root, directory));
+  }
+  await rm(path.join(root, "deploy/docker/smoke.mjs"));
+  await assert.rejects(inspectBootstrap(root), /missing declared files/);
+});
+
+test("application snapshots still refuse operation-only generated root directories", async (context) => {
+  const { root, put } = await fixture(context, applicationPolicy());
+  for (const directory of [".lighthouseci", "dist"]) {
+    await put(`${directory}/output.json`, "{}\n");
+    await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+    await rm(path.join(root, directory), { recursive: true });
+  }
 });

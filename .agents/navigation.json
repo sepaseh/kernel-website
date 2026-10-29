@@ -519,6 +519,48 @@
         "scripts/application-checks.test.mjs",
         "scripts/test-website-api.test.mjs"
       ]
+    },
+    {
+      "id": "operations",
+      "when": "Change guarded manual package/smoke/staging commands, owned disposable Docker smoke, advisory Lighthouse sampling or operational/security workflows; source publication never dispatches external targets or proves execution.",
+      "owners": [
+        "scripts/operations-checks.mjs",
+        "scripts/run-website-performance.mjs",
+        "deploy/docker/smoke.mjs",
+        ".github/workflows/codeql.yml",
+        ".github/workflows/dast.yml",
+        ".github/workflows/deployment-smoke.yml",
+        ".github/workflows/package-release.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/staging.yml",
+        "components.json"
+      ],
+      "contracts": [
+        ".github/bootstrap-policy.json",
+        "docs/release-operations.md",
+        "docs/deployment.md",
+        "docs/staging.md",
+        "docs/website-performance.md",
+        "docs/releasing.md",
+        "scripts/runner-inputs.mjs",
+        "scripts/browser-inputs.mjs"
+      ],
+      "tests": [
+        "scripts/operations-checks.test.mjs",
+        "scripts/run-website-performance.test.mjs",
+        "deploy/docker/smoke.test.mjs",
+        "scripts/check-ci.test.mjs",
+        "scripts/deployment.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "governance-coverage",
+        "dead-code"
+      ]
     }
   ]
 }

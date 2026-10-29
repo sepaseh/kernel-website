@@ -673,6 +673,52 @@ test("single-project manifest rejects local package dependencies and workspace s
     );
 });
 
+test("operation commands remain explicit manual or advisory work outside the full application gate", async () => {
+  const load = async (filename) =>
+    JSON.parse(
+      await readFile(new URL(`../${filename}`, import.meta.url), "utf8"),
+    );
+  const [manifest, settings, workflow] = await Promise.all([
+    load(".agents/validation.json"),
+    load(".agents/settings.json"),
+    readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  ]);
+  assert.equal(manifest.phase, "operations");
+  assert.equal(manifest.applicationReady, true);
+  const full = manifest.profiles.full;
+  assert.equal(full.length, 15);
+  const manual = manifest.checks.filter((check) => check.kind === "manual");
+  const advisory = manifest.checks.filter((check) => check.kind === "advisory");
+  assert.deepEqual(
+    manual.map((check) => check.command).sort(),
+    [
+      "npm run deploy:package",
+      "npm run test:docker",
+      "npm run test:smoke",
+      "npm run test:staging",
+    ].sort(),
+  );
+  assert.deepEqual(
+    advisory.map((check) => check.command),
+    ["npm run perf:website"],
+  );
+  for (const check of [...manual, ...advisory]) {
+    assert.equal(full.includes(check.id), false);
+    assert.deepEqual(check.ciJobs, []);
+    const changed = structuredClone(manifest);
+    changed.profiles.full.push(check.id);
+    assert.ok(
+      validateManifest(
+        changed,
+        settings,
+        ciCommands(workflow, manifest),
+      ).includes(
+        "Full profile must contain every required check and no advisory/manual checks",
+      ),
+    );
+  }
+});
+
 test("lockfile proves root dependency ownership and rejects stale local links", () => {
   const pkg = { name: "kernel-project", dependencies: { hono: "^4.0.0" } };
   const lock = {

@@ -2,7 +2,7 @@
 
 [English](application.md) · [فارسی](application.fa.md)
 
-Read the [publication marker](../.github/bootstrap-policy.json), [canonical checks](../.agents/validation.json) and [phase guide](bootstrap.md) first. The application phase publishes complete runnable composition with `applicationReady:true`, 407 source files and 90 product modules. The full profile contains fifteen required checks. Source readiness and a recorded contract are not a claim that an arbitrary tree, hosted check or deployed service has passed.
+Read the [publication marker](../.github/bootstrap-policy.json), [canonical checks](../.agents/validation.json) and [phase guide](bootstrap.md) first. The operations phase retains complete runnable composition with `applicationReady:true`, 420 source files and 90 product modules. Its full profile still contains fifteen required application checks; optional operational/lab commands are separate. Source readiness and this contract do not claim that an arbitrary tree, hosted check, container, lab run or deployed service has passed.
 
 ## Composition
 

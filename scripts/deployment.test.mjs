@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { once } from "node:events";
 import {
   copyFile,
+  cp,
   mkdir,
   mkdtemp,
   readFile,
@@ -15,7 +16,7 @@ import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 
 import { parseDocument } from "yaml";
@@ -659,6 +660,78 @@ test("future Docker and native templates retain explicit runtime, TLS and proxy 
   );
 });
 
+test("the gateway runs without root with owned writable state and unprivileged internal listeners", async () => {
+  const dockerfile = await readFile(
+    new URL("../deploy/docker/Dockerfile", import.meta.url),
+    "utf8",
+  );
+  const logical = dockerfile.replace(/\\\r?\n\s*/g, " ");
+  const gateway = logical.split("FROM nginx:1.30.6-trixie AS gateway")[1];
+  assert.ok(gateway);
+  assert.match(gateway, /^USER nginx$/m);
+  assert.match(gateway, /test "\$\(id -u nginx\)" = 101/);
+  assert.match(gateway, /test "\$\(id -g nginx\)" = 101/);
+  assert.match(
+    gateway,
+    /chown -R nginx:nginx \/var\/cache\/nginx \/etc\/nginx\/conf\.d/,
+  );
+  assert.match(gateway, /pid \/var\/cache\/nginx\/nginx\.pid/);
+  assert.match(gateway, /\/\^user\[\[:space:\]\]\//);
+  assert.match(gateway, /^EXPOSE 8080 8443$/m);
+  assert.match(logical, /^RUN npm ci --ignore-scripts$/m);
+  assert.doesNotMatch(logical, /^RUN npm ci\s*$/m);
+
+  const template = await readFile(
+    new URL("../deploy/docker/nginx.conf.template", import.meta.url),
+    "utf8",
+  );
+  const listens = [...template.matchAll(/listen\s+(?:\[::\]:)?(\d+)/g)].map(
+    (match) => Number(match[1]),
+  );
+  assert.deepEqual(
+    [...new Set(listens)].sort((left, right) => left - right),
+    [8080, 8443],
+  );
+  for (const owner of ["client_body", "proxy", "fastcgi", "uwsgi", "scgi"])
+    assert.ok(template.includes(`${owner}_temp_path /var/cache/nginx/`));
+  const compose = parseDocument(
+    await readFile(
+      new URL("../deploy/docker/compose.yaml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  assert.deepEqual(compose.services.gateway.ports, [
+    "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:8080",
+    "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:8443",
+  ]);
+  assert.deepEqual(compose.services.gateway.healthcheck.test, [
+    "CMD",
+    "nginx",
+    "-t",
+  ]);
+  assert.equal(compose.services.gateway.volumes[0].read_only, true);
+  const rendered = renderDeploymentTemplate(template, {
+    ...publicValues,
+    HTTPS_PORT: "9443",
+  });
+  assert.ok(rendered.includes("return 308 https://$host:9443$request_uri;"));
+  assert.ok(rendered.includes("proxy_set_header X-Forwarded-Port 9443;"));
+
+  const validator = await readFile(
+    new URL("../deploy/docker/15-validate-configuration.sh", import.meta.url),
+    "utf8",
+  );
+  assert.match(validator, /400\|440\|600\|640\)/);
+  assert.match(
+    validator,
+    /key_mode=\$\(stat -c '%a' \/etc\/kernel\/tls\/privkey\.pem\)/,
+  );
+  assert.ok(
+    validator.indexOf("[ -r /etc/kernel/tls/privkey.pem ]") <
+      validator.indexOf("key_mode="),
+  );
+});
+
 test("the Docker build guard executes only the public readiness policy before install/build", async (context) => {
   const directory = await temporaryFixture(context);
   await markedCliFixture(directory, false);
@@ -668,6 +741,7 @@ test("the Docker build guard executes only the public readiness policy before in
   );
   const prefix = "RUN node --input-type=module -e ";
   const guardLine = dockerfile
+    .replace(/\\\r?\n\s*/g, " ")
     .split("\n")
     .find((line) => line.startsWith(prefix));
   assert.ok(guardLine);
@@ -755,6 +829,55 @@ test("Docker shell templates parse and the website entrypoint enforces readiness
     /applicationReady|non-runnable|runnable application/i,
   );
   await assert.rejects(readFile(marker), { code: "ENOENT" });
+});
+
+test("Docker build copies the actual application-helper closure and uses explicit synthetic build inputs", async (context) => {
+  const directory = await temporaryFixture(context);
+  await markedCliFixture(directory, false);
+  const dockerfile = await readFile(
+    new URL("../deploy/docker/Dockerfile", import.meta.url),
+    "utf8",
+  );
+  const buildStage = dockerfile
+    .split("FROM dependencies AS build")[1]
+    .split("FROM node:24.18.0-bookworm-slim AS website")[0];
+  assert.match(buildStage, /^COPY scripts \.\/scripts$/m);
+  for (const value of [
+    "API_BASE_URL=http://127.0.0.1:3100",
+    "HOSTNAME=127.0.0.1",
+    "PORT=3010",
+    "WEBSITE_URL=http://127.0.0.1:3010",
+    "WEBSITE_INDEXING_ENABLED=false",
+    "KERNEL_SYNTHETIC_ENV=1",
+  ])
+    assert.ok(buildStage.includes(value));
+  assert.ok(
+    buildStage.indexOf("COPY scripts ./scripts") <
+      buildStage.indexOf("RUN npm run build"),
+  );
+  await cp(new URL("./", import.meta.url), path.join(directory, "scripts"), {
+    recursive: true,
+    force: true,
+  });
+  const imported = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      "await import(process.argv[1]);",
+      pathToFileURL(path.join(directory, "scripts/application-checks.mjs"))
+        .href,
+    ],
+    {
+      cwd: directory,
+      env: commandEnvironment(),
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(imported.error, undefined);
+  assert.equal(imported.status, 0, imported.stderr);
 });
 
 test("readiness probes check actual response semantics and do not follow redirects", async () => {

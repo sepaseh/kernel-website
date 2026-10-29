@@ -1,6 +1,6 @@
 {
   "name": "kernel-website-ai-guidance",
-  "description": "Phase-aware website guidance over explicit local product/tooling ownership; readiness, exact source inventory and canonical checks govern application acceptance",
+  "description": "Phase-aware runnable website and guarded operational tooling over exact local product/tooling ownership, canonical required checks and separate optional execution evidence",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

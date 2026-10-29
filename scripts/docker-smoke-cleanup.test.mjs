@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {
+import fsPromises, {
   access,
   mkdir,
   mkdtemp,
@@ -9,6 +9,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -292,6 +293,58 @@ test("an absent fixture cannot be claimed if another directory appears during cl
     await readFile(path.join(options.fixture, "replacement.txt"), "utf8"),
     "new directory",
   );
+});
+
+test("replacement identities that alias as Numbers preserve the replacement", async (context) => {
+  const { options } = await fixture(context);
+  const saved = `${options.fixture}-original`;
+  context.after(async () => {
+    assert.equal(path.dirname(saved), path.resolve(os.tmpdir()));
+    await rm(saved, { recursive: true, force: true });
+  });
+  const originalIdentity = 2n ** 53n;
+  const replacementIdentity = originalIdentity + 1n;
+  assert.equal(Number(originalIdentity), Number(replacementIdentity));
+  let replaced = false;
+  const actualLstat = fsPromises.lstat;
+  const inspected = context.mock.method(
+    fsPromises,
+    "lstat",
+    async (file, statOptions) => {
+      const stat = await actualLstat(file, statOptions);
+      if (file !== options.fixture) return stat;
+      const identity = replaced ? replacementIdentity : originalIdentity;
+      return Object.assign(Object.create(stat), {
+        ino: statOptions?.bigint ? identity : Number(identity),
+      });
+    },
+  );
+  syncBuiltinESMExports();
+  options.compose = async () => {
+    await rename(options.fixture, saved);
+    await mkdir(options.fixture);
+    await writeFile(
+      path.join(options.fixture, "replacement.txt"),
+      "preserve distinct identity",
+    );
+    replaced = true;
+  };
+  try {
+    await assert.rejects(cleanupWebsiteDocker(options), (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 1);
+      assert.match(error.errors[0].message, /temporary test files/);
+      return true;
+    });
+    assert.equal(
+      await readFile(path.join(options.fixture, "replacement.txt"), "utf8"),
+      "preserve distinct identity",
+    );
+    await access(saved);
+  } finally {
+    inspected.mock.restore();
+    syncBuiltinESMExports();
+  }
 });
 
 test("all image removals and local cleanup finish after certificate or builder errors", async (context) => {

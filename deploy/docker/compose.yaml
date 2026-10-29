@@ -1,4 +1,4 @@
-# Future application template; current applicationReady:false refuses website startup/build.
+# Explicit operator inputs and separate deployment acceptance are required for this runnable application.
 name: kernel-website
 services:
   website:
@@ -43,8 +43,8 @@ services:
       RELEASE_ID: ${RELEASE_ID:?Set an immutable RELEASE_ID}
       HTTPS_PORT: ${HTTPS_PORT:-443}
     ports:
-      - "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
-      - "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:8080"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:8443"
     volumes:
       - type: bind
         source: ${TLS_CERT_DIRECTORY:?Set absolute certificate directory}

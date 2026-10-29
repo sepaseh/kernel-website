@@ -2,13 +2,7 @@
 
 [English](website-performance.md) · [فارسی](website-performance.fa.md)
 
-Bundle/environment helpers, readiness-first process/analyzer runners and
-authored browser cases are maintained source. The [publication marker](../.github/bootstrap-policy.json)
-identifies whether the exact inventory contains application composition. With
-`applicationReady:false`, those tools do not establish a production build, browser
-measurement, Lighthouse run or field dataset. [Application acceptance](application.md)
-requires real build/budget/browser evidence; optional lab and field analysis
-retain their own evidence and authorization. No default external metrics transport exists.
+Bundle/environment helpers, guarded process/analyzer runners, authored browser cases and the optional [Lighthouse runner](../scripts/run-website-performance.mjs) are maintained source. The current operations phase retains runnable application composition and separates required build/budget/browser acceptance from optional lab measurement. A false readiness marker still refuses operations before configuration, dependency or process access. Source availability establishes no lab score or field dataset, and no default external metrics transport exists.
 
 ## Published tooling
 
@@ -37,6 +31,12 @@ the [fixture adapter](api-fixture.md) additionally verifies the immutable public
 revision, clean source and independently installed dependency identity. Those
 checks remain separate from actual API/browser execution.
 
+## Optional owned Lighthouse lab
+
+`npm run perf:website` uses exact Lighthouse 13.6.0 from the manifest, lock and installed package together with the reviewed root-owned Playwright 1.64.1 bundled Chromium. It requires the explicit pinned independently installed API fixture, fresh synthetic state and generated test-only authentication secret. Imports remain inert and readiness is checked before dependency/configuration/process work. `npm run perf:website -- --skip-build` may reuse an already prepared compatible build; it bypasses none of those guards.
+
+One run owns an exclusive `.lighthouseci/website/lab-*` directory and performs twelve samples: `/` and `/login`, mobile and desktop profiles, three runs each. It retains individual HTML/JSON reports and median metric summaries, bounds child/report output and preserves partial evidence on failure. Only owned API/server/browser children are stopped; cleanup errors remain failures. Scores are advisory, while invalid samples, forbidden external application requests, missing metrics and ownership/cleanup failures fail execution. Simulated lab measurements establish neither field INP, RUM, p75, deployment nor a completed current lab run.
+
 ## Retained source support
 
 [WebVitals](../src/shared/performance/WebVitals.tsx) supplies a stable callback to
@@ -57,8 +57,7 @@ prove browser transfer, shaping, computed CSS or page rendering performance.
 
 Require the real application inventory and independently installed
 [pinned synthetic API](api-fixture.md) before build/bundle, browser, font-shaping,
-Lighthouse or analyzer execution. Availability of one runner does not activate
-an unpublished operation. Use
+Lighthouse or analyzer execution. Availability of source alone does not prove a completed operation. Use
 owned temporary state, allowlisted environments and loopback-only targets;
 sequence shared build outputs and clean only owned resources. Record exact
 source/build, tool/browser versions, settings, all samples, failures and cleanup.
