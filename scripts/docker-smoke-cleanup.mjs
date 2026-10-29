@@ -28,7 +28,8 @@ const inspectFixture = async (fixture, parent) => {
   assert.ok(path.basename(directory).startsWith("kernel-website-docker-"));
   let stat;
   try {
-    stat = await lstat(directory);
+    // Windows file identifiers can exceed Number's integer precision.
+    stat = await lstat(directory, { bigint: true });
   } catch (error) {
     if (error.code === "ENOENT") return { directory };
     throw error;
