@@ -59,6 +59,7 @@ test("synthetic TLS uses only a claimed Compose volume and a root networkless ce
     ],
   );
   assert.equal(state.volumes.size, 0);
+  assert.equal(state.certificateName, `${state.project}-certificate`);
   assert.ok(state.cleanup.includes("compose"));
   assert.ok(
     result.verified.includes(
@@ -107,6 +108,11 @@ test("unowned named-volume collisions are refused before adoption and helper fai
     /certificate helper failed/,
   );
   assert.equal(state.volumes.size, 0);
+  assert.equal(state.certificate, undefined);
+  assert.ok(state.cleanup.includes("certificate"));
+  assert.ok(
+    state.cleanup.indexOf("certificate") < state.cleanup.indexOf("compose"),
+  );
   assert.ok(state.cleanup.includes("compose"));
   assert.equal(state.builder, false);
   await assert.rejects(access(state.fixture), { code: "ENOENT" });
@@ -359,6 +365,21 @@ async function syntheticSmoke(context, controls = {}) {
         state.images.delete(operation.at(-1));
         state.cleanup.push("image");
       }
+      if (operation[0] === "container" && operation[1] === "ls")
+        return state.certificate &&
+          operation.at(-1) === `name=^/${state.certificate}$`
+          ? "owned-certificate"
+          : "";
+      if (operation[0] === "container" && operation[1] === "rm") {
+        assert.deepEqual(operation, [
+          "container",
+          "rm",
+          "--force",
+          state.certificate,
+        ]);
+        state.certificate = undefined;
+        state.cleanup.push("certificate");
+      }
       if (
         operation[0] === "volume" &&
         operation[1] === "ls" &&
@@ -381,11 +402,13 @@ async function syntheticSmoke(context, controls = {}) {
         const overridePath = operation[operation.lastIndexOf("-f") + 1];
         state.override = JSON.parse(await readFile(overridePath, "utf8"));
         if (operation.includes("run")) {
-          assert.deepEqual(operation.slice(-5), [
+          assert.deepEqual(operation.slice(-7), [
             "run",
             "--rm",
             "-T",
             "--no-deps",
+            "--name",
+            `${state.project}-certificate`,
             "fixture-certificate",
           ]);
           assert.equal(configuration.capture, true);
@@ -404,8 +427,11 @@ async function syntheticSmoke(context, controls = {}) {
           assert.match(script, /cat \/tls\/fullchain\.pem$/);
           assert.doesNotMatch(script, /cat \/tls\/privkey\.pem/);
           state.volumes.add(state.project + "_fixture-tls");
+          state.certificateName = operation[operation.indexOf("--name") + 1];
+          state.certificate = state.certificateName;
           if (controls.certificateFailure)
             throw new Error("Owned certificate helper failed");
+          state.certificate = undefined;
           return (
             controls.certificate ?? "owned synthetic public certificate"
           ).toString("utf8");
@@ -418,6 +444,11 @@ async function syntheticSmoke(context, controls = {}) {
           assert.equal(env.BUILDX_BUILDER, state.builderName);
         }
         if (operation.includes("down")) {
+          assert.equal(
+            state.certificate,
+            undefined,
+            "The interrupted certificate container still holds its TLS volume.",
+          );
           state.volumes.clear();
           state.cleanup.push("compose");
           assert.equal(signal, undefined);

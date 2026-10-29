@@ -771,6 +771,36 @@ test("sample worker binds CDP to its own bundled browser and closes it after mob
   }
 });
 
+test("sample worker serializes only reports without reading raw Lighthouse artifacts", async (t) => {
+  const f = await fixture(t);
+  const payload = result();
+  let artifactReads = 0;
+  Object.defineProperty(payload, "artifacts", {
+    enumerable: true,
+    get() {
+      artifactReads++;
+      throw new Error("Raw Lighthouse traces must not enter worker stdout.");
+    },
+  });
+  const fake = browserModules(payload);
+  const actual = await runLighthouseSample(f.root, "mobile", "/", {
+    environment: f.environment,
+    modules: fake.modules,
+    fetch: async () => ({
+      ok: true,
+      json: async () => [{ id: "owned-target" }],
+    }),
+    port: async () => 43223,
+  });
+  const serialized = JSON.stringify(actual);
+  assert.equal(artifactReads, 0);
+  assert.deepEqual(JSON.parse(serialized), {
+    lhr: payload.lhr,
+    report: payload.report,
+  });
+  assert.equal(fake.calls.closed, 1);
+});
+
 test("worker rejects unowned browser/CDP, invalid report and cleanup failures", async (t) => {
   const f = await fixture(t);
   for (const [payload, errors, fetch_, pattern] of [

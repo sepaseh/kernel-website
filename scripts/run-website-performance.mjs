@@ -209,7 +209,7 @@ async function boundedClose(browser) {
   }
 }
 
-/** Run one sample in a filtered worker and bind CDP to its own bundled browser. */
+/** Run one owned browser sample and return only the report payload for worker stdout. */
 export async function runLighthouseSample(root, profile, route, options = {}) {
   const directory = await readyRunnerRoot(root);
   selectedSample(profile, route);
@@ -304,7 +304,7 @@ export async function runLighthouseSample(root, profile, route, options = {}) {
       : error;
   }
   if (failure) throw failure;
-  return result;
+  return { lhr: result.lhr, report: result.report };
 }
 
 function ownedService(name, action, inputs, parentSignal) {
@@ -572,7 +572,9 @@ export async function runWebsitePerformance(root = repository, options = {}) {
   if (typeof skipBuild !== "boolean")
     throw new Error("Lighthouse skipBuild must be an explicit boolean.");
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > sampleLimit)
-    throw new Error("Lighthouse output limit must be between1byte and20MiB.");
+    throw new Error(
+      "Lighthouse output limit must be between 1 byte and 20 MiB.",
+    );
   const inputs = await (options.inputs ?? syntheticBrowserInputs)(
     directory,
     options.environment ?? process.env,

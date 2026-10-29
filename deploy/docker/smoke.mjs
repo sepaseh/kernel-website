@@ -429,11 +429,19 @@ async function verifyDeployment(request, compose, values, envFile, origin) {
   assert.match(account.headers["cache-control"], /no-store/);
 }
 
-async function startDeployment(compose) {
+async function startDeployment(compose, project) {
   await compose(["config", "--quiet"]);
   await compose(["build"]);
   const encoded = await compose(
-    ["run", "--rm", "-T", "--no-deps", "fixture-certificate"],
+    [
+      "run",
+      "--rm",
+      "-T",
+      "--no-deps",
+      "--name",
+      `${project}-certificate`,
+      "fixture-certificate",
+    ],
     { capture: true },
   );
   const certificate = Buffer.from(encoded, "utf8");
@@ -591,7 +599,7 @@ export async function runDockerSmoke(root = repository, options = {}) {
       images[0],
       apiContext,
     ]);
-    const certificate = await startDeployment(compose);
+    const certificate = await startDeployment(compose, project);
     const trustedRequest =
       options.request ??
       (await createDockerFixtureRequest(directory, certificate));
