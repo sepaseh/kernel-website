@@ -1,12 +1,12 @@
 # Validate the exact proposed tree
 
 Use this procedure before every authorized commit, push or PR handoff, including
-documentation-only work. The [manifest](../.agents/validation.json) owns the ten
+documentation-only work. The [manifest](../.agents/validation.json) owns all
 required check commands and their full-profile order.
 
 ## Local and hosted execution
 
-Local `full` validation still runs all ten required checks once. Hosted CI uses
+Local `full` validation still runs all required checks once. Hosted CI uses
 `ci-quality`, `ci-audit`, `ci-unit` and `ci-governance` as an exact partition of
 that gate. The static checks and test suites install their locked dependencies;
 the dependency audit reads the lockfile without an installation.
@@ -30,7 +30,7 @@ The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
 Unit and governance jobs each record and upload their measured coverage once;
 Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. This governance phase runs no application build,
+own hosted security workflow. This foundation phase runs no application build,
 E2E, visual or performance job.
 
 ## Prepare an owned export
@@ -63,12 +63,14 @@ npm run validate -- full
 
 Stop on any failed command. Do not reuse installed dependencies, read private
 npm configuration, alter the lockfile or skip checks to obtain a pass.
-This governance phase requires no Python environment, font regeneration,
-application build or browser. Those are not delivered evidence.
+Use a disposable Python 3.14.4 environment with the pinned dependencies from
+[font-source/requirements.txt](../font-source/requirements.txt) for font
+regeneration and measured Python coverage. This phase runs no application build
+or browser checks.
 
 ## Record the result and clean up
 
-Record the exact tree/fingerprint, runtime versions, fresh install, all ten
+Record the exact tree/fingerprint, runtime versions, fresh install, all required
 check outcomes, first failures/skips and source/export comparison.
 Keep unit coverage at 90% and governance coverage at 80%, with all executable
 tooling measured and no suppressions or exclusions.

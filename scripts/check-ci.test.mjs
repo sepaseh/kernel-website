@@ -20,7 +20,7 @@ const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
 const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 
-test("CI executes all ten checks once through separate visible jobs and real coverage producers", async () => {
+test("CI executes all twelve foundation checks once through separate visible jobs and real coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
 });
@@ -116,10 +116,10 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
       value.jobs.unit.steps[4].run = "echo fake-evidence";
     },
     (value) => {
-      value.jobs.governance.steps[5].with.path = "coverage/unit";
+      value.jobs.governance.steps.at(-1).with.path = "coverage/unit";
     },
     (value) => {
-      value.jobs.governance.steps[5].if = "false";
+      value.jobs.governance.steps.at(-1).if = "false";
     },
   ]) {
     const value = structuredClone(ci);
@@ -128,6 +128,73 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
   }
   for (const value of ["jobs: [", "jobs: {}\njobs: {}", "[]"])
     assert.throws(() => workflowDocument(value));
+});
+
+test("foundation typechecking and measured font integrity cannot be omitted or moved outside their producer", () => {
+  for (const id of ["typecheck", "font-integrity"]) {
+    for (const change of [
+      (value) => {
+        value.checks = value.checks.filter((check) => check.id !== id);
+        value.profiles.full = value.profiles.full.filter(
+          (check) => check !== id,
+        );
+      },
+      (value) => {
+        value.checks.find((check) => check.id === id).kind = "advisory";
+      },
+      (value) => {
+        value.checks.find((check) => check.id === id).scopes = ["governance"];
+      },
+      (value) => {
+        value.checks.find((check) => check.id === id).ciJobs = ["analysis"];
+      },
+    ]) {
+      const value = structuredClone(manifest);
+      change(value);
+      assert.throws(() => validateCheckManifest(value));
+    }
+  }
+});
+
+test("font coverage uses pinned Python and dependencies before measuring and sharing the same producer artifact", () => {
+  for (const change of [
+    (value) => {
+      value.jobs.governance.steps.splice(3, 1);
+    },
+    (value) => {
+      value.jobs.governance.steps[3].uses = "actions/setup-python@main";
+    },
+    (value) => {
+      value.jobs.governance.steps[3].with["python-version"] = "3.x";
+    },
+    (value) => {
+      value.jobs.governance.steps[4].run = "echo skip dependencies";
+    },
+    (value) => {
+      value.jobs.governance.steps[4].if = "false";
+    },
+    (value) => {
+      [value.jobs.governance.steps[4], value.jobs.governance.steps[5]] = [
+        value.jobs.governance.steps[5],
+        value.jobs.governance.steps[4],
+      ];
+    },
+    (value) => {
+      value.jobs.governance.steps.at(-1).with.path =
+        "coverage/governance/lcov.info\ncoverage/governance/ci-evidence.json\n";
+    },
+    (value) => {
+      value.jobs.governance.steps.at(-1).with.path +=
+        "coverage/fonts/coverage.xml\n";
+    },
+    (value) => {
+      value.jobs.analysis.steps.splice(-1, 0, { run: "npm run check:fonts" });
+    },
+  ]) {
+    const value = structuredClone(ci);
+    change(value);
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
 });
 
 test("main pushes cannot filter paths or skip governance verification", () => {

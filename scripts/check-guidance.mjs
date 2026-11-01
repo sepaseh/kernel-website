@@ -8,28 +8,37 @@ import { parsers } from "prettier/plugins/markdown";
 import { validateCheckManifest } from "./check-ci.mjs";
 import {
   completePublicationWork,
+  getPublicationFiles,
   publicationFiles,
+  publicationInventories,
   readPublishedFile,
 } from "./validate-bootstrap.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
-const present = (filename) => publicationFiles.includes(filename);
-const references = (values) => {
+const present = (filename, files = publicationFiles) =>
+  files.includes(filename);
+const references = (values, files) => {
   assert.ok(Array.isArray(values), "Expected a list of published references.");
   assert.equal(new Set(values).size, values.length, "Duplicate reference.");
   for (const value of values)
-    assert.ok(present(value), "Unpublished guidance reference: " + value);
+    assert.ok(
+      present(value, files),
+      "Unpublished guidance reference: " + value,
+    );
 };
 
 export function validateGuidanceIndexes(settings, navigation, manifest) {
   validateCheckManifest(manifest);
+  const files = publicationInventories[manifest.phase];
   assert.equal(settings.navigation, ".agents/navigation.json");
   assert.equal(settings.validation, ".agents/validation.json");
   for (const field of ["rules", "skills", "optionalHooks"])
-    references(settings[field]);
+    references(settings[field], files);
   assert.deepEqual(
     settings.recommendedChecks,
-    manifest.checks.map((check) => check.command),
+    manifest.profiles.full.map(
+      (id) => manifest.checks.find((check) => check.id === id).command,
+    ),
   );
   assert.deepEqual(settings.recommendedChecksSource, {
     path: ".agents/validation.json",
@@ -45,7 +54,7 @@ export function validateGuidanceIndexes(settings, navigation, manifest) {
   for (const task of navigation.tasks) {
     assert.equal(typeof task.when, "string");
     for (const field of ["owners", "contracts", "tests", "rules"])
-      references(task[field] ?? []);
+      references(task[field] ?? [], files);
     assert.ok(
       task.owners.length && task.tests.length,
       "Tasks need actual owners and tests.",
@@ -60,16 +69,19 @@ export function validateGuidanceIndexes(settings, navigation, manifest) {
   }
 }
 
-export function validateReadme(content) {
+export function validateReadme(content, phase = "governance", ready = false) {
   assert.match(
     content,
-    /\bgovernance\b/i,
+    new RegExp("\\b" + phase + "\\b", "i"),
     "README must identify the published scope.",
   );
   assert.match(
     content,
-    /application readiness\s+is\s+\*{0,2}false\*{0,2}/i,
-    "README must keep application readiness false.",
+    new RegExp(
+      "application readiness\\s+is\\s+\\*{0,2}" + ready + "\\*{0,2}",
+      "i",
+    ),
+    "README readiness must match its reviewed phase.",
   );
 }
 
@@ -151,7 +163,11 @@ const htmlHrefs = (fragments) => {
   return values;
 };
 
-export function validateGuideLinks(filename, content) {
+export function validateGuideLinks(
+  filename,
+  content,
+  files = publicationFiles,
+) {
   assert.equal(
     filename.endsWith(".fa.md"),
     false,
@@ -202,10 +218,76 @@ export function validateGuideLinks(filename, content) {
       path.posix.join(path.posix.dirname(filename), target),
     );
     assert.ok(
-      present(relative),
+      present(relative, files),
       "Missing or unpublished guide link: " + filename + ": " + link,
     );
   }
+}
+
+export function validateEvaluation(evaluation, navigation, manifest, files) {
+  assert.equal(evaluation.schemaVersion, 1);
+  assert.ok(
+    Array.isArray(evaluation.cases) && evaluation.cases.length,
+    "Published evaluation needs actual scoped cases.",
+  );
+  const ids = evaluation.cases.map((item) => item.id);
+  assert.ok(
+    ids.every((id) => typeof id === "string" && /^[a-z][a-z\d-]*$/.test(id)),
+  );
+  assert.equal(
+    new Set(ids).size,
+    ids.length,
+    "Evaluation case IDs must be unique.",
+  );
+  for (const item of evaluation.cases) {
+    assert.deepEqual(
+      Object.keys(item.prompt),
+      ["en"],
+      "Evaluation prompts must be English-only.",
+    );
+    assert.ok(
+      typeof item.prompt.en === "string" &&
+        item.prompt.en.trim() &&
+        !/[\u0600-\u06ff]/.test(item.prompt.en),
+    );
+    assert.ok(Array.isArray(item.taskIds) && item.taskIds.length);
+    for (const id of item.taskIds)
+      assert.ok(
+        navigation.tasks.some((task) => task.id === id),
+        "Unpublished evaluation task.",
+      );
+    references(item.evidence, files);
+    assert.ok(item.evidence.length, "Cases need actual evidence.");
+    assert.ok(Array.isArray(item.checks) && item.checks.length);
+    for (const id of item.checks)
+      assert.ok(
+        manifest.checks.some((check) => check.id === id),
+        "Unpublished evaluation check.",
+      );
+    for (const field of ["mustExplain", "mustNot"])
+      assert.ok(
+        Array.isArray(item[field]) &&
+          item[field].length &&
+          item[field].every(
+            (value) => typeof value === "string" && value.trim(),
+          ),
+      );
+  }
+}
+export function validateEvaluationTemplate(template) {
+  assert.equal(template.schemaVersion, 1);
+  assert.equal(template.state, "not-run");
+  assert.deepEqual(template.caseResults, []);
+  for (const field of [
+    "startedAt",
+    "repositoryCommit",
+    "workingTreeFingerprint",
+  ])
+    assert.equal(
+      template[field],
+      null,
+      "Execution evidence belongs outside maintained source.",
+    );
 }
 
 export async function inspectGuidance(root = repository) {
@@ -217,12 +299,21 @@ export async function inspectGuidance(root = repository) {
     json(".agents/validation.json"),
   ]);
   validateGuidanceIndexes(settings, navigation, manifest);
-  validateReadme(await readPublishedFile(root, "README.md"));
+  validateReadme(
+    await readPublishedFile(root, "README.md"),
+    manifest.phase,
+    manifest.applicationReady,
+  );
+  const currentFiles = await getPublicationFiles(root);
   await completePublicationWork(
-    publicationFiles
+    currentFiles
       .filter((file) => file.endsWith(".md"))
       .map(async (filename) =>
-        validateGuideLinks(filename, await readPublishedFile(root, filename)),
+        validateGuideLinks(
+          filename,
+          await readPublishedFile(root, filename),
+          currentFiles,
+        ),
       ),
   );
 }

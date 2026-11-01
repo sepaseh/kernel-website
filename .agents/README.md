@@ -2,8 +2,8 @@
 
 Start at [AGENTS.md](../AGENTS.md). [Settings](settings.json) indexes published
 rules and skills; [navigation](navigation.json) maps actual owners and tests.
-The [source policy](../.github/bootstrap-policy.json) declares the governance
-phase and false application-readiness marker.
+The [source policy](../.github/bootstrap-policy.json) declares the actual
+publication phase and application-readiness marker.
 The [validation manifest](validation.json) owns check names and commands.
 
 Read matching rules and whole owning functions before changing them.
@@ -15,5 +15,4 @@ automatic host loading nor model comprehension or a provider's completed review.
 Keep local preparation separate from authorized publication.
 Use one existing checkout, preserve user work and follow
 [Git policy](rules/git.md), [PR policy](rules/pull-requests.md) and
-[review preflight](../docs/reviews.md). No application, browser or deployment
-execution is claimed in this phase.
+[review preflight](../docs/reviews.md). Published source does not itself establish application, browser, provider or deployment execution.

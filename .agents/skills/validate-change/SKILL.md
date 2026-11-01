@@ -36,4 +36,4 @@ loading, instruction comprehension or improved model performance.
 Follow the validation procedure's empty npm-configuration setup and preserve
 measured unit coverage at 90% and governance coverage at 80%. All executable
 tooling remains measured; do not add source, rule or coverage exclusions.
-Governance evidence establishes no application or browser readiness.
+Foundation evidence includes contracts, catalogs and font integrity. It establishes no application or browser readiness.

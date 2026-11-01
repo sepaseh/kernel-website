@@ -1,18 +1,23 @@
 {
-  "name": "kernel-website-governance-guidance",
-  "description": "Published governance scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-foundation-guidance",
+  "description": "Published foundation scope, exact-tree validation and protected current-head reviews",
   "rules": [
+    ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",
     ".agents/rules/code-quality.md",
     ".agents/rules/code-review.md",
     ".agents/rules/commits.md",
     ".agents/rules/git.md",
     ".agents/rules/guidance.md",
+    ".agents/rules/imports.md",
     ".agents/rules/issues.md",
+    ".agents/rules/localization.md",
     ".agents/rules/ordering.md",
     ".agents/rules/pull-requests.md",
     ".agents/rules/safety.md",
-    ".agents/rules/testing.md"
+    ".agents/rules/testing.md",
+    ".agents/rules/typescript.md",
+    ".agents/rules/website.md"
   ],
   "skills": [
     ".agents/skills/commit/SKILL.md",
@@ -32,10 +37,12 @@
     "npm run check:guidance",
     "npm run audit",
     "npm run check:boundaries",
+    "npm run typecheck",
     "npm run lint",
     "npm run format:check",
     "npm run test:unit",
-    "npm run test:governance"
+    "npm run test:governance",
+    "npm run check:fonts"
   ],
   "recommendedChecksSource": {
     "path": ".agents/validation.json",

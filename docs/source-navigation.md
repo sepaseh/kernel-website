@@ -14,6 +14,9 @@ Start with [AGENTS.md](../AGENTS.md), [source scope](bootstrap.md),
 | Change review gates              | [Protection](branch-protection.md), [review preflight](reviews.md), [CI policy](../scripts/check-ci.mjs) and [its tests](../scripts/check-ci.test.mjs)                           |
 | Validate or publish              | [Validation](validation.md), [Git policy](../.agents/rules/git.md) and [Contributing](../CONTRIBUTING.md)                                                                        |
 
+| Change shared catalogs | [Catalogs](localization.md), [catalog integrity tests](../src/i18n/catalog-data/integrity.test.ts) |
+| Verify font assets | [Font guidance](fonts.md), [font check](../scripts/subset-website-fonts.py) |
+
 Read whole owners and matching tests, not isolated search matches.
-The governance scope contains no delivered application or browser execution.
+The foundation scope contains no delivered application or browser execution.
 Indexes establish discoverability and consistency, not comprehension or hosted success.

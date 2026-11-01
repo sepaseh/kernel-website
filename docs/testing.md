@@ -1,7 +1,7 @@
-# Test repository governance
+# Test the published source
 
 Read [source scope](bootstrap.md) and [the manifest](../.agents/validation.json).
-The governance phase has ten actual required checks; run affected owner tests
+Run affected owner tests
 while editing and the complete [exact-tree procedure](validation.md) before an
 authorized commit, push or PR handoff.
 
@@ -31,6 +31,6 @@ namespaces and builtin loaders in explicit bindings inside their owning file.
 A passing check supplies evidence for these supported syntax paths.
 
 A passed local suite proves only the exercised source. It does not establish
-hosted CI, Sonar binding or CodeRabbit approval. This phase requires no
-application server, browser, Python/font verification or external backend.
+hosted CI, Sonar binding or CodeRabbit approval. This phase verifies the font binaries with the pinned Python environment.
+It requires no application server, browser or external backend.
 Report actual commands, first failures/skips and limits in the task or terminal.

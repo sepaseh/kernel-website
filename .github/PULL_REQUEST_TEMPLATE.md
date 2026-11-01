@@ -11,7 +11,7 @@ Describe the concrete problem, resulting behavior and focused scope.
 
 ## Verification
 
-Record the actual complete canonical gate results for this exact tree, first failures, skips and remaining blockers. The governance phase has ten required checks and no application, font, build or browser acceptance. Later application integration needs its own complete phase policy and execution evidence.
+Record the actual complete canonical gate results for this exact tree, first failures, skips and remaining blockers. The foundation phase includes font integrity but no runnable application, build or browser acceptance. Later application integration needs its own complete phase policy and execution evidence.
 
 ## Review and protected merge
 

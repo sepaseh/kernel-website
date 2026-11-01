@@ -1,7 +1,7 @@
 # Kernel Website assistant instructions
 
-The publication phase is **governance** and `applicationReady` is **false**.
-This package publishes repository checks, review policy and assistant guidance.
+The publication phase is **foundation** and `applicationReady` is **false**.
+This package publishes repository governance, shared website contracts and catalogs, and licensed fonts.
 It does not deliver a runnable website or establish deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
@@ -27,7 +27,7 @@ A stacked PR targets its verified predecessor and states the dependency.
 Before every authorized commit, push or PR handoff, validate the exact proposed
 tree in a fresh disposable export using [the full procedure](docs/validation.md).
 
-All ten required check kinds stay active for this phase. Keep executable
+All required check kinds stay active for this phase. Keep executable
 tooling measured, unit coverage at 90% and governance coverage at 80%, without
 suppressions or source/rule/coverage exclusions.
 Synchronize tests through actual readiness, completion and failure events;

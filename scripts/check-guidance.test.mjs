@@ -4,10 +4,13 @@ import { test } from "node:test";
 
 import {
   inspectGuidance,
+  validateEvaluation,
+  validateEvaluationTemplate,
   validateGuidanceIndexes,
   validateGuideLinks,
   validateReadme,
 } from "./check-guidance.mjs";
+import { publicationInventories } from "./validate-bootstrap.mjs";
 
 const manifest = JSON.parse(
   await readFile(
@@ -21,7 +24,9 @@ const settings = () => ({
   rules: [".agents/rules/git.md"],
   skills: [".agents/skills/commit/SKILL.md"],
   optionalHooks: [],
-  recommendedChecks: manifest.checks.map((check) => check.command),
+  recommendedChecks: manifest.profiles.full.map(
+    (id) => manifest.checks.find((check) => check.id === id).command,
+  ),
   recommendedChecksSource: { path: ".agents/validation.json", profile: "full" },
 });
 const navigation = () => ({
@@ -92,7 +97,7 @@ test("guidance rejects private or unpublished owners, unsafe rule references and
       value.tasks[0].when = null;
     },
     (value) => {
-      value.tasks[0].checks = ["build"];
+      value.tasks[0].checks = ["unpublished-check"];
     },
     (value) => value.tasks[0].checks.push(value.tasks[0].checks[0]),
   ]) {
@@ -120,7 +125,7 @@ test("English guides accept published relative references and reject hidden, mis
     "[missing](missing.md)",
     "[escape](../../outside.md)",
     "[malformed](%zz.md)",
-    "[runtime](../src/app/page.tsx)",
+    "[runtime](../src/unreviewed/page.tsx)",
     '[missing](missing.md "Read me")',
     "[private](<../.env.local> 'Private')",
     "[root](/validation.md)",
@@ -450,4 +455,83 @@ test("malformed HTML attribute quotes fail without rewinding the scanner", () =>
         ),
       /HTML attribute values require a closing quote/,
     );
+});
+
+test("Markdown references obey the explicit current phase rather than the eventual publication union", () => {
+  const content = "[application](../src/app/page.tsx)";
+  assert.throws(() =>
+    validateGuideLinks(
+      "docs/testing.md",
+      content,
+      publicationInventories.foundation,
+    ),
+  );
+  validateGuideLinks(
+    "docs/testing.md",
+    content,
+    publicationInventories.application,
+  );
+});
+test("evaluation keeps whole cases tied to published tasks, evidence and checks without recording a run", () => {
+  const evaluation = () => ({
+    schemaVersion: 1,
+    cases: [
+      {
+        id: "governance-case",
+        prompt: { en: "Inspect actual published quality source." },
+        taskIds: ["governance"],
+        evidence: ["scripts/check-ci.mjs"],
+        checks: ["ci-policy"],
+        mustExplain: ["Current source scope"],
+        mustNot: ["Claim unexecuted application behavior"],
+      },
+    ],
+  });
+  const files = publicationInventories.foundation;
+  validateEvaluation(evaluation(), navigation(), manifest, files);
+  for (const change of [
+    (value) => {
+      value.cases[0].taskIds = ["unpublished-task"];
+    },
+    (value) => {
+      value.cases[0].evidence = ["src/app/page.tsx"];
+    },
+    (value) => {
+      value.cases[0].checks = ["unpublished-check"];
+    },
+    (value) => {
+      value.cases[0].prompt.fa = "Translated prompt";
+    },
+    (value) => {
+      value.cases[0].mustExplain = [];
+    },
+    (value) => value.cases.push(value.cases[0]),
+  ]) {
+    const value = evaluation();
+    change(value);
+    assert.throws(() =>
+      validateEvaluation(value, navigation(), manifest, files),
+    );
+  }
+  const template = {
+    schemaVersion: 1,
+    state: "not-run",
+    caseResults: [],
+    startedAt: null,
+    repositoryCommit: null,
+    workingTreeFingerprint: null,
+  };
+  validateEvaluationTemplate(template);
+  assert.throws(() =>
+    validateEvaluationTemplate({ ...template, state: "complete" }),
+  );
+  assert.throws(() =>
+    validateEvaluationTemplate({
+      ...template,
+      caseResults: [{ result: "pass" }],
+    }),
+  );
+  assert.throws(() =>
+    validateEvaluationTemplate({ ...template, repositoryCommit: "claimed" }),
+  );
 });

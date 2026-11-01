@@ -13,12 +13,13 @@ export const ciProfiles = Object.freeze({
     "actions-lint",
     "guidance",
     "boundaries",
+    "typecheck",
     "lint",
     "format",
   ],
   audit: ["audit"],
   unit: ["unit-coverage"],
-  governance: ["governance-coverage"],
+  governance: ["governance-coverage", "font-integrity"],
 });
 export const aggregateCommand = `node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"`;
 export const requiredChecks = Object.freeze([
@@ -28,10 +29,12 @@ export const requiredChecks = Object.freeze([
   "guidance",
   "audit",
   "boundaries",
+  "typecheck",
   "lint",
   "format",
   "unit-coverage",
   "governance-coverage",
+  "font-integrity",
 ]);
 const commands = [
   "check:snapshot",
@@ -40,15 +43,21 @@ const commands = [
   "check:guidance",
   "audit",
   "check:boundaries",
+  "typecheck",
   "lint",
   "format:check",
   "test:unit",
   "test:governance",
+  "check:fonts",
 ];
 export const checkoutAction =
   "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 export const nodeAction =
   "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020";
+export const pythonAction =
+  "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0";
+export const fontInstallCommand =
+  "python -m pip install --requirement font-source/requirements.txt";
 export const installCommand =
   "npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund";
 export const uploadAction =
@@ -74,12 +83,12 @@ export function workflowDocument(content) {
 }
 
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "governance");
+  assert.equal(manifest.phase, "foundation");
   assert.equal(manifest.applicationReady, false);
   assert.deepEqual(
     manifest.profiles?.full,
     requiredChecks,
-    "All ten real checks run once.",
+    "All twelve real checks run once.",
   );
   assert.deepEqual(
     manifest.checks.map((check) => check.id),
@@ -88,6 +97,7 @@ export function validateCheckManifest(manifest) {
   for (const [index, check] of manifest.checks.entries()) {
     assert.equal(check.kind, "required");
     assert.equal(check.command, `npm run ${commands[index]}`);
+    assert.deepEqual(check.scopes, ["foundation"]);
     assert.deepEqual(check.ciJobs, [
       Object.keys(ciProfiles).find((job) => ciProfiles[job].includes(check.id)),
     ]);
@@ -236,6 +246,10 @@ export function validateCiWorkflow(content, manifest) {
     const suite = name === "unit" || name === "governance";
     const expected = [checkoutAction, nodeAction];
     if (name !== "audit") expected.push(installCommand);
+    if (name === "governance") {
+      expected.push(pythonAction, fontInstallCommand);
+      assert.deepEqual(job.steps[3].with, { "python-version": "3.14.4" });
+    }
     expected.push(`npm run validate -- ci-${name}`);
     if (suite)
       expected.push("node scripts/ci-evidence.mjs --record", uploadAction);
@@ -248,11 +262,20 @@ export function validateCiWorkflow(content, manifest) {
         artifact: "${{ steps.evidence.outputs.artifact }}",
         attempt: "${{ steps.evidence.outputs.attempt }}",
       });
-      assert.equal(job.steps[4].id, "evidence");
-      assert.deepEqual(job.steps[4].env, { CI_EVIDENCE_SUITE: name });
-      assert.deepEqual(job.steps[5].with, {
+      const evidenceIndex = name === "governance" ? 6 : 4;
+      assert.equal(job.steps[evidenceIndex].id, "evidence");
+      assert.deepEqual(job.steps[evidenceIndex].env, {
+        CI_EVIDENCE_SUITE: name,
+      });
+      const paths = [
+        `coverage/${name}/lcov.info`,
+        `coverage/${name}/ci-evidence.json`,
+      ];
+      if (name === "governance")
+        paths.push("coverage/governance/font-coverage.xml");
+      assert.deepEqual(job.steps[evidenceIndex + 1].with, {
         name: "${{ steps.evidence.outputs.artifact }}",
-        path: `coverage/${name}/lcov.info\ncoverage/${name}/ci-evidence.json\n`,
+        path: `${paths.join("\n")}\n`,
         "if-no-files-found": "error",
         "retention-days": 3,
         overwrite: false,
@@ -506,6 +529,6 @@ export async function inspectCi(root = repository) {
 if (import.meta.main) {
   await inspectCi();
   console.log(
-    "Governance CI, native security and real Sonar coverage order passed.",
+    "Foundation CI, native security and real Sonar coverage order passed.",
   );
 }

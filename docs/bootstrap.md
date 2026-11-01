@@ -1,23 +1,19 @@
 # Understand this publication
 
-The current phase is **governance**. The [source policy](../.github/bootstrap-policy.json)
-declares `applicationReady: false` and the exact allowed inventory.
-Read source and marker before claiming delivery.
+The current publication phase is **foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
-This phase publishes one npm package containing repository validation,
-review enforcement, assistant rules/skills and their owner tests.
-It delivers no application routes, runtime server, browser fixture or deployment.
-Installed dependencies alone do not establish those capabilities.
+The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
 
-The [manifest](../.agents/validation.json) registers ten required check kinds.
-[Testing](testing.md) defines their evidence; [validation](validation.md) defines
-fresh exact-tree acceptance. No Python, browser or font verification is required
-for this governance-only source scope.
+## Published source
 
-Later application delivery must add its real source, boundaries, tests, measured
-coverage and acceptance together. Do not turn readiness on, add placeholder jobs
-or weaken a check to imitate a delivered application.
-Native hosted CI, CodeQL, Sonar and CodeRabbit evidence remains separate from
-local validation. Configuration does not manufacture a provider result.
-[Branch protection](branch-protection.md) applies the actual phase checks and
-GitHub's native approving-review count without a custom approval publisher.
+- Shared frontend infrastructure and controls: 11 admitted files.
+- Pure local catalogs: 13 admitted files.
+- Licensed font source and real font verification: 2 admitted files.
+
+The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.
+
+Real font verification requires Python 3.14.4 and the pinned dependencies in an external disposable environment; actual binary regeneration and measured Python coverage remain required.
+
+Application readiness remains false. Do not add framework entry points, broaden imports or activate runtime operations to make isolated tests appear realistic. Runnable composition must deliver its boundaries, source, tests and complete acceptance together.
+
+Keep [ordinary review protection](branch-protection.md) throughout an explicitly authorized stack. Missing trusted default-branch checks remain blockers; there is no automatic bootstrap waiver.
