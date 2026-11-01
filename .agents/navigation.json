@@ -77,6 +77,30 @@
       ]
     },
     {
+      "id": "website-feature",
+      "when": "Change local login, registration, recovery, account forms or their operation ownership.",
+      "owners": [
+        "src/features/account/Account.tsx",
+        "src/features/auth/OtpForm.tsx",
+        "src/features/auth/login/Login.tsx",
+        "src/features/auth/recovery/Recovery.tsx",
+        "src/features/auth/register/Register.tsx"
+      ],
+      "contracts": [
+        ".agents/rules/website.md",
+        "docs/forms.md",
+        "src/shared/contracts/index.ts"
+      ],
+      "tests": [
+        "src/features/account/Account.test.tsx",
+        "src/features/auth/login/Login.test.tsx",
+        "src/features/auth/recovery/Recovery.test.tsx",
+        "src/features/auth/register/Register.test.tsx"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
       "id": "auth-session",
       "when": "Change HTTP forwarding, protected/public 401 behavior, session generations, cookies or stale-result ownership.",
       "owners": [
@@ -148,6 +172,115 @@
         "src/test/api-requests.ts"
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
+      "id": "website-performance",
+      "when": "Change scoped messages, visible-first motion, font assets/preload selection or optional private Web Vitals delivery.",
+      "owners": [
+        "src/features/home/Reveal.tsx",
+        "src/i18n/client-messages.ts",
+        "src/shared/fonts/manifest.json",
+        "src/shared/fonts/preloads.test.ts",
+        "src/shared/fonts/preloads.ts",
+        "src/shared/fonts/vazirmatn.css",
+        "src/shared/performance/WebVitals.test.ts",
+        "src/shared/performance/WebVitals.tsx",
+        "src/shared/performance/web-vitals.test.ts",
+        "src/shared/performance/web-vitals.ts"
+      ],
+      "contracts": [
+        "docs/client-document.md",
+        "docs/fonts.md",
+        "performance-budget.json"
+      ],
+      "tests": [
+        "src/features/home/Reveal.test.ts",
+        "src/shared/fonts/preloads.test.ts",
+        "src/shared/performance/WebVitals.test.ts",
+        "src/shared/performance/web-vitals.test.ts"
+      ],
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-coverage",
+        "font-integrity"
+      ],
+      "rules": []
+    },
+    {
+      "id": "accessibility-visual",
+      "when": "Change native controls, labels/descriptions, local pending/error feedback, theme or reduced-motion behavior. Local DOM tests are not browser/visual evidence.",
+      "owners": [
+        "src/features/home/Reveal.tsx",
+        "src/shared/ui/Feedback.test.tsx",
+        "src/shared/ui/Feedback.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/shared/ui/FormField.tsx",
+        "src/shared/ui/ThemeToggle.test.tsx",
+        "src/shared/ui/ThemeToggle.tsx",
+        "src/shared/ui/alert.test.tsx",
+        "src/shared/ui/alert.tsx",
+        "src/shared/ui/button.test.tsx",
+        "src/shared/ui/button.tsx",
+        "src/shared/ui/card.test.tsx",
+        "src/shared/ui/card.tsx",
+        "src/shared/ui/input-label.integration.test.tsx",
+        "src/shared/ui/input.tsx",
+        "src/shared/ui/label.tsx"
+      ],
+      "contracts": ["DESIGN.md", "docs/client-ui.md"],
+      "tests": [
+        "src/shared/ui/Feedback.test.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/shared/ui/ThemeToggle.test.tsx",
+        "src/shared/ui/alert.test.tsx",
+        "src/shared/ui/button.test.tsx",
+        "src/shared/ui/card.test.tsx",
+        "src/shared/ui/input-label.integration.test.tsx"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
+      "id": "git-workflow",
+      "when": "Plan an issue/branch, prepare an authorized commit or PR, or inspect review/publication policy while preserving session authorization.",
+      "owners": [
+        ".agents/rules/branches.md",
+        ".agents/rules/commits.md",
+        ".agents/rules/git.md",
+        ".agents/skills/commit/SKILL.md",
+        ".agents/skills/start-issue/SKILL.md",
+        ".agents/hooks/block-dangerous.mjs",
+        ".agents/hooks/block-dangerous.sh",
+        ".agents/hooks/post-edit-format.sh",
+        ".agents/hooks/quality-gate.sh"
+      ],
+      "contracts": [
+        ".agents/rules/code-review.md",
+        ".agents/rules/issues.md",
+        ".agents/rules/pull-requests.md",
+        ".agents/rules/safety.md",
+        ".agents/validation.json",
+        "CONTRIBUTING.md"
+      ],
+      "tests": [
+        "scripts/block-dangerous-shell.test.mjs",
+        "scripts/block-dangerous.test.mjs",
+        "scripts/check-guidance.test.mjs",
+        "scripts/hook.test-support.mjs",
+        "scripts/post-edit-format.test.mjs",
+        "scripts/quality-gate.test.mjs",
+        "scripts/validate.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ],
       "rules": []
     }
   ]

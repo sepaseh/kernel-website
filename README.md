@@ -1,16 +1,17 @@
 # Kernel Website
 
-The current publication phase is **client-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **features** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
 Runnable application composition is not declared for this phase. Published helpers, authored suites and installed dependencies do not prove a running application.
 
 ## Published source
 
-- Authentication APIs and session ownership: 13 admitted files.
-- Account contracts and requests: 3 admitted files.
-- Shared frontend infrastructure and controls: 38 admitted files.
+- Authentication flows, HTTP consumers and session ownership.
+- Account forms, contracts and requests.
+- Home reveal behavior and shared frontend controls.
+- SEO, CSP and optional Web Vitals delivery helpers.
 - Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
-- Licensed font source and real font verification: 2 admitted files.
+- Licensed font source and real font verification.
 
 Start with [Contributing](CONTRIBUTING.md), [task navigation](docs/source-navigation.md), [source scope](docs/bootstrap.md) and [exact-tree validation](docs/validation.md). [AGENTS](AGENTS.md) owns assistant entry instructions.
 

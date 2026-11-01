@@ -16,4 +16,8 @@ API settings alone select language and exact ltr/rtl direction. All ten flat cat
 
 Choose the deliverable before selecting a tool: local component source, a design artifact or a hosted prototype have different acceptance. Inspect available host capabilities rather than assuming an integration exists. Map actual components/tokens/states to the design reference. Synthetic prototype data, repository connections, uploads and publication need authorization for their actual external effects. Private source/assets are not uploaded during ordinary local work.
 
+Optional design tools are not runtime dependencies. [Claude memory](CLAUDE.md) and its [skill adapter](.claude/skills/design-ui/SKILL.md) point to local guidance; files prove neither host loading nor service setup.
+
 Select actual IDs from the [manifest](.agents/validation.json) through [validation](.agents/skills/validate-change/SKILL.md). Full exact-tree acceptance precedes authorized commit/push/handoff. Unit/governance/font tests do not establish browser layout or visual quality. Runnable composition needs all fifteen checks, real build/browser/CSP/visual results and protected jobs before merge. Baseline changes require explicit authorization and actual visual review.
+
+Report the deliverable, inspected/reused owners, required states, tools actually used, actual checks/screenshots and API/accessibility/host limits. [Evaluation](docs/comprehension-evaluation.md) separates discovery and source understanding from design verification.

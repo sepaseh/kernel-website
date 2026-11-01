@@ -40,17 +40,19 @@ API messages as HTML or expose transport diagnostics.
 
 ## Keep state with its feature
 
-[Forms](forms.md) defines the later integration requirements for submitted values,
+[Forms](forms.md) defines the published feature behavior for submitted values,
 native validation, pending/error/retry states and OTP destinations.
 [Session](session.md) supplies generation and mount-operation guards. Feature
-forms, their reset identity and the shared authentication OTP component are not
-published in this phase.
+forms key their reset identity by locale, session generation and account.
+The shared [OTP component](../src/features/auth/OtpForm.tsx) owns registration
+and recovery code requests, destination checks and cooldown feedback.
 
 ## Verify a UI change
 
 Run focused owner tests using [testing](testing.md), then applicable type/lint
 checks. Real React Testing Library tests cover native attributes, labels,
 descriptions, disabled/Slot behavior, escaped localized feedback and theme-only
-storage. These are local component tests. Feature form integration tests and
-application provider tests for nonce forwarding or reduced-motion configuration
-are not published in this phase; see [form evidence](forms.md#evidence-and-limits).
+storage. Feature form integration tests cover submitted values, pending state,
+errors, retries and stale operations; see [form evidence](forms.md#evidence-and-limits).
+These are local component tests. Application provider tests for nonce forwarding
+or reduced-motion configuration and real browser acceptance remain unpublished.

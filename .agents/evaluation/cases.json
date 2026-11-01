@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "session-lifecycle",
+      "prompt": {
+        "en": "Trace login, account mutations, password changes and logout across the published HTTP client, forms and session provider. Explain ownership and integration limits."
+      },
+      "taskIds": ["auth-session", "website-feature"],
+      "evidence": [
+        "src/shared/api/proxy.ts",
+        "src/shared/api/client.ts",
+        "src/features/auth/session/SessionProvider.tsx",
+        "src/features/account/Account.test.tsx",
+        "docs/session.md"
+      ],
+      "mustExplain": [
+        "The forwarding helper allowlists routes, preserves HttpOnly cookies and removes credential fields; production backend authentication, OTP delivery and revocation are outside this checkout; local acceptance uses a same-repository synthetic HTTP fixture.",
+        "Session generation and mount/account ownership reject stale results; public authentication 401 feedback does not announce protected-session expiry.",
+        "Local real HTTP/React tests do not establish framework routing, browser cookie isolation or a running site."
+      ],
+      "mustNot": [
+        "Claim bearer storage, real OTP delivery, API implementation or runnable Next.js routes are provided by these forms."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "local-common-label",
+      "prompt": {
+        "en": "Locate one shared root key and its consumers; plan a genuine ten-language label with matching ICU variables and client selection."
+      },
+      "taskIds": ["shared-translation"],
+      "evidence": [
+        "src/i18n/catalog-data/locales/en.ts",
+        "src/i18n/catalog-data/locales.ts",
+        "src/i18n/catalog-data/integrity.test.ts",
+        "src/i18n/client-messages.ts"
+      ],
+      "mustExplain": [
+        "Each locale has one flat code-named string catalog with shared bare keys and explicit feature prefixes, genuine translations and matching ICU variables.",
+        "Client key groups use explicit selections and do not import a runtime English catalog."
+      ],
+      "mustNot": [
+        "Introduce nested common/feature objects, dotted aliases, duplicate catalogs or source imports from another checkout."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "performance-privacy",
+      "prompt": {
+        "en": "Trace scoped messages, visible-first motion, verified font source/subsets and optional Web Vitals delivery; separate local evidence from browser or field results."
+      },
+      "taskIds": ["website-performance"],
+      "evidence": [
+        "src/i18n/client-messages.ts",
+        "src/features/home/Reveal.tsx",
+        "src/shared/fonts/manifest.json",
+        "src/shared/performance/web-vitals.ts",
+        "docs/fonts.md"
+      ],
+      "mustExplain": [
+        "Font source/license, shaping, hashes, axes and disjoint CSS assignments are checked against real binaries.",
+        "Optional Web Vitals preserve metric semantics and have no default transport; static-markup and local tests do not prove browser loading, field INP or p75."
+      ],
+      "mustNot": [
+        "Claim enabled RUM, initial transfer size, runnable CSS/header integration or real performance measurements without actual current-scope evidence."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    }
+  ]
+}

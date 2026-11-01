@@ -1,8 +1,8 @@
 # Kernel Website assistant instructions
 
-The publication phase is **client-foundation** and `applicationReady` is **false**.
-This package publishes shared website contracts, catalogs, fonts, client controls,
-session ownership and HTTP consumers.
+The publication phase is **features** and `applicationReady` is **false**.
+This package publishes shared website contracts, catalogs, fonts, authentication
+and account forms, client controls, session ownership and website policy helpers.
 It does not deliver a runnable website or establish deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
@@ -45,8 +45,16 @@ guides flat and task-oriented. Report QA in the task or terminal; save a local
 report only when requested under ignored `test-results/`. Optional guidance
 indexes prove neither host loading nor model comprehension.
 
-Keep authentication and session ownership in src/features/auth, account requests
-in src/features/account, and shared controls in src/shared/ui. Preserve HTTP
-cancellation, cookie/no-store behavior, protected versus public-auth 401 handling,
-and stale session ownership. See [architecture](docs/architecture.md),
-[forms](docs/forms.md), [session](docs/session.md), and [client UI](docs/client-ui.md).
+Keep authentication flows and session ownership in src/features/auth, account forms
+and requests in src/features/account, and shared controls in src/shared/ui. Preserve
+HTTP cancellation, cookie/no-store behavior, protected versus public-auth 401
+handling, stale session ownership, form reset identity and OTP destinations.
+See [architecture](docs/architecture.md), [forms](docs/forms.md),
+[session](docs/session.md) and [client UI](docs/client-ui.md).
+
+Preserve exact import boundaries and keep framework entry points out of this
+false-readiness phase. Use explicit SEO origins, opt-in indexing, escaped JSON-LD
+and pure CSP policy. Web Vitals has no default transport; optional consumers must
+not corrupt delivery. See [SEO](docs/seo.md), [CSP](docs/website-csp.md) and
+[performance](docs/website-performance.md). Optional hooks and comprehension
+evaluation prompts require actual host integration and execution evidence.
