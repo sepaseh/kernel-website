@@ -10,6 +10,14 @@ sample backend; keep database, authentication and storage implementation outside
 frontend source. Setup and tests use this repository's owned HTTP fixture. Keep feature-specific pure DTOs beside the feature, settings contracts
 beside their loader and reused wire concepts in src/shared/contracts.
 
+Use src/features/auth for login, registration, recovery, shared OTP UI and the
+authentication layout; session reads/logout and SessionProvider belong in its
+session directory. Keep account mutations with account forms. Home content and
+Reveal stay in src/features/home. App shell components belong in
+src/app/_components; shared primitives and ThemeToggle belong in src/shared/ui,
+with cn in src/shared/lib. Follow [architecture](../../docs/architecture.md)
+rather than introducing overlapping presentation folders.
+
 Production package imports require the exact owner, installed package identity
 and runtime/type-only permission in scripts/check-boundaries.mjs. In a false-marker phase the installed Next.js package supplies only its declared feature-local link/router boundaries, erased document types and Web Vitals hook adapter. Do not broaden permissions to make a test realistic. Runnable adapters need explicit owners, package permissions and tests. Inspect installed framework request APIs and actual supported signatures rather than assuming older synchronous APIs.
 
@@ -26,6 +34,14 @@ currentColor and decorative aria-hidden. Keep light/dark choice independent of
 language and preserve reduced-motion behavior. Keep UI dependencies local to
 this website's reviewed component system.
 
+Interactive state stays with its owner. Derive values when synchronization is
+unnecessary, use stable dependencies, and declare components outside another
+component's render. A conditional numeric expression must not render an unwanted
+zero. Use keys when a form should reset by locale, session generation or account
+identity. Preserve password whitespace, OTP destination ownership and accepted
+server normalization. Read [forms](../../docs/forms.md) and
+[client UI](../../docs/client-ui.md).
+
 ## Language and document support
 
 The API's validated public settings choose the sole active language and exact
@@ -33,6 +49,12 @@ ltr/rtl direction; never infer direction from a locale code. Ten complete local
 flat catalogs preserve ICU variables and genuine translations. No visitor
 language controls, language cookies, header negotiation or URL language selection
 are introduced. See [localization](../../docs/localization.md).
+
+SEO support requires explicit origins and opt-in indexing. Escape JSON-LD and
+restrict it to verified content. Metrics have no default transport and must not
+corrupt delivery. Preserve the pure CSP/proxy policies and licensed self-hosted
+fonts. The existing [client/document guide](../../docs/client-document.md)
+describes support behavior; actual document/route composition follows the source marker and application acceptance.
 
 ## Verification
 

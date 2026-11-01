@@ -1,12 +1,14 @@
 # Understand this publication
 
-The current publication phase is **foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **client-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
 The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
 
 ## Published source
 
-- Shared frontend infrastructure and controls: 11 admitted files.
+- Authentication APIs and session ownership: 13 admitted files.
+- Account contracts and requests: 3 admitted files.
+- Shared frontend infrastructure and controls: 38 admitted files.
 - Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
 - Licensed font source and real font verification: 2 admitted files.
 
