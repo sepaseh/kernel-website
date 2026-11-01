@@ -183,6 +183,28 @@ test("privileged file-limit workflow cannot execute PR source or arbitrary comma
   }
 });
 
+test("CodeQL covers every pull request base without path or activity filtering", async () => {
+  const original = workflowDocument(await read(".github/workflows/codeql.yml"));
+  for (const event of [null, {}]) {
+    const value = structuredClone(original);
+    value.on.pull_request = event;
+    validateAdditionalWorkflow("codeql", JSON.stringify(value));
+  }
+  for (const field of [
+    "branches",
+    "branches-ignore",
+    "paths",
+    "paths-ignore",
+    "types",
+  ]) {
+    const value = structuredClone(original);
+    value.on.pull_request = { [field]: ["main"] };
+    assert.throws(() =>
+      validateAdditionalWorkflow("codeql", JSON.stringify(value)),
+    );
+  }
+});
+
 test("security and review workflows retain exact permissions, trusted source and independent signals", async () => {
   for (const [name, changes] of [
     [

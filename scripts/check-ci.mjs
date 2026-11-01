@@ -247,6 +247,18 @@ export function validateAdditionalWorkflow(filename, content) {
   );
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
   if (filename === "codeql") {
+    assert.ok(
+      Object.hasOwn(workflow.on, "pull_request"),
+      "CodeQL must inspect every PR base.",
+    );
+    const event = workflow.on.pull_request;
+    assert.ok(
+      event === null ||
+        (typeof event === "object" &&
+          !Array.isArray(event) &&
+          Object.keys(event).length === 0),
+      "CodeQL PR checks cannot filter branches, paths or activities.",
+    );
     assert.deepEqual(workflow.permissions, { contents: "read" });
     assert.deepEqual(workflow.jobs.analyze.permissions, {
       contents: "read",

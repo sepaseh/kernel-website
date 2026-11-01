@@ -25,7 +25,8 @@ weaken protection or infer permission to merge.
 ## Before requesting CodeRabbit
 
 Apply [the complete current-head preflight](../../docs/reviews.md).
-Every required non-CodeRabbit check, actual scanner, native Sonar gate and the
+Every required non-CodeRabbit check, native CodeQL result, actual Sonar scanner,
+native Sonar gate and the
 complete all-severity zero-unresolved Sonar report must match the exact head.
 Wait at least one hour since both the latest request and substantive review,
 respect longer provider limits and send no duplicate in-flight request.

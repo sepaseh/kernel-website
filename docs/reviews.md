@@ -11,6 +11,8 @@ A manual initial review or re-review requires explicit authorization and all of:
 1. Every required non-CodeRabbit protected check succeeds for the exact head.
    Exclude only CodeRabbit's provider check and approval requirement to avoid
    a circular dependency.
+   This includes the native `CodeQL` security result from App `57789`;
+   its Actions analysis job alone does not satisfy that result.
 2. The real Sonar scanner ran and the native `SonarCloud Code Analysis` gate
    succeeded for the same head.
 3. The applicable complete Sonar report has zero OPEN/unresolved issues across

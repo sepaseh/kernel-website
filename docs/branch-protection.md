@@ -12,14 +12,21 @@ Require one approving review, dismiss stale approvals, resolve conversations,
 keep strict up-to-date checks, enforce for administrators and require linear
 history. Allow neither force pushes nor branch deletion. Add no bypass actors.
 
-| Required check             | Expected GitHub App     |
-| -------------------------- | ----------------------- |
-| `check`                    | GitHub Actions `15368`  |
-| `PR file limit`            | GitHub Actions `15368`  |
-| `SonarQube Cloud analysis` | GitHub Actions `15368`  |
-| `SonarCloud Code Analysis` | SonarQube Cloud `12526` |
-| `CodeRabbit`               | CodeRabbit `347564`     |
-| `CodeRabbit approval`      | GitHub Actions `15368`  |
+| Required check             | Expected GitHub App              |
+| -------------------------- | -------------------------------- |
+| `check`                    | GitHub Actions `15368`           |
+| `CodeQL`                   | GitHub Advanced Security `57789` |
+| `PR file limit`            | GitHub Actions `15368`           |
+| `SonarQube Cloud analysis` | GitHub Actions `15368`           |
+| `SonarCloud Code Analysis` | SonarQube Cloud `12526`          |
+| `CodeRabbit`               | CodeRabbit `347564`              |
+| `CodeRabbit approval`      | GitHub Actions `15368`           |
+
+The native `CodeQL` security result is required separately from its Actions
+analysis job. A successful scanner job alone is not the native result.
+The [CodeQL workflow](../.github/workflows/codeql.yml) must analyze every actual
+PR base, including protected predecessors in an explicitly authorized stack.
+CodeQL is a hosted security gate, not an additional local full-profile command.
 
 The trusted [review verifier](../scripts/review-policy.mjs) checks actual
 current-head bot approval and the provider's completed check.

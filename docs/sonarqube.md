@@ -28,6 +28,10 @@ gate are distinct requirements. An empty project's zero counters are not an
 analysis result. Record the exact head, scanner execution, provider analysis
 and native gate; configuration or old-repository results do not satisfy them.
 
+The separate native `CodeQL` security result from GitHub Advanced Security
+App `57789` is also required under [branch protection](branch-protection.md).
+It replaces neither Sonar scanner execution nor the native Sonar quality gate.
+
 Before a CodeRabbit request, verify the complete matching all-severity report
 has zero OPEN/unresolved issues under [review preflight](reviews.md).
 Missing analysis, credentials, binding or hosted results remain blockers.
