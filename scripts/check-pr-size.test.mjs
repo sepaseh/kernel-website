@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { unlink, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -279,13 +278,19 @@ test("validates its target before making requests", async () => {
 });
 
 test("CLI emits structured counts and escapes untrusted errors as one log line", async (context) => {
-  const eventPath = path.join(tmpdir(), `website-pr-size-${randomUUID()}.json`);
+  const parent = await realpath(tmpdir());
+  const directory = await mkdtemp(path.join(parent, "website-pr-size-"));
+  context.after(async () => {
+    assert.equal(path.dirname(directory), parent);
+    assert.ok(path.basename(directory).startsWith("website-pr-size-"));
+    await rm(directory, { recursive: true, force: true });
+  });
+  const eventPath = path.join(directory, "event.json");
   await writeFile(
     eventPath,
     JSON.stringify({ pull_request: { head: { sha: head }, number: 1 } }),
-    { flag: "wx" },
+    { flag: "wx", mode: 0o600 },
   );
-  context.after(() => unlink(eventPath));
   const cli = (preload) =>
     spawnSync(
       process.execPath,

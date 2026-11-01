@@ -23,6 +23,19 @@ test("actual workflows execute the nine declared governance checks and real meas
   validateCheckManifest(manifest);
 });
 
+test("CI and Sonar require installation without dependency lifecycle execution", () => {
+  const unsafeCi = structuredClone(ci);
+  unsafeCi.jobs.check.steps.find(
+    (step) => step.run === "npm ci --ignore-scripts",
+  ).run = "npm ci";
+  assert.throws(() => validateCiWorkflow(JSON.stringify(unsafeCi), manifest));
+  const unsafeSonar = structuredClone(sonar);
+  unsafeSonar.jobs.analysis.steps.find(
+    (step) => step.run === "npm ci --ignore-scripts",
+  ).run = "npm ci";
+  assert.throws(() => validateSonarWorkflow(JSON.stringify(unsafeSonar)));
+});
+
 test("manifest cannot drop, repeat, replace or soften a required check", () => {
   for (const change of [
     (value) => {

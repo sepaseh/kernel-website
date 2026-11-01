@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url";
 
 import ts from "typescript";
 
-import { publicationFiles, readPublishedFile } from "./validate-bootstrap.mjs";
+import {
+  completePublicationWork,
+  publicationFiles,
+  readPublishedFile,
+} from "./validate-bootstrap.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const packageOwners = {
@@ -154,14 +158,17 @@ export async function inspectBoundaries(root = repository) {
   const pkg = JSON.parse(await readPublishedFile(root, "package.json"));
   const lock = JSON.parse(await readPublishedFile(root, "package-lock.json"));
   validateStandalonePackage(pkg, lock);
-  for (const filename of publicationFiles.filter((file) =>
-    file.endsWith(".mjs"),
-  ))
-    validateModuleImports(
-      filename,
-      await readPublishedFile(root, filename),
-      pkg,
-    );
+  await completePublicationWork(
+    publicationFiles
+      .filter((file) => file.endsWith(".mjs"))
+      .map(async (filename) =>
+        validateModuleImports(
+          filename,
+          await readPublishedFile(root, filename),
+          pkg,
+        ),
+      ),
+  );
 }
 
 if (import.meta.main) {

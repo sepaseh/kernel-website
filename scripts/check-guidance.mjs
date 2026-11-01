@@ -3,7 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateCheckManifest } from "./check-ci.mjs";
-import { publicationFiles, readPublishedFile } from "./validate-bootstrap.mjs";
+import {
+  completePublicationWork,
+  publicationFiles,
+  readPublishedFile,
+} from "./validate-bootstrap.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const present = (filename) => publicationFiles.includes(filename);
@@ -102,10 +106,13 @@ export async function inspectGuidance(root = repository) {
   ]);
   validateGuidanceIndexes(settings, navigation, manifest);
   validateReadme(await readPublishedFile(root, "README.md"));
-  for (const filename of publicationFiles.filter((file) =>
-    file.endsWith(".md"),
-  ))
-    validateGuideLinks(filename, await readPublishedFile(root, filename));
+  await completePublicationWork(
+    publicationFiles
+      .filter((file) => file.endsWith(".md"))
+      .map(async (filename) =>
+        validateGuideLinks(filename, await readPublishedFile(root, filename)),
+      ),
+  );
 }
 
 if (import.meta.main) {

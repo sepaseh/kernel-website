@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
       - run: node scripts/validate-bootstrap.mjs
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run test:unit
       - run: npm run test:governance
       - name: Analyze the published governance source and its measured coverage

@@ -64,6 +64,8 @@ function fixture(options = {}) {
   context.fetchImpl = async (url, init) => {
     assert.equal(init.redirect, "error");
     assert.equal(init.headers.Authorization, "Bearer synthetic-policy-token");
+    assert.equal(new URL(url).origin, "https://api.github.com");
+    assert.ok(new URL(url).pathname.startsWith(`/repos/${repository}`));
     const route =
       new URL(url).pathname.slice(`/repos/${repository}`.length) +
       new URL(url).search;
@@ -231,6 +233,23 @@ test("trusted PR verification publishes pending then an explicit current-head ap
     f.posts[1].target_url,
     `https://github.com/${repository}/actions/runs/99`,
   );
+});
+
+test("remote branch metadata stays encoded as a repository-local path component", async () => {
+  const branch = "main/../../foreign?query#fragment";
+  const comparison = `/compare/${source}...${encodeURIComponent(branch)}`;
+  const f = fixture({
+    repo: { default_branch: branch },
+    context: {
+      workflowRef: `${repository}/.github/workflows/review-policy.yml@refs/heads/${branch}`,
+    },
+    intercept: (route) =>
+      route === comparison
+        ? response({ status: "identical", merge_base_commit: { sha: source } })
+        : undefined,
+  });
+  assert.equal((await runReviewPolicy(f.context))[0].state, "success");
+  assert.ok(f.reads.includes(comparison));
 });
 
 test("wrong repository, workflow provenance or default-branch history cannot publish a status", async () => {
@@ -516,7 +535,8 @@ test("policy imports are inert and an unconfigured CLI cannot contact GitHub", (
     [
       "--input-type=module",
       "-e",
-      `globalThis.fetch=()=>{throw Error('network during import')};await import(${JSON.stringify(target.href)});`,
+      "globalThis.fetch=()=>{throw Error('network during import')};await import(process.argv[1]);",
+      target.href,
     ],
     { env, encoding: "utf8", windowsHide: true },
   );

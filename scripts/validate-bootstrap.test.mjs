@@ -12,6 +12,8 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
+  comparePublicationPaths,
+  completePublicationWork,
   inspectBootstrap,
   ordinaryPath,
   publicationFiles,
@@ -142,6 +144,10 @@ test("snapshot refuses directory aliases, linked ancestors and non-file reads", 
     ordinaryPath(path.join(linked, "testing.md")),
     /symbolic links/,
   );
+  await assert.rejects(
+    ordinaryPath(path.join(linked, "missing-child.md")),
+    /symbolic links/,
+  );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);
   await rm(linked);
   await rm(path.join(root, "README.md"));
@@ -151,4 +157,43 @@ test("snapshot refuses directory aliases, linked ancestors and non-file reads", 
     "junction",
   );
   await assert.rejects(inspectBootstrap(root), /symbolic links/);
+});
+
+test("publication ordering is ordinal and independent of locale or numeric collation", () => {
+  const paths = ["a10", "a2", "_path", "z", "A", "a", "\uE000", "\u{10000}"];
+  assert.deepEqual(paths.sort(comparePublicationPaths), [
+    "A",
+    "_path",
+    "a",
+    "a10",
+    "a2",
+    "z",
+    "\u{10000}",
+    "\uE000",
+  ]);
+  assert.equal(comparePublicationPaths("same", "same"), 0);
+});
+
+test("independent publication operations drain and retain every failure", async () => {
+  const first = new Error("first publication failure");
+  const second = new Error("second publication failure");
+  await assert.rejects(
+    completePublicationWork([Promise.reject(first)]),
+    (error) => error === first,
+  );
+  await assert.rejects(
+    completePublicationWork([Promise.reject(first), Promise.reject(second)]),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [first, second]);
+      return true;
+    },
+  );
+  assert.deepEqual(
+    await completePublicationWork([
+      Promise.resolve("left"),
+      Promise.resolve("right"),
+    ]),
+    ["left", "right"],
+  );
 });

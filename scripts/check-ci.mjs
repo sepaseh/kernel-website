@@ -4,7 +4,10 @@ import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 
 import { maximumChangedFiles } from "./check-pr-size.mjs";
-import { readPublishedFile } from "./validate-bootstrap.mjs";
+import {
+  completePublicationWork,
+  readPublishedFile,
+} from "./validate-bootstrap.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 export const requiredChecks = Object.freeze([
@@ -155,7 +158,7 @@ export function validateCiWorkflow(content, manifest) {
       checkoutAction,
       nodeAction,
       "node scripts/check-pr-size.mjs",
-      "npm ci",
+      "npm ci --ignore-scripts",
       "npm run validate -- full",
     ],
   );
@@ -176,7 +179,7 @@ export function validateSonarWorkflow(content) {
   pinnedActions(job);
   const position = (run) =>
     job.steps.findIndex((step) => step.run?.trim() === run);
-  const install = position("npm ci");
+  const install = position("npm ci --ignore-scripts");
   const snapshot = position("node scripts/validate-bootstrap.mjs");
   const unit = position("npm run test:unit");
   const governance = position("npm run test:governance");
@@ -313,12 +316,14 @@ export async function inspectCi(root = repository) {
   validatePrWorkflow(
     await readPublishedFile(root, ".github/workflows/pr-policy.yml"),
   );
-  for (const filename of ["codeql", "review-policy", "review-signal"]) {
-    validateAdditionalWorkflow(
-      filename,
-      await readPublishedFile(root, `.github/workflows/${filename}.yml`),
-    );
-  }
+  await completePublicationWork(
+    ["codeql", "review-policy", "review-signal"].map(async (filename) => {
+      validateAdditionalWorkflow(
+        filename,
+        await readPublishedFile(root, `.github/workflows/${filename}.yml`),
+      );
+    }),
+  );
 }
 
 if (import.meta.main) {

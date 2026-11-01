@@ -82,6 +82,26 @@ const admitted = new Set(publicationFiles);
 const ignoredDirectories = new Set([".git", "node_modules", "coverage"]);
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
+// Logical publication paths use UTF-16 ordinal order on every host.
+export const comparePublicationPaths = (left, right) => {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+};
+
+export async function completePublicationWork(operations) {
+  const results = await Promise.allSettled(operations);
+  const failures = results
+    .filter((result) => result.status === "rejected")
+    .map((result) => result.reason);
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(
+      failures,
+      failures.map((failure) => failure.message).join("\n"),
+    );
+  return results.map((result) => result.value);
+}
+
 export function validateBootstrapPolicy(policy) {
   assert.equal(policy?.schemaVersion, 1, "Unsupported publication schema.");
   assert.equal(policy.phase, "governance", "Only governance is published.");
@@ -95,7 +115,7 @@ export function validateBootstrapPolicy(policy) {
     100,
     "The PR file limit remains 100.",
   );
-  assert.deepEqual(Object.keys(policy).sort(), [
+  assert.deepEqual(Object.keys(policy).sort(comparePublicationPaths), [
     "allowedFiles",
     "applicationReady",
     "maximumChangedFiles",
@@ -112,29 +132,30 @@ export function validateBootstrapPolicy(policy) {
     "Duplicate publication path.",
   );
   assert.deepEqual(
-    [...policy.allowedFiles].sort(),
-    [...publicationFiles].sort(),
+    [...policy.allowedFiles].sort(comparePublicationPaths),
+    [...publicationFiles].sort(comparePublicationPaths),
     "The reviewed publication inventory must match exactly.",
   );
   return new Set(policy.allowedFiles);
 }
 
+async function inspectAncestors(cursor, parts, index = 0) {
+  const entry = await lstat(cursor);
+  assert.equal(
+    entry.isSymbolicLink(),
+    false,
+    "Publication paths cannot contain symbolic links.",
+  );
+  return index === parts.length
+    ? entry
+    : inspectAncestors(path.join(cursor, parts[index]), parts, index + 1);
+}
+
 export async function ordinaryPath(filename, directory = false) {
   const absolute = path.resolve(filename);
-  let cursor = path.parse(absolute).root;
-  for (const part of absolute
-    .slice(cursor.length)
-    .split(path.sep)
-    .filter(Boolean)) {
-    cursor = path.join(cursor, part);
-    const entry = await lstat(cursor);
-    assert.equal(
-      entry.isSymbolicLink(),
-      false,
-      "Publication paths cannot contain symbolic links.",
-    );
-  }
-  const entry = await lstat(absolute);
+  const origin = path.parse(absolute).root;
+  const parts = absolute.slice(origin.length).split(path.sep).filter(Boolean);
+  const entry = await inspectAncestors(origin, parts);
   assert.ok(
     directory ? entry.isDirectory() : entry.isFile(),
     "Unexpected publication path type.",
@@ -149,36 +170,39 @@ export async function readPublishedFile(root, filename) {
 }
 
 async function inspectDirectory(root, relative, found) {
-  for (const entry of await readdir(path.join(root, relative), {
+  const entries = await readdir(path.join(root, relative), {
     withFileTypes: true,
-  })) {
-    const name = relative ? `${relative}/${entry.name}` : entry.name;
-    assert.equal(
-      entry.isSymbolicLink(),
-      false,
-      "Publication paths cannot contain symbolic links.",
-    );
-    if (!relative && ignoredDirectories.has(name)) {
-      assert.ok(
-        entry.isDirectory(),
-        "Ignored output must be an ordinary directory.",
+  });
+  await completePublicationWork(
+    entries.map(async (entry) => {
+      const name = relative ? `${relative}/${entry.name}` : entry.name;
+      assert.equal(
+        entry.isSymbolicLink(),
+        false,
+        "Publication paths cannot contain symbolic links.",
       );
-      continue;
-    }
-    if (entry.isDirectory()) {
-      assert.ok(
-        publicationFiles.some((file) => file.startsWith(name + "/")),
-        "Unexpected publication directory: " + name,
-      );
-      await inspectDirectory(root, name, found);
-    } else {
-      assert.ok(
-        entry.isFile() && admitted.has(name),
-        "Unexpected publication file: " + name,
-      );
-      found.add(name);
-    }
-  }
+      if (!relative && ignoredDirectories.has(name)) {
+        assert.ok(
+          entry.isDirectory(),
+          "Ignored output must be an ordinary directory.",
+        );
+        return;
+      }
+      if (entry.isDirectory()) {
+        assert.ok(
+          publicationFiles.some((file) => file.startsWith(name + "/")),
+          "Unexpected publication directory: " + name,
+        );
+        return inspectDirectory(root, name, found);
+      } else {
+        assert.ok(
+          entry.isFile() && admitted.has(name),
+          "Unexpected publication file: " + name,
+        );
+        found.add(name);
+      }
+    }),
+  );
 }
 
 export async function inspectBootstrap(root = repository) {
@@ -187,18 +211,24 @@ export async function inspectBootstrap(root = repository) {
   // Reject unreviewed/private names before reading any file contents.
   await inspectDirectory(directory, "", found);
   assert.deepEqual(
-    [...found].sort(),
-    [...publicationFiles].sort(),
+    [...found].sort(comparePublicationPaths),
+    [...publicationFiles].sort(comparePublicationPaths),
     "Missing declared publication files.",
   );
   const policy = JSON.parse(
     await readPublishedFile(directory, ".github/bootstrap-policy.json"),
   );
   validateBootstrapPolicy(policy);
-  for (const filename of publicationFiles) {
-    if (filename.endsWith(".json"))
-      JSON.parse(await readPublishedFile(directory, filename));
-    if (filename.endsWith(".mjs")) {
+  await completePublicationWork(
+    publicationFiles
+      .filter((file) => file.endsWith(".json"))
+      .map(async (filename) =>
+        JSON.parse(await readPublishedFile(directory, filename)),
+      ),
+  );
+  publicationFiles
+    .filter((file) => file.endsWith(".mjs"))
+    .forEach((filename) => {
       const result = spawnSync(
         process.execPath,
         ["--check", path.join(directory, filename)],
@@ -214,8 +244,7 @@ export async function inspectBootstrap(root = repository) {
         0,
         "Invalid JavaScript syntax: " + filename + "\n" + result.stderr,
       );
-    }
-  }
+    });
   return { phase: policy.phase, applicationReady: false, files: found.size };
 }
 

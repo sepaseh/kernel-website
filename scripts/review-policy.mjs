@@ -75,6 +75,62 @@ export function decideApproval(pull, reviews, checks) {
   };
 }
 
+function githubAddress(repository, route) {
+  const prefix = `/repos/${repository.split("/").map(encodeURIComponent).join("/")}`;
+  const address = new URL("https://api.github.com");
+  const query = route.indexOf("?");
+  const pathname = query < 0 ? route : route.slice(0, query);
+  address.pathname = prefix + (pathname ? "/" + pathname : "");
+  address.search = query < 0 ? "" : route.slice(query + 1);
+  // Set path/query on a fixed origin, then reject normalization outside the
+  // selected repository. Remote branch names can never select a new host/repo.
+  if (address.pathname !== prefix && !address.pathname.startsWith(prefix + "/"))
+    throw new Error(
+      "Approval requests must remain in the selected repository.",
+    );
+  return address.href;
+}
+
+function collectPolicyRows(result, field, state) {
+  const rows = field ? result.data?.[field] : result.data;
+  if (!Array.isArray(rows) || rows.length > 100)
+    throw new Error("GitHub returned an invalid policy page.");
+  if (field) updateCheckCount(result.data.total_count, state);
+  rows.forEach((row) => {
+    const id = row?.id ?? row?.number;
+    if (!positive(id) || state.ids.has(id))
+      throw new Error("GitHub returned incomplete or repeated policy entries.");
+    state.ids.add(id);
+    state.collected.push(row);
+  });
+  return rows;
+}
+
+function updateCheckCount(total, state) {
+  if (!Number.isSafeInteger(total) || total < 0)
+    throw new Error("GitHub returned an invalid check count.");
+  if (state.total !== undefined && state.total !== total)
+    throw new Error("GitHub checks changed during pagination.");
+  state.total = total;
+}
+
+function hasNextPolicyPage(result, rows, expectedUrl) {
+  const links = result.link?.split(",").map((part) => part.trim());
+  if (
+    links?.some(
+      (part) => !/^<[^<>]+>;\s*rel="(?:next|prev|first|last)"$/.test(part),
+    )
+  )
+    throw new Error("GitHub returned malformed policy pagination.");
+  const next = links?.filter((part) => /;\s*rel="next"$/.test(part));
+  if (!next?.length) return false;
+  if (next.length !== 1 || rows.length !== 100)
+    throw new Error("GitHub returned inconsistent policy pagination.");
+  if (next[0] !== `<${expectedUrl}>; rel="next"`)
+    throw new Error("GitHub returned an untrusted pagination target.");
+  return true;
+}
+
 function githubClient(repository, token, apiUrl, fetchImpl) {
   if (
     typeof repository !== "string" ||
@@ -87,103 +143,54 @@ function githubClient(repository, token, apiUrl, fetchImpl) {
     throw new Error(
       "An exact repository, token and HTTP implementation are required.",
     );
-  const api = new URL(apiUrl);
-  if (api.href !== "https://api.github.com/")
+  if (!["https://api.github.com", "https://api.github.com/"].includes(apiUrl))
     throw new Error("Approval tokens must remain on the canonical GitHub API.");
-  const prefix = `repos/${repository.split("/").map(encodeURIComponent).join("/")}/`;
   const request = async (route, body) => {
-    const response = await fetchImpl(
-      new URL(
-        route ? prefix + route : prefix.slice(0, -1),
-        api.href.endsWith("/") ? api : api.href + "/",
-      ).href,
-      {
-        method: body === undefined ? "GET" : "POST",
-        redirect: "error",
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${token}`,
-          "X-GitHub-Api-Version": "2026-03-10",
-          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    const response = await fetchImpl(githubAddress(repository, route), {
+      method: body === undefined ? "GET" : "POST",
+      redirect: "error",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2026-03-10",
+        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
-    );
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
     if (!response.ok)
       throw new Error(`GitHub policy query failed (HTTP ${response.status}).`);
     return { data: await response.json(), link: response.headers.get("link") };
   };
-  const pages = async (route, field) => {
-    const collected = [];
-    const ids = new Set();
-    let page = 1;
-    let total;
-    while (true) {
-      const separator = route.includes("?") ? "&" : "?";
-      const result = await request(
-        `${route}${separator}per_page=100&page=${page}`,
-      );
-      const rows = field ? result.data?.[field] : result.data;
-      if (!Array.isArray(rows) || rows.length > 100)
-        throw new Error("GitHub returned an invalid policy page.");
-      if (field) {
-        if (
-          !Number.isSafeInteger(result.data.total_count) ||
-          result.data.total_count < 0
-        )
-          throw new Error("GitHub returned an invalid check count.");
-        if (total !== undefined && total !== result.data.total_count)
-          throw new Error("GitHub checks changed during pagination.");
-        total = result.data.total_count;
-      }
-      for (const row of rows) {
-        const id = row?.id ?? row?.number;
-        if (!positive(id) || ids.has(id))
-          throw new Error(
-            "GitHub returned incomplete or repeated policy entries.",
-          );
-        ids.add(id);
-        collected.push(row);
-      }
-      const links = result.link?.split(",").map((part) => part.trim());
+  const pages = (route, field) => {
+    const separator = route.includes("?") ? "&" : "?";
+    const pagedRoute = (page) =>
+      `${route}${separator}per_page=100&page=${page}`;
+    const state = { collected: [], ids: new Set(), total: undefined };
+    // Each page depends on the preceding API response. Recursion keeps that
+    // dependency explicit and never follows a server-supplied URL.
+    const readPage = async (page) => {
+      const result = await request(pagedRoute(page));
+      const rows = collectPolicyRows(result, field, state);
       if (
-        links?.some(
-          (part) => !/^<[^<>]+>;\s*rel="(?:next|prev|first|last)"$/.test(part),
+        hasNextPolicyPage(
+          result,
+          rows,
+          githubAddress(repository, pagedRoute(page + 1)),
         )
       )
-        throw new Error("GitHub returned malformed policy pagination.");
-      const next = links?.filter((part) => /;\s*rel="next"$/.test(part));
-      if (!next?.length) break;
-      if (next.length !== 1 || rows.length !== 100)
-        throw new Error("GitHub returned inconsistent policy pagination.");
-      const nextUrl = new URL(
-        `${prefix}${route}${separator}per_page=100&page=${page + 1}`,
-        api.href.endsWith("/") ? api : api.href + "/",
-      ).href;
-      if (next[0].trim() !== `<${nextUrl}>; rel="next"`)
-        throw new Error("GitHub returned an untrusted pagination target.");
-      page++;
-    }
-    if (total !== undefined && total !== collected.length)
-      throw new Error("GitHub returned incomplete check evidence.");
-    return collected;
+        return readPage(page + 1);
+      if (state.total !== undefined && state.total !== state.collected.length)
+        throw new Error("GitHub returned incomplete check evidence.");
+      return state.collected;
+    };
+    return readPage(1);
   };
   return { request, pages };
 }
 
-export async function runReviewPolicy({
-  repository,
-  token,
-  eventName,
-  event,
-  runId,
-  workflowRef,
-  workflowSha,
-  apiUrl = "https://api.github.com",
-  fetchImpl = fetch,
-}) {
-  const { request, pages } = githubClient(repository, token, apiUrl, fetchImpl);
-  const repo = (await request("")).data;
+async function verifyWorkflowSource(client, context) {
+  const { repository, runId, workflowRef, workflowSha, eventName } = context;
+  const repo = (await client.request("")).data;
   if (
     repo.full_name !== repository ||
     typeof repo.default_branch !== "string" ||
@@ -199,7 +206,7 @@ export async function runReviewPolicy({
     throw new Error(
       "Approval policy must run from the trusted default-branch workflow.",
     );
-  const own = (await request(`actions/runs/${runId}`)).data;
+  const own = (await client.request(`actions/runs/${runId}`)).data;
   if (
     own.id !== runId ||
     own.head_sha !== workflowSha ||
@@ -210,7 +217,7 @@ export async function runReviewPolicy({
   )
     throw new Error("The approval workflow's own GitHub source did not match.");
   const comparison = (
-    await request(
+    await client.request(
       `compare/${workflowSha}...${encodeURIComponent(repo.default_branch)}`,
     )
   ).data;
@@ -221,136 +228,182 @@ export async function runReviewPolicy({
     throw new Error(
       "Approval workflow source is not in default-branch history.",
     );
-  let numbers;
+}
+
+async function reviewSignalHead(client, repository, id) {
+  const [run, definition] = await Promise.all([
+    client.request(`actions/runs/${id}`),
+    client.request("actions/workflows/review-signal.yml"),
+  ]);
+  const signal = run.data;
+  const workflow = definition.data;
+  if (
+    signal.id !== id ||
+    signal.repository?.full_name !== repository ||
+    !positive(workflow.id) ||
+    signal.workflow_id !== workflow.id ||
+    workflow.path !== ".github/workflows/review-signal.yml" ||
+    signal.path !== workflow.path ||
+    signal.name !== "CodeRabbit review signal" ||
+    signal.event !== "pull_request_review" ||
+    signal.status !== "completed"
+  )
+    throw new Error("The real GitHub review signal did not match.");
+  return signal.head_sha;
+}
+
+async function providerSignalHead(client, id) {
+  const check = (await client.request(`check-runs/${id}`)).data;
+  if (
+    check.id !== id ||
+    check.app?.id !== providerApp ||
+    check.name !== "CodeRabbit" ||
+    check.status !== "completed"
+  )
+    throw new Error("The real provider wake-up check did not match.");
+  return check.head_sha;
+}
+
+async function associatedPullNumbers(client, context) {
+  const { eventName, event, repository } = context;
   if (eventName === "pull_request_target") {
     if (!positive(event.pull_request?.number))
       throw new Error("A PR event number is required.");
-    numbers = [event.pull_request.number];
-  } else if (eventName === "workflow_dispatch") {
-    numbers = (await pages("pulls?state=open")).map((pull) => pull.number);
-  } else if (eventName === "workflow_run" || eventName === "check_run") {
-    const id = event[eventName]?.id;
-    if (!positive(id))
-      throw new Error("A GitHub wake-up identifier is required.");
-    let head;
-    if (eventName === "workflow_run") {
-      const signal = (await request(`actions/runs/${id}`)).data;
-      const workflow = (await request("actions/workflows/review-signal.yml"))
-        .data;
-      if (
-        signal.id !== id ||
-        signal.repository?.full_name !== repository ||
-        !positive(workflow.id) ||
-        signal.workflow_id !== workflow.id ||
-        workflow.path !== ".github/workflows/review-signal.yml" ||
-        signal.path !== workflow.path ||
-        signal.name !== "CodeRabbit review signal" ||
-        signal.event !== "pull_request_review" ||
-        signal.status !== "completed"
-      )
-        throw new Error("The real GitHub review signal did not match.");
-      head = signal.head_sha;
-    } else {
-      const check = (await request(`check-runs/${id}`)).data;
-      if (
-        check.id !== id ||
-        check.app?.id !== providerApp ||
-        check.name !== "CodeRabbit" ||
-        check.status !== "completed"
-      )
-        throw new Error("The real provider wake-up check did not match.");
-      head = check.head_sha;
-    }
-    if (!sha(head)) throw new Error("The wake-up source has no valid commit.");
-    numbers = (await pages(`commits/${head}/pulls`)).map((pull) => pull.number);
-  } else throw new Error("Unsupported approval-policy event.");
-  const outcomes = [];
-  for (const number of new Set(numbers)) {
-    if (!positive(number))
-      throw new Error("GitHub returned an invalid PR number.");
-    const pullRoute = `pulls/${number}`;
-    const initial = pullMetadata(
-      (await request(pullRoute)).data,
-      repository,
-      number,
-    );
-    const publish = async (head, decision) => {
-      const status = (
-        await request(`statuses/${head}`, {
-          context: approvalContext,
-          ...decision,
-          target_url: `https://github.com/${repository}/actions/runs/${runId}`,
-        })
-      ).data;
-      if (
-        !identity(status.creator, actionsBot) ||
-        status.context !== approvalContext ||
-        status.state !== decision.state
-      )
-        throw new Error(
-          "The emitted approval status did not have the expected Actions source.",
-        );
-    };
-    await publish(initial.head.sha, {
-      state: "pending",
-      description: "Checking actual current-head CodeRabbit approval.",
-    });
-    let decision;
-    let examined = initial;
-    try {
-      const [reviews, checks, open] = await Promise.all([
-        pages(`${pullRoute}/reviews`),
-        pages(
-          `commits/${initial.head.sha}/check-runs?filter=all`,
-          "check_runs",
-        ),
-        pages("pulls?state=open"),
-      ]);
-      examined = pullMetadata(
-        (await request(pullRoute)).data,
-        repository,
-        number,
-      );
-      decision =
-        examined.head.sha !== initial.head.sha
-          ? blocked("The PR head changed; verification must run again.")
-          : decideApproval(examined, reviews, checks);
-      const openPulls = open.map((pull) =>
-        pullMetadata(pull, repository, pull.number),
-      );
-      if (
-        openPulls.filter(
-          (pull) =>
-            pull.state === "open" && pull.head.sha === examined.head.sha,
-        ).length !== 1
-      )
-        decision = blocked(
-          "Approval status requires one unambiguous open PR for this head.",
-        );
-    } catch {
-      decision = blocked(
-        "Complete live review evidence is unavailable; verification failed closed.",
-      );
-    }
-    const current = pullMetadata(
-      (await request(pullRoute)).data,
-      repository,
-      number,
-    );
-    if (
-      current.head.sha !== examined.head.sha ||
-      current.state !== examined.state ||
-      current.draft !== examined.draft
-    )
-      decision = blocked(
-        "The PR changed before status publication; run verification again.",
-      );
-    await publish(current.head.sha, decision);
-    outcomes.push({ number, head: current.head.sha, ...decision });
+    return [event.pull_request.number];
   }
-  return outcomes;
+  if (eventName === "workflow_dispatch")
+    return (await client.pages("pulls?state=open")).map((pull) => pull.number);
+  if (!["workflow_run", "check_run"].includes(eventName))
+    throw new Error("Unsupported approval-policy event.");
+  const id = event[eventName]?.id;
+  if (!positive(id))
+    throw new Error("A GitHub wake-up identifier is required.");
+  const head =
+    eventName === "workflow_run"
+      ? await reviewSignalHead(client, repository, id)
+      : await providerSignalHead(client, id);
+  if (!sha(head)) throw new Error("The wake-up source has no valid commit.");
+  return (await client.pages(`commits/${head}/pulls`)).map(
+    (pull) => pull.number,
+  );
 }
 
+async function publishApproval(client, context, head, decision) {
+  const status = (
+    await client.request(`statuses/${head}`, {
+      context: approvalContext,
+      ...decision,
+      target_url: `https://github.com/${context.repository}/actions/runs/${context.runId}`,
+    })
+  ).data;
+  if (
+    !identity(status.creator, actionsBot) ||
+    status.context !== approvalContext ||
+    status.state !== decision.state
+  )
+    throw new Error(
+      "The emitted approval status did not have the expected Actions source.",
+    );
+}
+
+async function assessPull(client, repository, initial) {
+  const pullRoute = `pulls/${initial.number}`;
+  try {
+    const [reviews, checks, open] = await Promise.all([
+      client.pages(`${pullRoute}/reviews`),
+      client.pages(
+        `commits/${initial.head.sha}/check-runs?filter=all`,
+        "check_runs",
+      ),
+      client.pages("pulls?state=open"),
+    ]);
+    const examined = pullMetadata(
+      (await client.request(pullRoute)).data,
+      repository,
+      initial.number,
+    );
+    let decision =
+      examined.head.sha !== initial.head.sha
+        ? blocked("The PR head changed; verification must run again.")
+        : decideApproval(examined, reviews, checks);
+    const openPulls = open.map((pull) =>
+      pullMetadata(pull, repository, pull.number),
+    );
+    if (
+      openPulls.filter(
+        (pull) => pull.state === "open" && pull.head.sha === examined.head.sha,
+      ).length !== 1
+    )
+      decision = blocked(
+        "Approval status requires one unambiguous open PR for this head.",
+      );
+    return { examined, decision };
+  } catch {
+    return {
+      examined: initial,
+      decision: blocked(
+        "Complete live review evidence is unavailable; verification failed closed.",
+      ),
+    };
+  }
+}
+
+async function verifyPull(client, context, number) {
+  if (!positive(number))
+    throw new Error("GitHub returned an invalid PR number.");
+  const route = `pulls/${number}`;
+  const initial = pullMetadata(
+    (await client.request(route)).data,
+    context.repository,
+    number,
+  );
+  await publishApproval(client, context, initial.head.sha, {
+    state: "pending",
+    description: "Checking actual current-head CodeRabbit approval.",
+  });
+  const assessed = await assessPull(client, context.repository, initial);
+  const current = pullMetadata(
+    (await client.request(route)).data,
+    context.repository,
+    number,
+  );
+  const { examined } = assessed;
+  const decision =
+    current.head.sha !== examined.head.sha ||
+    current.state !== examined.state ||
+    current.draft !== examined.draft
+      ? blocked(
+          "The PR changed before status publication; run verification again.",
+        )
+      : assessed.decision;
+  await publishApproval(client, context, current.head.sha, decision);
+  return { number, head: current.head.sha, ...decision };
+}
+
+export async function runReviewPolicy({
+  apiUrl = "https://api.github.com",
+  fetchImpl = fetch,
+  ...context
+}) {
+  const client = githubClient(
+    context.repository,
+    context.token,
+    apiUrl,
+    fetchImpl,
+  );
+  await verifyWorkflowSource(client, context);
+  const numbers = await associatedPullNumbers(client, context);
+  // Commit statuses are shared by SHA: preserve serial publication even when
+  // one wake-up identifies several PRs. Every PR gets fresh independent reads.
+  return [...new Set(numbers)].reduce(
+    (prior, number) =>
+      prior.then(async (outcomes) => [
+        ...outcomes,
+        await verifyPull(client, context, number),
+      ]),
+    Promise.resolve([]),
+  );
+}
 if (import.meta.main) {
   try {
     const outcomes = await runReviewPolicy({
