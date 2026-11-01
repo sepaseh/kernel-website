@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "governance-validation",
+      "when": "Change the declared governance snapshot, boundaries, check agreement or assistant guidance.",
+      "owners": [
+        "scripts/check-boundaries.mjs",
+        "scripts/check-ci.mjs",
+        "scripts/check-guidance.mjs",
+        "scripts/validate-bootstrap.mjs",
+        "scripts/validate.mjs"
+      ],
+      "contracts": [
+        ".agents/settings.json",
+        ".agents/validation.json",
+        ".github/bootstrap-policy.json",
+        "CONTRIBUTING.md",
+        "docs/validation.md"
+      ],
+      "tests": [
+        "scripts/check-boundaries.test.mjs",
+        "scripts/check-ci.test.mjs",
+        "scripts/check-guidance.test.mjs",
+        "scripts/validate-bootstrap.test.mjs",
+        "scripts/validate.test.mjs",
+        "scripts/validation.integration.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "boundaries",
+        "lint",
+        "format",
+        "governance-coverage"
+      ],
+      "rules": [
+        ".agents/rules/code-quality.md",
+        ".agents/rules/guidance.md",
+        ".agents/rules/testing.md"
+      ]
+    },
+    {
+      "id": "dependency-audit",
+      "when": "Change audit execution or its observable failure and cancellation behavior.",
+      "owners": ["scripts/run-audit.mjs"],
+      "contracts": ["package-lock.json", "package.json", "vitest.config.mjs"],
+      "tests": ["scripts/run-audit.test.mjs"],
+      "checks": ["audit", "lint", "unit-coverage"],
+      "rules": [".agents/rules/code-quality.md", ".agents/rules/testing.md"]
+    },
+    {
+      "id": "protected-review",
+      "when": "Change trusted PR size or current-head CodeRabbit approval verification and review policy.",
+      "owners": ["scripts/check-pr-size.mjs", "scripts/review-policy.mjs"],
+      "contracts": [
+        ".coderabbit.yaml",
+        ".github/workflows/pr-policy.yml",
+        ".github/workflows/review-policy.yml",
+        ".github/workflows/review-signal.yml",
+        "docs/branch-protection.md",
+        "docs/reviews.md",
+        "docs/sonarqube.md"
+      ],
+      "tests": [
+        "scripts/check-pr-size.test.mjs",
+        "scripts/review-policy.test.mjs"
+      ],
+      "checks": ["ci-policy", "guidance", "lint", "governance-coverage"],
+      "rules": [
+        ".agents/rules/code-review.md",
+        ".agents/rules/pull-requests.md",
+        ".agents/rules/safety.md"
+      ]
+    }
+  ]
+}

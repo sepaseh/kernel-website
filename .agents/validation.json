@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "phase": "governance",
+  "applicationReady": false,
+  "checks": [
+    {
+      "id": "snapshot",
+      "command": "npm run check:snapshot",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "ci-policy",
+      "command": "npm run check:ci",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "guidance",
+      "command": "npm run check:guidance",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "audit",
+      "command": "npm run audit",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "boundaries",
+      "command": "npm run check:boundaries",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "lint",
+      "command": "npm run lint",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "format",
+      "command": "npm run format:check",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "unit-coverage",
+      "command": "npm run test:unit",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "governance-coverage",
+      "command": "npm run test:governance",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    }
+  ],
+  "profiles": {
+    "full": [
+      "snapshot",
+      "ci-policy",
+      "guidance",
+      "audit",
+      "boundaries",
+      "lint",
+      "format",
+      "unit-coverage",
+      "governance-coverage"
+    ]
+  },
+  "externalWorkflows": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/pr-policy.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/sonar.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/codeql.yml",
+      "mode": "security"
+    },
+    {
+      "path": ".github/workflows/review-signal.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/review-policy.yml",
+      "mode": "ci"
+    }
+  ]
+}
