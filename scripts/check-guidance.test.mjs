@@ -108,12 +108,24 @@ test("English guides accept published relative references and reject hidden, mis
     "Read [root](../README.md), [CI](../scripts/check-ci.mjs#checks), [guide](<validation.md>) and [external](https://example.test). [Mail](mailto:public@example.test) [Chat](codex://threads/example) [Anchor](#local).",
   );
   validateGuideLinks("README.md", "```text\n[example](unpublished.md)\n```\n");
+  for (const title of ['"Read me"', "'Read me'", "(Read me)"])
+    for (const target of ["../README.md", "<../README.md>"])
+      validateGuideLinks("docs/testing.md", `[root](${target} ${title})`);
+  validateGuideLinks(
+    "docs/testing.md",
+    '[guide](validation.md#checks "Read (the) guide")',
+  );
   for (const content of [
     "[private](../.env.local)",
     "[missing](missing.md)",
     "[escape](../../outside.md)",
     "[malformed](%zz.md)",
     "[runtime](../src/app/page.tsx)",
+    '[missing](missing.md "Read me")',
+    "[private](<../.env.local> 'Private')",
+    "[root](/validation.md)",
+    "[encoded-root](%2fvalidation.md)",
+    "[absolute](/docs/validation.md)",
     "متن فارسی",
   ])
     assert.throws(() => validateGuideLinks("docs/testing.md", content));
@@ -123,4 +135,24 @@ test("English guides accept published relative references and reject hidden, mis
   assert.throws(() =>
     validateReadme("Governance. Application readiness is true."),
   );
+});
+
+test("escaped title delimiters and multiline titles cannot hide unpublished destinations", () => {
+  for (const title of [
+    String.raw`"Read \"me\""`,
+    String.raw`'Read \'me\''`,
+    String.raw`(Read \) me)`,
+    '"Read\nme"',
+    "'Read\nme'",
+    "(Read\nme)",
+  ]) {
+    for (const target of ["../README.md", "<../README.md>"])
+      validateGuideLinks("docs/testing.md", `[guide](${target} ${title})`);
+    for (const target of ["missing.md", "<missing.md>"])
+      assert.throws(
+        () =>
+          validateGuideLinks("docs/testing.md", `[guide](${target} ${title})`),
+        /Missing or unpublished guide link/,
+      );
+  }
 });

@@ -28,6 +28,16 @@ The [CodeQL workflow](../.github/workflows/codeql.yml) must analyze every actual
 PR base, including protected predecessors in an explicitly authorized stack.
 CodeQL is a hosted security gate, not an additional local full-profile command.
 
+The [Sonar workflow](../.github/workflows/sonar.yml) skips fork PRs because they
+cannot receive the analysis secret. Both required Sonar results remain merge
+blockers for those PRs. A maintainer must review the proposed source and workflow
+changes, then publish the reviewed commits on an in-repository branch and open
+an in-repository replacement PR linked to the original contribution. Wait for
+its exact head to pass `SonarQube Cloud analysis`, `SonarCloud Code Analysis`
+and every other required check under ordinary protection before merging.
+A topic-branch push alone does not trigger this workflow. Preserve the fork
+guard; do not expose secrets to fork source or remove required checks.
+
 The trusted [review verifier](../scripts/review-policy.mjs) checks actual
 current-head bot approval and the provider's completed check.
 An approval count alone does not select one bot, and a skipped/neutral provider

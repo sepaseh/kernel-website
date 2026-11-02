@@ -128,6 +128,21 @@ export function validateModuleImports(
   };
   const visit = (node) => {
     if (
+      ts.isImportDeclaration(node) &&
+      ["module", "node:module"].includes(node.moduleSpecifier.text)
+    ) {
+      const bindings = node.importClause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings))
+        assert.equal(
+          bindings.elements.some(
+            (entry) =>
+              (entry.propertyName ?? entry.name).text === "createRequire",
+          ),
+          false,
+          "createRequire bypasses reviewed literal import ownership.",
+        );
+    }
+    if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier
     )

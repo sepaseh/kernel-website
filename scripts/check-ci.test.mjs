@@ -134,6 +134,12 @@ test("Sonar cannot scan without same-tree unit/governance coverage or import unp
       value.jobs.analysis.name = "fake";
     },
     (value) => {
+      value.jobs.analysis.if = "false";
+    },
+    (value) => {
+      delete value.jobs.analysis.if;
+    },
+    (value) => {
       value.jobs.analysis.steps = value.jobs.analysis.steps.filter(
         (step) => step.run !== "npm run test:unit",
       );
@@ -160,6 +166,13 @@ test("Sonar cannot scan without same-tree unit/governance coverage or import unp
 
 test("privileged file-limit workflow cannot execute PR source or arbitrary commands", () => {
   for (const change of [
+    (value) => {
+      value.concurrency.group =
+        "pr-policy-${{ github.event.pull_request.number }}";
+    },
+    (value) => {
+      value.concurrency["cancel-in-progress"] = false;
+    },
     (value) => {
       value.permissions.contents = "write";
     },
@@ -210,6 +223,9 @@ test("security and review workflows retain exact permissions, trusted source and
     [
       "codeql",
       [
+        (value) => {
+          value.jobs.analyze.if = "false";
+        },
         (value) => {
           value.permissions.contents = "write";
         },

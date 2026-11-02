@@ -175,6 +175,11 @@ export function validateSonarWorkflow(content) {
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const job = workflow.jobs?.analysis;
   assert.equal(job?.name, "SonarQube Cloud analysis");
+  assert.equal(
+    job.if,
+    "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
+    "Sonar runs for every trusted PR head and skips untrusted forks.",
+  );
   assert.ok(Array.isArray(job.steps));
   pinnedActions(job);
   const position = (run) =>
@@ -221,6 +226,11 @@ export function validatePrWorkflow(content) {
     "pull-requests": "read",
   });
   assert.ok(Object.hasOwn(workflow.on, "pull_request_target"));
+  assert.deepEqual(workflow.concurrency, {
+    "cancel-in-progress": true,
+    group:
+      "pr-policy-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}",
+  });
   const job = workflow.jobs?.["file-limit"];
   assert.equal(job?.name, "PR file limit");
   unconditional(job);
@@ -247,6 +257,7 @@ export function validateAdditionalWorkflow(filename, content) {
   );
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
   if (filename === "codeql") {
+    unconditional(workflow.jobs.analyze);
     assert.ok(
       Object.hasOwn(workflow.on, "pull_request"),
       "CodeQL must inspect every PR base.",

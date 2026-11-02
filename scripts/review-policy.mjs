@@ -267,9 +267,26 @@ async function providerSignalHead(client, id) {
 async function associatedPullNumbers(client, context) {
   const { eventName, event, repository } = context;
   if (eventName === "pull_request_target") {
-    if (!positive(event.pull_request?.number))
-      throw new Error("A PR event number is required.");
-    return [event.pull_request.number];
+    const number = event.pull_request?.number;
+    if (!positive(number)) throw new Error("A PR event number is required.");
+    if (event.action !== "closed") return [number];
+
+    const closed = pullMetadata(
+      (await client.request(`pulls/${number}`)).data,
+      repository,
+      number,
+    );
+    const open = (await client.pages("pulls?state=open")).map((pull) =>
+      pullMetadata(pull, repository, pull.number),
+    );
+    return [
+      number,
+      ...open
+        .filter(
+          (pull) => pull.state === "open" && pull.head.sha === closed.head.sha,
+        )
+        .map((pull) => pull.number),
+    ];
   }
   if (eventName === "workflow_dispatch")
     return (await client.pages("pulls?state=open")).map((pull) => pull.number);
@@ -337,7 +354,11 @@ async function assessPull(client, repository, initial) {
       decision = blocked(
         "Approval status requires one unambiguous open PR for this head.",
       );
-    return { examined, decision };
+    return {
+      examined,
+      decision,
+      evidence: JSON.stringify({ checks, open, reviews }),
+    };
   } catch {
     return {
       examined: initial,
@@ -362,20 +383,32 @@ async function verifyPull(client, context, number) {
     description: "Checking actual current-head CodeRabbit approval.",
   });
   const assessed = await assessPull(client, context.repository, initial);
-  const current = pullMetadata(
-    (await client.request(route)).data,
+  // Independent live reads catch dismissals and provider changes during the
+  // first assessment. GitHub's read and status APIs are not one transaction.
+  const confirmed = await assessPull(
+    client,
     context.repository,
-    number,
+    assessed.examined,
   );
+  const current = confirmed.examined;
   const { examined } = assessed;
-  const decision =
+  let decision = assessed.decision;
+  if (
     current.head.sha !== examined.head.sha ||
     current.state !== examined.state ||
     current.draft !== examined.draft
-      ? blocked(
-          "The PR changed before status publication; run verification again.",
-        )
-      : assessed.decision;
+  )
+    decision = blocked(
+      "The PR changed before status publication; run verification again.",
+    );
+  else if (
+    assessed.decision.state === "success" &&
+    (confirmed.decision.state !== "success" ||
+      assessed.evidence !== confirmed.evidence)
+  )
+    decision = blocked(
+      "Review evidence changed before publication; run verification again.",
+    );
   await publishApproval(client, context, current.head.sha, decision);
   return { number, head: current.head.sha, ...decision };
 }

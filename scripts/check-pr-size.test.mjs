@@ -86,11 +86,14 @@ test("reads exactly 100 files in one page and checks the same head and count aft
     status: "renamed",
   };
   fixture[1] = { filename: "image.png", status: "modified" };
-  const result = await inspect(async (url, options) => {
-    requests.push({ url, options });
-    if (!url.includes("/files")) return response(pull(100));
-    return response(fixture);
-  });
+  const result = await inspect(
+    async (url, options) => {
+      requests.push({ url, options });
+      if (!url.includes("/files")) return response(pull(100));
+      return response(fixture);
+    },
+    { token: "synthetic-token" },
+  );
   assert.equal(result.changedFiles, 100);
   assert.equal(result.statusCounts.renamed, 1);
   assert.equal(result.statusCounts.modified, 1);
@@ -100,6 +103,32 @@ test("reads exactly 100 files in one page and checks the same head and count aft
     "https://api.github.com/repos/example/api/pulls/1/files?per_page=100",
   );
   assert.equal(requests[1].options.redirect, "error");
+  for (const request of requests)
+    assert.equal(
+      request.options.headers.Authorization,
+      "Bearer synthetic-token",
+    );
+});
+
+test("accepts the same expected, head and base SHAs regardless of hex case", async () => {
+  let reads = 0;
+  const result = await inspect(
+    async (url) => {
+      if (url.includes("/files")) return response(files(1));
+      reads++;
+      return response(
+        pull(1, {
+          base: { sha: reads === 1 ? base.toUpperCase() : base },
+          head: { sha: reads === 1 ? head : head.toUpperCase() },
+        }),
+      );
+    },
+    { expectedHeadSha: head.toUpperCase() },
+  );
+
+  assert.equal(result.headSha, head);
+  assert.equal(result.baseSha, base);
+  assert.equal(reads, 2);
 });
 
 test("rejects an unexpected next page without following any pagination target", async () => {

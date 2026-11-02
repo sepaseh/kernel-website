@@ -82,10 +82,16 @@ export function validateGuideLinks(filename, content) {
     false,
     "Maintained documentation is English-only.",
   );
-  for (const match of prose.matchAll(/\]\(([^)]+)\)/g)) {
+  const links = /\]\(\s*(<[^>\r\n]+>|[^)\s]+)/g;
+  for (const match of prose.matchAll(links)) {
     const link = match[1].replace(/^<|>$/g, "");
     if (/^(?:https?:|mailto:|codex:|#)/.test(link)) continue;
     const target = decodeURIComponent(link.split("#")[0]);
+    assert.equal(
+      target.startsWith("/"),
+      false,
+      "Guide links must be relative to their file: " + filename + ": " + link,
+    );
     const relative = path.posix.normalize(
       path.posix.join(path.posix.dirname(filename), target),
     );

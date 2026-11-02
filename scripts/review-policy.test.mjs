@@ -405,6 +405,99 @@ test("head changes, readiness changes and multiple PRs sharing a head remain blo
   }
 });
 
+test("a dismissal or changed provider evidence before publication blocks approval", async () => {
+  for (const change of ["dismissal", "check", "unavailable", "open pulls"]) {
+    let evidenceReads = 0;
+    let target = "/pulls/1/reviews?per_page=100&page=1";
+    if (change === "check")
+      target = `/commits/${head}/check-runs?filter=all&per_page=100&page=1`;
+    else if (change === "open pulls")
+      target = "/pulls?state=open&per_page=100&page=1";
+    const f = fixture({
+      intercept: (route) => {
+        if (route !== target || ++evidenceReads === 1) return;
+        if (change === "dismissal")
+          return response([review({ state: "DISMISSED" })]);
+        if (change === "check")
+          return response({
+            total_count: 1,
+            check_runs: [check({ conclusion: "failure" })],
+          });
+        if (change === "open pulls")
+          return response([pull(), { ...pull(), id: 12, number: 2 }]);
+        return response({}, null, 403);
+      },
+    });
+
+    const [outcome] = await runReviewPolicy(f.context);
+
+    assert.equal(evidenceReads, 2);
+    assert.equal(outcome.state, "failure");
+    assert.match(outcome.description, /evidence changed/);
+    assert.deepEqual(
+      f.posts.map((post) => post.state),
+      ["pending", "failure"],
+    );
+  }
+});
+
+test("changed evidence blocks publication even when both independent decisions would approve", async () => {
+  let reviewReads = 0;
+  const f = fixture({
+    intercept: (route) => {
+      if (route.includes("/reviews?") && ++reviewReads === 2)
+        return response([review(), review({ id: 2, state: "COMMENTED" })]);
+    },
+  });
+
+  const [outcome] = await runReviewPolicy(f.context);
+
+  assert.equal(outcome.state, "failure");
+  assert.match(outcome.description, /evidence changed/);
+  assert.equal(f.posts.at(-1).state, "failure");
+});
+
+test("a closed PR is verified before open PRs sharing its actual head", async () => {
+  for (const count of [1, 2]) {
+    const shared = Array.from({ length: count }, (_, index) => ({
+      ...pull(),
+      id: 12 + index,
+      number: 2 + index,
+    }));
+    const unrelated = { ...pull(), id: 20, number: 9, head: { sha: changed } };
+    const f = fixture({
+      context: {
+        event: {
+          action: "closed",
+          pull_request: { number: 1, head: { sha: changed } },
+        },
+      },
+      pull: { state: "closed" },
+      open: [...shared, unrelated],
+      intercept: (route) => {
+        const current = shared.find(
+          (candidate) => route === `/pulls/${candidate.number}`,
+        );
+        if (current) return response(current);
+        if (/^\/pulls\/[23]\/reviews\?/.test(route))
+          return response([review()]);
+      },
+    });
+
+    const outcomes = await runReviewPolicy(f.context);
+
+    assert.deepEqual(
+      outcomes.map((outcome) => outcome.number),
+      [1, ...shared.map((candidate) => candidate.number)],
+    );
+    assert.equal(outcomes[0].state, "failure");
+    assert.equal(outcomes.at(-1).state, count === 1 ? "success" : "failure");
+    assert.equal(f.posts.at(-1).state, count === 1 ? "success" : "failure");
+    assert.ok(f.posts.every((post) => post.route === `/statuses/${head}`));
+    assert.ok(!f.reads.includes("/pulls/9"));
+  }
+});
+
 test("incomplete API evidence and failed queries fail closed after pending publication", async () => {
   for (const options of [
     { reviews: {} },

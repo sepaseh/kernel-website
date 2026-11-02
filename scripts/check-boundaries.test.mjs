@@ -89,6 +89,30 @@ test("imports retain owner-specific package permission, literal Node imports and
     );
 });
 
+test("createRequire imports cannot bypass literal package ownership through aliases", () => {
+  for (const builtin of ["module", "node:module"]) {
+    for (const imported of ["createRequire", "createRequire as load"]) {
+      const source = `import {${imported}} from '${builtin}';`;
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", source, pkg),
+        /createRequire bypasses/,
+      );
+    }
+  }
+
+  validateModuleImports(
+    "scripts/validate.mjs",
+    "import {isBuiltin as createRequire} from 'node:module'; const other = {createRequire() {}};",
+    pkg,
+  );
+  validateModuleImports("scripts/validate.mjs", "import 'node:module';", pkg);
+  validateModuleImports(
+    "scripts/validate.mjs",
+    "import * as modules from 'node:module';",
+    pkg,
+  );
+});
+
 test("the actual published tree has no backend source, workspaces or import escapes", async () => {
   await inspectBoundaries();
   const current = JSON.parse(

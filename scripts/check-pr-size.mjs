@@ -25,9 +25,9 @@ const metadata = (value) => {
   )
     throw new Error("GitHub returned incomplete pull request metadata.");
   return {
-    baseSha: value.base.sha,
+    baseSha: value.base.sha.toLowerCase(),
     changedFiles: value.changed_files,
-    headSha: value.head.sha,
+    headSha: value.head.sha.toLowerCase(),
   };
 };
 
@@ -126,7 +126,7 @@ export const inspectPullRequest = async ({
     return { data: await response.json(), link: response.headers.get("link") };
   };
   const before = metadata((await query(endpoint)).data);
-  if (before.headSha !== expectedHeadSha)
+  if (before.headSha !== expectedHeadSha.toLowerCase())
     throw new Error("This run belongs to an older PR head; rerun the check.");
   if (before.changedFiles > maximumChangedFiles)
     throw new Error(
