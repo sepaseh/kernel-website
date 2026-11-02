@@ -101,19 +101,46 @@ function validateCreateRequireBindings(ast) {
       },
     })
     .getTypeChecker();
+  const moduleMembers = new Set(["Module", "default"]);
+  const propertyKey = (node) => {
+    if (!node) return undefined;
+    if (ts.isComputedPropertyName(node))
+      return ts.isStringLiteralLike(node.expression)
+        ? node.expression.text
+        : undefined;
+    return node.text;
+  };
+  const memberKey = (node) => {
+    if (ts.isPropertyAccessExpression(node)) return node.name.text;
+    if (
+      ts.isElementAccessExpression(node) &&
+      ts.isStringLiteralLike(node.argumentExpression)
+    )
+      return node.argumentExpression.text;
+    return undefined;
+  };
   const assignments = new Map();
+  const recordAssignment = (name, value) => {
+    if (!ts.isIdentifier(name)) return;
+    const symbol = checker.getSymbolAtLocation(name);
+    if (!symbol) return;
+    const values = assignments.get(symbol) ?? [];
+    values.push(value);
+    assignments.set(symbol, values);
+  };
   const collectAssignments = (node) => {
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isIdentifier(node.left)
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
     ) {
-      const symbol = checker.getSymbolAtLocation(node.left);
-      if (symbol) {
-        const values = assignments.get(symbol) ?? [];
-        values.push(node.right);
-        assignments.set(symbol, values);
-      }
+      recordAssignment(node.left, node.right);
+      if (ts.isObjectLiteralExpression(node.left))
+        for (const entry of node.left.properties)
+          if (moduleMembers.has(propertyKey(entry.name)))
+            recordAssignment(
+              ts.isPropertyAssignment(entry) ? entry.initializer : entry.name,
+              node.right,
+            );
     }
     ts.forEachChild(node, collectAssignments);
   };
@@ -122,20 +149,27 @@ function validateCreateRequireBindings(ast) {
   const moduleSpecifier = (node) =>
     ts.isStringLiteralLike(node) &&
     ["module", "node:module"].includes(node.text);
+  const globalIdentifier = (node, name) =>
+    ts.isIdentifier(node) &&
+    node.text === name &&
+    !checker.getSymbolAtLocation(node)?.declarations?.length;
+  const moduleCall = (node) =>
+    node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+    globalIdentifier(node.expression, "require") ||
+    (memberKey(node.expression) === "getBuiltinModule" &&
+      globalIdentifier(node.expression.expression, "process"));
   const moduleValue = (node, seen = new Set()) => {
     if (!node) return false;
     if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
       return moduleValue(node.expression, seen);
     if (ts.isCallExpression(node))
       return (
-        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) &&
-            node.expression.text === "require" &&
-            !checker.getSymbolAtLocation(node.expression)?.declarations
-              ?.length)) &&
+        moduleCall(node) &&
         node.arguments.length === 1 &&
         moduleSpecifier(node.arguments[0])
       );
+    if (moduleMembers.has(memberKey(node)))
+      return moduleValue(node.expression, seen);
     if (!ts.isIdentifier(node)) return false;
 
     const symbol = checker.getSymbolAtLocation(node);
@@ -148,24 +182,55 @@ function validateCreateRequireBindings(ast) {
     return (symbol.declarations ?? []).some((declaration) => {
       if (ts.isVariableDeclaration(declaration))
         return moduleValue(declaration.initializer, seen);
+      if (
+        ts.isBindingElement(declaration) &&
+        ts.isObjectBindingPattern(declaration.parent) &&
+        ts.isVariableDeclaration(declaration.parent.parent)
+      )
+        return (
+          moduleMembers.has(
+            propertyKey(declaration.propertyName ?? declaration.name),
+          ) && moduleValue(declaration.parent.parent.initializer, seen)
+        );
       if (ts.isImportClause(declaration))
         return moduleSpecifier(declaration.parent.moduleSpecifier);
       if (ts.isNamespaceImport(declaration))
         return moduleSpecifier(declaration.parent.parent.moduleSpecifier);
       if (ts.isImportSpecifier(declaration))
         return (
-          (declaration.propertyName ?? declaration.name).text === "default" &&
-          moduleSpecifier(declaration.parent.parent.parent.moduleSpecifier)
+          moduleMembers.has(
+            (declaration.propertyName ?? declaration.name).text,
+          ) && moduleSpecifier(declaration.parent.parent.parent.moduleSpecifier)
         );
       return false;
     });
   };
-  const forbiddenKey = (node) =>
-    node &&
-    (ts.isComputedPropertyName(node)
-      ? ts.isStringLiteralLike(node.expression) &&
-        node.expression.text === "createRequire"
-      : node.text === "createRequire");
+  const forbiddenKey = (node) => propertyKey(node) === "createRequire";
+  const exportedBinding = (name) =>
+    ts.isIdentifier(name)
+      ? moduleValue(name)
+      : name.elements.some(
+          (entry) => ts.isBindingElement(entry) && exportedBinding(entry.name),
+        );
+  const moduleExport = (node) => {
+    if (node.moduleSpecifier) {
+      if (!moduleSpecifier(node.moduleSpecifier)) return false;
+      if (!node.exportClause || ts.isNamespaceExport(node.exportClause))
+        return true;
+      return node.exportClause.elements.some((entry) => {
+        const key = propertyKey(entry.propertyName ?? entry.name);
+        return key === "createRequire" || moduleMembers.has(key);
+      });
+    }
+    if (!node.exportClause || !ts.isNamedExports(node.exportClause))
+      return false;
+    return node.exportClause.elements.some((entry) => {
+      const symbol = checker.getExportSpecifierLocalTargetSymbol(entry);
+      return (symbol?.declarations ?? []).some(
+        (declaration) => declaration.name && exportedBinding(declaration.name),
+      );
+    });
+  };
   const visit = (node) => {
     let forbidden = false;
     if (
@@ -173,13 +238,19 @@ function validateCreateRequireBindings(ast) {
       moduleSpecifier(node.parent.parent.parent.moduleSpecifier)
     )
       forbidden = forbiddenKey(node.propertyName ?? node.name);
-    if (ts.isPropertyAccessExpression(node))
-      forbidden = forbiddenKey(node.name) && moduleValue(node.expression);
-    if (ts.isElementAccessExpression(node))
-      forbidden =
-        ts.isStringLiteralLike(node.argumentExpression) &&
-        forbiddenKey(node.argumentExpression) &&
-        moduleValue(node.expression);
+    if (memberKey(node) === "createRequire")
+      forbidden = moduleValue(node.expression);
+    if (ts.isExportDeclaration(node)) forbidden = moduleExport(node);
+    if (ts.isExportAssignment(node)) forbidden = moduleValue(node.expression);
+    if (
+      ts.isVariableStatement(node) &&
+      node.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+      )
+    )
+      forbidden = node.declarationList.declarations.some((declaration) =>
+        exportedBinding(declaration.name),
+      );
     if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name))
       forbidden =
         node.name.elements.some((entry) =>

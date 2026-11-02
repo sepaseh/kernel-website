@@ -119,8 +119,20 @@ test("module bindings and simple aliases cannot expose createRequire", () => {
       `import * as modules from '${builtin}';`,
       `import modules from '${builtin}';`,
       `import {default as modules} from '${builtin}';`,
+      `import {Module as modules} from '${builtin}';`,
       `const modules = await import('${builtin}');`,
+      `const modules = (await import('${builtin}')).default;`,
+      `const modules = (await import('${builtin}'))['default'];`,
+      `import * as namespace from '${builtin}'; const modules = namespace.Module;`,
+      `import base from '${builtin}'; const modules = base['Module'];`,
       `const modules = require('${builtin}');`,
+      `const modules = require('${builtin}').Module;`,
+      `const {default: modules} = await import('${builtin}');`,
+      `const {['Module']: modules} = require('${builtin}');`,
+      `let modules; ({default: modules} = await import('${builtin}'));`,
+      `let modules; ({Module: modules} = require('${builtin}'));`,
+      `const modules = process.getBuiltinModule('${builtin}');`,
+      `const modules = process['getBuiltinModule']('${builtin}');`,
       `let modules; modules = await import('${builtin}');`,
       `let modules; modules = require('${builtin}');`,
     ]) {
@@ -151,11 +163,44 @@ test("module bindings and simple aliases cannot expose createRequire", () => {
     for (const expression of [
       `(await import('${builtin}')).createRequire;`,
       `require('${builtin}')['createRequire'];`,
+      `require('${builtin}').Module.createRequire;`,
+      `(await import('${builtin}')).default.createRequire;`,
+      `import {Module} from '${builtin}'; Module.createRequire;`,
+      `process.getBuiltinModule('${builtin}').createRequire;`,
       `const {createRequire} = await import('${builtin}');`,
     ])
       assert.throws(
         () => validateModuleImports("scripts/validate.mjs", expression, pkg),
         /createRequire bypasses/,
+      );
+  }
+});
+
+test("module-origin loaders and namespaces cannot escape through exports", () => {
+  for (const builtin of ["module", "node:module"]) {
+    for (const source of [
+      `export * from '${builtin}';`,
+      `export * as modules from '${builtin}';`,
+      `export {createRequire} from '${builtin}';`,
+      `export {createRequire as load} from '${builtin}';`,
+      `export {Module} from '${builtin}';`,
+      `export {Module as modules} from '${builtin}';`,
+      `export {default} from '${builtin}';`,
+      `export {default as modules} from '${builtin}';`,
+      `import * as modules from '${builtin}'; export {modules};`,
+      `import modules from '${builtin}'; export {modules as exported};`,
+      `import {Module as modules} from '${builtin}'; export default modules;`,
+      `const modules = await import('${builtin}'); const alias = modules; export {alias};`,
+      `let modules; modules = process.getBuiltinModule('${builtin}'); export {modules as default};`,
+      `export const modules = await import('${builtin}');`,
+      `export let modules; modules = require('${builtin}');`,
+      `const modules = await import('${builtin}'); export const {Module: alias} = modules;`,
+      `const modules = await import('${builtin}'); export const {default: alias} = modules;`,
+    ])
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", source, pkg),
+        /createRequire bypasses/,
+        source,
       );
   }
 });
@@ -181,6 +226,25 @@ test("module-origin checks preserve other members and unrelated or shadowing bin
     "const left = right; const right = left; left.createRequire;",
     "unknown.createRequire;",
     "import * as modules from 'node:module'; modules[0]; modules[member];",
+    "function inspect(process) { process.getBuiltinModule('node:module').createRequire; }",
+    "const process = {getBuiltinModule() {}}; process.getBuiltinModule('node:module').createRequire;",
+    "const other = {getBuiltinModule() {}}; other.getBuiltinModule('node:module').createRequire;",
+    "process.getBuiltinModule('node:fs');",
+    "const other = {default: {createRequire() {}}}; other.default.createRequire;",
+    "const other = {Module: {createRequire() {}}}; const {Module: alias} = other; alias.createRequire;",
+    "const other = {Module: {createRequire() {}}}; let alias; ({Module: alias} = other); alias.createRequire;",
+    "import {isBuiltin as Module} from 'node:module'; Module.createRequire;",
+    "export {isBuiltin as Module} from 'node:module';",
+    "export * from './validate-bootstrap.mjs';",
+    "export * as publication from './validate-bootstrap.mjs';",
+    "import {isBuiltin} from 'node:module'; export {isBuiltin};",
+    "const other = {createRequire() {}}; export default other;",
+    "export const modules = {createRequire() {}};",
+    "import * as modules from 'node:module'; const {isBuiltin} = modules; export {isBuiltin};",
+    "import * as modules from 'node:module'; export const {isBuiltin} = modules;",
+    "const modules = {createRequire() {}}; export {modules as named};",
+    "export function helper() {}",
+    "const local = {}; export {local};",
   ])
     validateModuleImports("scripts/validate.mjs", source, pkg);
 });

@@ -157,6 +157,20 @@ test("escaped title delimiters and multiline titles cannot hide unpublished dest
   }
 });
 
+test("external schemes are case-insensitive in inline links and reference definitions", () => {
+  for (const target of [
+    "HTTP://example.test",
+    "HtTpS://example.test",
+    "MAILTO:public@example.test",
+    "CoDeX://threads/example",
+  ])
+    for (const content of [
+      `[external](${target})`,
+      `Read [external][ref].\n\n[ref]: ${target}`,
+    ])
+      validateGuideLinks("docs/testing.md", content);
+});
+
 test("reference definitions use the same published relative destination checks as inline links", () => {
   for (const title of [
     "",
@@ -232,4 +246,65 @@ test("Markdown structure distinguishes rendered references from literal code exa
     "Read [reference].\n[reference]: missing.md",
   ])
     assert.equal(validateGuideLinks("docs/testing.md", content), undefined);
+});
+
+test("raw HTML hrefs follow the published destination policy across quoting and entities", () => {
+  for (const target of [
+    "../.env.local",
+    "missing.md",
+    "../../outside.md",
+    "/validation.md",
+    "%2fvalidation.md",
+    "../&#46;env.local",
+  ])
+    for (const content of [
+      `<a href="${target}">Hidden</a>`,
+      `<A HREF='${target}'>Hidden</A>`,
+      `<a href=${target}>Hidden</a>`,
+      `<a href=" \t${target}\n ">Hidden</a>`,
+      `<div>\n<a\n title="x > y"\n href="${target}">Hidden</a>\n</div>`,
+    ])
+      assert.throws(() => validateGuideLinks("docs/testing.md", content));
+
+  for (const content of [
+    '<a href="../README.md">Root</a>',
+    "<A HREF='../READ&#77;E.md'>Root</A>",
+    "<a href=../README.md>Root</a>",
+    '<div>\n</section><a href="../README.md">Root</a>\n</div>',
+    '<a href="HTTPS://example.test">External</a>',
+    '<a href=" \t../README.md\n ">Root</a>',
+    '<a href=" HTTPS://example.test ">External</a>',
+    '<a href="#section">Anchor</a> <a href="">Self</a>',
+    '<a title="href=../.env.local">No destination</a>',
+    "\\<a href=../.env.local>Literal escaped tag",
+    "&lt;a href=../.env.local>Literal escaped angle",
+    "<a *href=../.env.local*>Literal incomplete tag with Markdown emphasis",
+  ])
+    validateGuideLinks("docs/testing.md", content);
+});
+
+test("HTML comments, raw text and Markdown code examples do not create guide links", () => {
+  const anchor = '<a href="../.env.local">Hidden</a>';
+  for (const content of [
+    `<!-- ${anchor} -->`,
+    `<!-- ${anchor}`,
+    `<![CDATA[${anchor}]]>`,
+    `<?example ${anchor}>`,
+    `<!DOCTYPE example "${anchor}">`,
+    `\`${anchor}\``,
+    `    ${anchor}`,
+    `~~~html\n${anchor}\n~~~`,
+    ...["script", "style", "textarea", "title"].map(
+      (tag) => `<${tag}>${anchor}</${tag}>`,
+    ),
+  ])
+    validateGuideLinks("docs/testing.md", content);
+
+  for (const tag of ["script", "style", "textarea", "title"])
+    assert.throws(() =>
+      validateGuideLinks(
+        "docs/testing.md",
+        `<${tag}>${anchor}</${tag}>\n\n${anchor}`,
+      ),
+    );
 });

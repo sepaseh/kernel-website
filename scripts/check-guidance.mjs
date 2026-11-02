@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parsers as htmlParsers } from "prettier/plugins/html";
 import { parsers } from "prettier/plugins/markdown";
 
 import { validateCheckManifest } from "./check-ci.mjs";
@@ -72,6 +73,52 @@ export function validateReadme(content) {
   );
 }
 
+const decodeHtmlHref = (value) => {
+  const quoted = value.replaceAll('"', "&#34;");
+  const parsed = htmlParsers.html.parse(`<a href="${quoted}">`, {});
+  return parsed.children[0].attrs[0].valueTokens
+    .map((token) => token.parts[0])
+    .join("")
+    .replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "");
+};
+
+const openingTagHrefs = (tag) => {
+  const attributes = tag.replace(/^<[A-Za-z][\w:-]*/, "").slice(0, -1);
+  const values = [];
+  const pattern =
+    /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
+  for (const match of attributes.matchAll(pattern)) {
+    if (match[1].toLowerCase() !== "href") continue;
+
+    values.push(decodeHtmlHref(match[2] ?? match[3] ?? match[4] ?? ""));
+  }
+  return values;
+};
+
+const htmlHrefs = (fragments) => {
+  const tagTail = String.raw`(?:[^"'<>]|"[^"]*"|'[^']*')*>`;
+  const tokens = new RegExp(
+    [
+      String.raw`<!--[\s\S]*?(?:-->|$)`,
+      String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
+      String.raw`<\?[^>]*(?:>|$)`,
+      String.raw`<!${tagTail}`,
+      String.raw`<(script|style|textarea|title)(?=[\s/>])${tagTail}[\s\S]*?(?:<\/\1\s*>|$)`,
+      String.raw`<[A-Za-z][\w:-]*(?=[\s/>])${tagTail}`,
+    ].join("|"),
+    "gi",
+  );
+  const markup = fragments.join("\n");
+  const values = [];
+  for (const token of markup.matchAll(tokens)) {
+    const escapes = /\\*$/.exec(markup.slice(0, token.index))[0].length;
+    if (escapes % 2 || token[1] || /^<[!?]/.test(token[0])) continue;
+
+    values.push(...openingTagHrefs(token[0]));
+  }
+  return values;
+};
+
 export function validateGuideLinks(filename, content) {
   assert.equal(
     filename.endsWith(".fa.md"),
@@ -88,15 +135,26 @@ export function validateGuideLinks(filename, content) {
 
   const nodes = [parsers.markdown.parse(content)];
   const links = [];
+  const html = [];
   while (nodes.length) {
     const node = nodes.pop();
     if (["definition", "image", "link"].includes(node.type))
       links.push(node.url);
-    nodes.push(...(node.children ?? []));
+    if (node.type === "html") html.push(node.value);
+    if (node.type === "text") {
+      const text = content.slice(
+        node.position.start.offset,
+        node.position.end.offset,
+      );
+      if (/<[A-Za-z][\w:-]*(?=[\s/>])(?:[^"'<>]|"[^"]*"|'[^']*')*>/.test(text))
+        html.push(text);
+    }
+    nodes.push(...(node.children ?? []).toReversed());
   }
+  links.push(...htmlHrefs(html));
 
   for (const link of links) {
-    if (link === "" || /^(?:https?:|mailto:|codex:|#)/.test(link)) continue;
+    if (link === "" || /^(?:https?:|mailto:|codex:|#)/i.test(link)) continue;
 
     const target = decodeURIComponent(link.split("#")[0]);
     assert.equal(

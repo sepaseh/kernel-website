@@ -234,7 +234,11 @@ test("download expiry aborts a pending request without waiting for wall time", a
   const expiry = new AbortController();
   const started = Promise.withResolvers();
   const reason = new DOMException("synthetic download expiry", "TimeoutError");
-  context.mock.method(AbortSignal, "timeout", () => expiry.signal);
+  const timeout = context.mock.method(
+    AbortSignal,
+    "timeout",
+    () => expiry.signal,
+  );
   const operation = runActionlint({
     ...value,
     request: (url, { signal }) =>
@@ -250,6 +254,7 @@ test("download expiry aborts a pending request without waiting for wall time", a
   const rejected = assert.rejects(operation, (error) => error === reason);
   expiry.abort(reason);
   await rejected;
+  assert.equal(timeout.mock.calls[0].arguments[0], 300_000);
   assert.equal(value.executions.length, 0);
   assert.deepEqual(await readdir(value.cache), []);
 });
@@ -259,7 +264,11 @@ test("download expiry also aborts a pending response-body read", async (context)
   const expiry = new AbortController();
   const reading = Promise.withResolvers();
   const reason = new DOMException("synthetic body expiry", "TimeoutError");
-  context.mock.method(AbortSignal, "timeout", () => expiry.signal);
+  const timeout = context.mock.method(
+    AbortSignal,
+    "timeout",
+    () => expiry.signal,
+  );
   const operation = runActionlint({
     ...value,
     request: async (url, { signal }) =>
@@ -288,6 +297,7 @@ test("download expiry also aborts a pending response-body read", async (context)
   const rejected = assert.rejects(operation, (error) => error === reason);
   expiry.abort(reason);
   await rejected;
+  assert.equal(timeout.mock.calls[0].arguments[0], 300_000);
   assert.equal(value.executions.length, 0);
   assert.deepEqual(await readdir(value.cache), []);
 });
