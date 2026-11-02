@@ -2,25 +2,46 @@
 
 ## Working checkout
 
-Use the existing checkout. Creating another Git worktree, clone or copied
-implementation checkout requires explicit user authorization, also for subagents.
-A dirty checkout or an ordinary implementation/review request does not grant it.
+Before implementation or pull-request fixes, inspect the current branch, Git
+status and `git worktree list`. Reuse a suitable existing checkout and preserve
+unrelated tracked, staged and untracked changes.
 
-Inspect branch, status, diffs and `git worktree list` before selecting a workspace.
-Preserve unrelated tracked and untracked work. Keep repository-specific working
-files in this checkout; disposable validation exports are verification fixtures,
-not retained implementation workspaces.
+Creating any additional Git worktree, clone or copied implementation checkout of
+this repository requires prior explicit user authorization for that specific
+action and scope. An ordinary implementation, review, commit or push request is
+not permission to create another checkout. A missing, dirty or busy checkout does
+not grant that permission either. This rule applies to Git CLI commands, Codex
+app/tools, automatic isolation and work delegated to subagents; delegation does
+not authorize creation.
 
-Use `codex/<short-kebab-purpose>` unless the user requested an exact name.
-Verify the actual base and reuse a suitable existing branch.
-Preserve an unborn repository without inventing a commit.
-Switch only when existing work is safe. Published branch renames/deletions and
-history rewriting need explicit authorization.
+If another implementation checkout is required, explain why, give its proposed
+absolute path and ask before creating it. Honor explicit authorization already
+given in the current session for the same action and scope without asking again.
 
-Keep one PR open by default. An explicitly authorized stack may be published
-in predecessor order before merges; protect every predecessor used as a base
-and validate each exact head. Stack authorization grants no merge or bypass.
-After an actual authorized merge, reconcile the stack against real main and
-rerun full validation when proposed bytes change.
-Branch preparation grants no commit or push permission.
-Read [Git policy](git.md) and [safety](safety.md).
+Canonical required disposable validation exports remain verification-only. They
+must follow the repository's fixture and validation constraints and must never
+become implementation workspaces.
+
+Keep repository-specific scratch exports, validation evidence and recovery
+files in ignored subdirectories inside this repository, such as `coverage/`.
+Do not store these artifacts in global Codex directories or external worktree
+collections.
+
+Use a short purpose-based name. The default is `codex/<short-kebab-purpose>`;
+include a verified issue number when it helps identify the work. An explicit
+user-requested name takes precedence. Do not encode mutable labels, priority or
+assignee metadata in the name.
+
+- Reuse a current branch that already represents the requested work.
+- Before creating or switching branches, inspect the current branch, working
+  tree and staged changes. Preserve unrelated tracked and untracked work.
+- Start from the intended base verified from the user's request or repository
+  metadata; do not assume a branch name or silently discard local changes to
+  reach it. An unborn repository has no committed base: report that fact and
+  preserve its working tree rather than inventing history.
+- Branch changes must be authorized by the task. Do not rename/delete a
+  published branch or rewrite history without explicit authorization and
+  coordination with affected review requests.
+
+Use [Git workflow](git.md) for action boundaries and [commits](commits.md) for
+commit naming. Branch preparation does not authorize a commit or push.

@@ -1,6 +1,6 @@
 # Configure and verify SonarQube Cloud
 
-Use [the existing workflow](../.github/workflows/sonar.yml) on Linux and
+Use [the existing CI analysis job](../.github/workflows/ci.yml) on Linux and
 CI-based analysis. Disable automatic analysis for the same project to avoid
 duplicate analysis. Do not add another scanner workflow.
 
@@ -18,8 +18,14 @@ A repository rename or recreation must not be assumed to preserve that binding.
 
 ## Required evidence
 
-The scanner imports genuinely measured unit and governance coverage from the
-same exact proposed source, as defined by [properties](../sonar-project.properties).
+The separate unit and governance jobs each measure their suite once. After the
+`check` aggregate succeeds, analysis downloads their immutable suite/run/attempt
+artifacts and verifies each report's exact source identity and measured bytes
+before scanning, as defined by [the evidence owner](../scripts/ci-evidence.mjs)
+and [properties](../sonar-project.properties). Each download uses its own
+successful producer attempt, including analysis-only reruns. A missing or
+mismatched report blocks analysis; the scanner does not rerun tests to replace
+missing evidence.
 Keep all executable governance source analyzed; add no source, rule or coverage
 exclusion or suppression.
 

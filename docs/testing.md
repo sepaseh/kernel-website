@@ -1,7 +1,7 @@
 # Test repository governance
 
 Read [source scope](bootstrap.md) and [the manifest](../.agents/validation.json).
-The governance phase has nine actual required checks; run affected owner tests
+The governance phase has ten actual required checks; run affected owner tests
 while editing and the complete [exact-tree procedure](validation.md) before an
 authorized commit, push or PR handoff.
 
@@ -11,10 +11,15 @@ Unit coverage remains 90% for all metrics. Node owner tests measure executable
 governance helpers with 80% thresholds. Add no suppressions or source/rule/coverage
 exclusions, fabricated coverage or metric-only wrappers.
 
+CI displays unit and governance suites independently. Their manifest profiles
+partition the complete local gate; `check` aggregates job outcomes and Sonar
+consumes each suite's measured artifact without repeating tests. Dependency
+audit and static checks run independently of those suites.
+
 Use colocated `*.test.mjs` owner suites and explicitly named integration cases
 for agreement across owners. Fixtures use synthetic public data and disposable
 resources owned by the test. Verify observable failures, original errors,
-cancellation, API pagination/identity checks and cleanup.
+cancellation, coverage artifact identity and cleanup.
 Follow [test reliability](test-reliability.md).
 
 A passed local suite proves only the exercised source. It does not establish

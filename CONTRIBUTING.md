@@ -12,7 +12,7 @@ base and keep changes focused on one independently reviewable outcome.
 
 Start with the affected owner tests. Before an authorized commit, push or PR
 handoff, complete [fresh exact-tree validation](docs/validation.md), including all
-nine required checks. Documentation changes use the same full profile.
+ten required checks. Documentation changes use the same full profile.
 Do not stage or commit when a required check fails or cannot run.
 
 ## Publish and review
@@ -21,17 +21,13 @@ Do not commit without the user's approval. Verify authorization separately for
 pushes, PR changes, remote messages, review requests and merges.
 Use a Conventional Commit title and the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 
-Keep one website PR open by default. An explicitly authorized stack may be
-published in predecessor order before merges. Protect every predecessor used
-as a base and validate each exact head. Stack authorization grants no merge,
-bypass or protection waiver.
-
-Target at most 80 initial changed entries per PR and reserve 20 for fixes under
-the hard 100-entry limit; count additions, deletions, renames and binaries.
-Without explicit stack authorization, publish the next PR only after the
-preceding PR is actually merged and real main has been reconciled.
-After any actual authorized merge, reconcile descendants against real main and
-rerun full validation when proposed bytes change.
+Review the complete base-to-head diff and aim for at most 80 changed-file
+entries initially. Split independent changes when useful and explain larger
+cohesive changes. Count additions, deletions, renames and binaries. File count
+is advisory: exceeding 100 alone must not fail CI or require recreating a PR.
+A stacked PR targets its verified predecessor and states the dependency.
+After an authorized merge, reconcile descendants against actual main and rerun
+full validation when proposed bytes change.
 
 Apply [protected checks](docs/branch-protection.md) and [review preflight](docs/reviews.md).
 Missing bootstrap checks remain blockers; no merge or bootstrap waiver is
@@ -43,3 +39,13 @@ Write maintained Markdown in English, keep human guides flat, and update the
 owning explanation when behavior changes. Report QA in the task or terminal.
 A saved local report requires a request and belongs under ignored `test-results/`.
 Never use private environments, existing services or production data as fixtures.
+
+## Dependency maintenance
+
+[Dependabot](.github/dependabot.yml) schedules weekly npm and GitHub Actions
+version updates on Monday at 09:00 Asia/Tehran after this configuration is
+published on the default branch. Minor and patch updates are grouped by production,
+development and Actions dependencies; major updates remain separate. Limits are
+10 npm PRs and 5 Actions PRs. Every update follows the ordinary checks, review
+and merge authorization; the configuration does not enable automatic merging.
+Security-update settings remain separate repository controls.

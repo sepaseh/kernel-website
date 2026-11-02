@@ -10,7 +10,7 @@ and [exact-tree validation](docs/validation.md). Assistant entry points are
 
 Use the exact Node version in [.nvmrc](.nvmrc), freshly install the locked
 dependencies and run `npm run validate -- full` in an owned verification export.
-The [manifest](.agents/validation.json) defines all nine required checks.
+The [manifest](.agents/validation.json) defines all ten required checks.
 Dependency installation is not evidence of delivered application behavior.
 
 [Branch protection](docs/branch-protection.md), [reviews](docs/reviews.md) and

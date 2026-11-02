@@ -35,10 +35,6 @@ export const publicationFiles = Object.freeze([
   ".github/dependabot.yml",
   ".github/workflows/ci.yml",
   ".github/workflows/codeql.yml",
-  ".github/workflows/pr-policy.yml",
-  ".github/workflows/review-policy.yml",
-  ".github/workflows/review-signal.yml",
-  ".github/workflows/sonar.yml",
   ".gitignore",
   ".nvmrc",
   ".prettierignore",
@@ -64,10 +60,10 @@ export const publicationFiles = Object.freeze([
   "scripts/check-ci.test.mjs",
   "scripts/check-guidance.mjs",
   "scripts/check-guidance.test.mjs",
-  "scripts/check-pr-size.mjs",
-  "scripts/check-pr-size.test.mjs",
-  "scripts/review-policy.mjs",
-  "scripts/review-policy.test.mjs",
+  "scripts/ci-evidence.mjs",
+  "scripts/ci-evidence.test.mjs",
+  "scripts/run-actionlint.mjs",
+  "scripts/run-actionlint.test.mjs",
   "scripts/run-audit.mjs",
   "scripts/run-audit.test.mjs",
   "scripts/validate-bootstrap.mjs",
@@ -110,15 +106,9 @@ export function validateBootstrapPolicy(policy) {
     false,
     "Application readiness must remain false.",
   );
-  assert.equal(
-    policy.maximumChangedFiles,
-    100,
-    "The PR file limit remains 100.",
-  );
   assert.deepEqual(Object.keys(policy).sort(comparePublicationPaths), [
     "allowedFiles",
     "applicationReady",
-    "maximumChangedFiles",
     "phase",
     "schemaVersion",
   ]);

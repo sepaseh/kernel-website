@@ -25,7 +25,6 @@ const policy = () => ({
   schemaVersion: 1,
   phase: "governance",
   applicationReady: false,
-  maximumChangedFiles: 100,
   allowedFiles: [...publicationFiles],
 });
 async function fixture(t) {
@@ -58,7 +57,7 @@ async function fixture(t) {
   return { root, put };
 }
 
-test("publication accepts only the reviewed governance inventory with readiness false and a 100-entry limit", () => {
+test("publication accepts only the reviewed governance inventory with readiness false", () => {
   assert.equal(validateBootstrapPolicy(policy()).size, publicationFiles.length);
   for (const change of [
     { schemaVersion: 2 },

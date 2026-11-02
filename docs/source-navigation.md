@@ -7,9 +7,11 @@ Start with [AGENTS.md](../AGENTS.md), [source scope](bootstrap.md),
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Change phase or public inventory | [Source policy](../.github/bootstrap-policy.json), [snapshot validator](../scripts/validate-bootstrap.mjs) and [its tests](../scripts/validate-bootstrap.test.mjs)               |
 | Change checks or CI agreement    | [Manifest](../.agents/validation.json), [runner](../scripts/validate.mjs), [CI policy](../scripts/check-ci.mjs), [integration tests](../scripts/validation.integration.test.mjs) |
+| Verify measured CI coverage      | [Evidence owner](../scripts/ci-evidence.mjs) and [its tests](../scripts/ci-evidence.test.mjs)                                                                                    |
 | Change source boundaries         | [Boundary guard](../scripts/check-boundaries.mjs) and [its tests](../scripts/check-boundaries.test.mjs)                                                                          |
+| Validate Actions syntax          | [actionlint runner](../scripts/run-actionlint.mjs) and [its tests](../scripts/run-actionlint.test.mjs)                                                                           |
 | Maintain guidance                | [Guidance rules](../.agents/rules/guidance.md), [guard](../scripts/check-guidance.mjs) and [its tests](../scripts/check-guidance.test.mjs)                                       |
-| Change review gates              | [Protection](branch-protection.md), [review preflight](reviews.md), [verifier](../scripts/review-policy.mjs) and [its tests](../scripts/review-policy.test.mjs)                  |
+| Change review gates              | [Protection](branch-protection.md), [review preflight](reviews.md), [CI policy](../scripts/check-ci.mjs) and [its tests](../scripts/check-ci.test.mjs)                           |
 | Validate or publish              | [Validation](validation.md), [Git policy](../.agents/rules/git.md) and [Contributing](../CONTRIBUTING.md)                                                                        |
 
 Read whole owners and matching tests, not isolated search matches.

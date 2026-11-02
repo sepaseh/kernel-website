@@ -21,6 +21,7 @@ test("the full profile and CI declare every required check once with its expecte
   assert.equal(new Set(manifest.profiles.full).size, required.length);
   const expectedScripts = {
     audit: "node scripts/run-audit.mjs",
+    "check:actions": "node scripts/run-actionlint.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:ci": "node scripts/check-ci.mjs",
     "check:guidance": "node scripts/check-guidance.mjs",
@@ -28,7 +29,7 @@ test("the full profile and CI declare every required check once with its expecte
     "format:check": "prettier . --check",
     lint: "eslint .",
     "test:governance":
-      "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-boundaries.test.mjs scripts/check-ci.test.mjs scripts/check-guidance.test.mjs scripts/check-pr-size.test.mjs scripts/review-policy.test.mjs scripts/validate-bootstrap.test.mjs scripts/validate.test.mjs scripts/validation.integration.test.mjs",
+      "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-boundaries.test.mjs scripts/check-ci.test.mjs scripts/check-guidance.test.mjs scripts/ci-evidence.test.mjs scripts/run-actionlint.test.mjs scripts/validate-bootstrap.test.mjs scripts/validate.test.mjs scripts/validation.integration.test.mjs",
     "test:unit": "vitest run --coverage",
   };
   const commands = required.map((check) => check.command);

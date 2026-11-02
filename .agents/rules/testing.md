@@ -2,7 +2,7 @@
 
 Read [the source policy](../../.github/bootstrap-policy.json) and
 [canonical manifest](../validation.json) for the actual governance scope.
-Start with the affected owner test; all nine checks run through
+Start with the affected owner test; all ten checks run through
 [exact-tree validation](../../docs/validation.md) before authorized publication.
 
 Keep focused tests beside their owner and cross-owner cases explicitly named

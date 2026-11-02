@@ -1,15 +1,33 @@
 # Code review
 
-Verify the repository, exact head/base, acceptance criteria and complete diff.
-Inspect affected owners, tests and guidance. Prioritize actionable correctness,
-security, cancellation, resource ownership and validation defects.
-Explain each failure scenario with a tight source location and material impact.
-Do not turn style preferences or hypothetical risks into defects.
+Review the pull-request description, complete diff, and relevant tests before
+judging a change. Passing automation is evidence, not proof.
 
-Successful CI does not replace source review. Local tests, hosted checks,
-provider analysis and substantive current-head approval are separate evidence.
-Follow [review preflight](../../docs/reviews.md); skipped or conversational
-provider replies do not establish a completed review.
+## Priorities
 
-Report findings locally unless remote review/comment submission is authorized.
-Do not resolve conversations or merge without the corresponding authorization.
+- `P0`: immediate security exposure, irreversible data loss, or system-wide outage.
+- `P1`: likely serious regression, authorization failure, or broken critical workflow.
+- `P2`: localized correctness, reliability, accessibility, performance, or maintainability defect.
+- `P3`: low-risk improvement worth addressing but not blocking the change.
+
+## Findings
+
+Lead with actionable findings ordered by priority. Each finding includes a tight
+file and line location, failure scenario, impact, reason the diff permits it,
+and a concise fix direction. Keep questions and suggestions separate from
+defects.
+
+Do not turn tool-enforced style, hypothetical future risk or unrelated old code
+into a finding. Assess phase spacing in changed functions using
+[code quality](code-quality.md); keep non-blocking readability suggestions
+separate from concrete behavioral defects.
+
+Check affected behavior, security, local HTTP-contract alignment, state lifecycle,
+failure-path tests, accessibility, localization, visible UI evidence, and the
+documentation map. If no finding remains, say so and disclose checks not run.
+
+Local tests, hosted checks, provider analysis and substantive current-head approval
+are separate evidence. Follow [review preflight](pull-requests.md#coderabbit-request-preflight);
+skipped or conversational provider replies do not establish a completed review.
+Submit remote comments or reviews, resolve conversations and merge only with
+authorization for the corresponding action.

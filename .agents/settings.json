@@ -28,6 +28,7 @@
   "recommendedChecks": [
     "npm run check:snapshot",
     "npm run check:ci",
+    "npm run check:actions",
     "npm run check:guidance",
     "npm run audit",
     "npm run check:boundaries",

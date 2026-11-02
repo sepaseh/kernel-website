@@ -1,14 +1,38 @@
 # Validate the exact proposed tree
 
 Use this procedure before every authorized commit, push or PR handoff, including
-documentation-only work. The [manifest](../.agents/validation.json) owns the nine
+documentation-only work. The [manifest](../.agents/validation.json) owns the ten
 required check commands and their full-profile order.
+
+## Local and hosted execution
+
+Local `full` validation still runs all ten required checks once. Hosted CI uses
+`ci-quality`, `ci-audit`, `ci-unit` and `ci-governance` as an exact partition of
+that gate. The static checks and test suites install their locked dependencies;
+the dependency audit reads the lockfile without an installation.
+
+The static profile includes `npm run check:actions`, which runs pinned
+actionlint 1.7.12 against both admitted workflows. The runner verifies official
+Windows/Linux x64 release archives by SHA-256 and keeps them under ignored
+`coverage/tools/actionlint/`. Each invocation extracts its own binary and cleans
+that owned extraction. This validates GitHub Actions syntax and expressions in
+addition to repository-specific CI policy tests. Optional ShellCheck and
+Pyflakes integrations are disabled consistently; this check does not claim
+separate shell or Python analysis.
+
+The separate jobs appear beside the required `check` aggregate. That aggregate
+accepts only success from every producer and never executes the gate again.
+Unit and governance jobs each record and upload their measured coverage once;
+Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
+own hosted security workflow. This governance phase runs no application build,
+E2E, visual or performance job.
 
 ## Prepare an owned export
 
 Identify the exact proposed public bytes, including admitted untracked changes,
 and review them against the [inventory](../.github/bootstrap-policy.json).
-Create a fresh disposable source export outside the implementation checkout.
+Create a fresh disposable source export under an owned ignored `coverage/`
+subdirectory. Keep it verification-only; never use it for implementation.
 Include only those reviewed inventory files; reject links, unsafe paths, Git
 metadata, dotenv, credentials, dependencies and generated output.
 Compare source/export bytes and record the reviewed tree or content fingerprint.
@@ -38,13 +62,13 @@ application build or browser. Those are not delivered evidence.
 
 ## Record the result and clean up
 
-Record the exact tree/fingerprint, runtime versions, fresh install, all nine
+Record the exact tree/fingerprint, runtime versions, fresh install, all ten
 check outcomes, first failures/skips and source/export comparison.
 Keep unit coverage at 90% and governance coverage at 80%, with all executable
 tooling measured and no suppressions or exclusions.
 
 Before recursive cleanup, verify the resolved absolute export/environment paths
-belong to this run and remain outside the implementation checkout.
+belong to this run and remain inside its owned ignored `coverage/` parent.
 Delete only owned resources and preserve original failure logs in the task.
 A saved report requires an explicit request and belongs under ignored
 `test-results/`.

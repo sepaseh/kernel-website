@@ -29,11 +29,13 @@ Do not suppress or reclassify findings without explicit authorization.
 
 [CodeRabbit configuration](../.coderabbit.yaml) keeps automatic review disabled,
 automatic approvals enabled and author approval commands disabled.
-Its provider check alone is not proof of current-head approval.
-The trusted [approval verifier](../scripts/review-policy.mjs) evaluates the
-actual current-head bot review and completed provider check.
+Use GitHub's native approving-review count alongside the provider `CodeRabbit`
+check and [ordinary protection](branch-protection.md). A native approval count
+does not select a particular reviewer. Inspect the actual substantive review,
+its commit and the current-head provider check before claiming CodeRabbit approval.
+A skipped, neutral, quota-limited or conversational result is not a completed review.
 
-Keep [ordinary protection](branch-protection.md), resolve conversations and
-verify actual approval before an explicitly authorized merge.
-First-publication missing trusted checks remain blockers; this guide grants no
-bootstrap exception. See [Sonar setup and evidence](sonarqube.md).
+No separate approval publisher or review-signal workflow is required. A successful
+Actions job that merely received a review event would prove no approval.
+Resolve conversations and verify current-head evidence before an explicitly
+authorized merge. See [Sonar setup and evidence](sonarqube.md).
