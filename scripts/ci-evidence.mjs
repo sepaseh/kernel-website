@@ -223,19 +223,20 @@ export const runEvidence = async (
       throw new Error(
         "Coverage evidence does not match the exact source, workflow, producer or measured bytes",
       );
-  } else {
-    await writeFile(filename, JSON.stringify(expected, null, 2) + "\n", "utf8");
-    const values = {
-      artifact: `coverage-${suite}-${identity.runId}-${identity.attempt}`,
-      attempt: identity.attempt,
-    };
-    if (output) await output(values);
-    else {
-      await appendFile(
-        environment.GITHUB_OUTPUT,
-        `artifact=${values.artifact}\nattempt=${values.attempt}\n`,
-      );
-    }
+    return identity;
+  }
+
+  await writeFile(filename, JSON.stringify(expected, null, 2) + "\n", "utf8");
+  const values = {
+    artifact: `coverage-${suite}-${identity.runId}-${identity.attempt}`,
+    attempt: identity.attempt,
+  };
+  if (output) await output(values);
+  else {
+    await appendFile(
+      environment.GITHUB_OUTPUT,
+      `artifact=${values.artifact}\nattempt=${values.attempt}\n`,
+    );
   }
   return identity;
 };

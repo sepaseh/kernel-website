@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
+  open,
   readdir,
   readFile,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -137,6 +140,70 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   value.executions.length = 0;
   await writeFile(path.join(value.cache, value.asset.name), "tampered cache");
   await assert.rejects(runActionlint(value), /pinned SHA-256/);
+  assert.equal(value.executions.length, 0);
+});
+
+test("reads the checked cache handle even if its pathname is replaced", async (context) => {
+  const value = await fixture(context);
+  await runActionlint(value);
+  value.executions.length = 0;
+  const filename = path.join(value.cache, value.asset.name);
+  const probe = await open(filename, "r");
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const originalRead = prototype.readFile;
+  const replaced = context.mock.method(
+    prototype,
+    "readFile",
+    async function (...args) {
+      await rename(filename, path.join(value.cache, "original-archive"));
+      await writeFile(filename, "replacement archive");
+      return originalRead.apply(this, args);
+    },
+  );
+
+  assert.equal(await runActionlint(value), 0);
+  replaced.mock.restore();
+  assert.equal(value.requests.length, 1);
+  assert.equal(value.executions.length, 2);
+  assert.equal(await readFile(filename, "utf8"), "replacement archive");
+});
+
+test("exclusive cache creation rejects a competing file without overwriting it", async (context) => {
+  const value = await fixture(context);
+  const competing = Buffer.from("competing cache entry");
+  const filename = path.join(value.cache, value.asset.name);
+  const request = async (url) => {
+    await writeFile(filename, competing, { flag: "wx" });
+    return value.request(url);
+  };
+
+  await assert.rejects(
+    runActionlint({ ...value, request }),
+    (error) => error.code === "EEXIST",
+  );
+  assert.deepEqual(await readFile(filename), competing);
+  assert.equal(value.executions.length, 0);
+});
+
+test("rejects non-file and oversized cached archives before extraction", async (context) => {
+  const value = await fixture(context);
+  await runActionlint(value);
+  value.executions.length = 0;
+  const filename = path.join(value.cache, value.asset.name);
+  await rm(filename);
+  await mkdir(filename);
+  await assert.rejects(runActionlint(value), /ordinary file/);
+  await rm(filename, { recursive: true });
+  if (process.platform === "linux") {
+    const fifo = spawnSync("/usr/bin/mkfifo", [filename]);
+    assert.ifError(fifo.error);
+    assert.equal(fifo.status, 0);
+    await assert.rejects(runActionlint(value), /ordinary file/);
+    await rm(filename);
+  }
+  await writeFile(filename, Buffer.alloc(17 * 1024 * 1024));
+  await assert.rejects(runActionlint(value), /exceeds its size limit/);
   assert.equal(value.executions.length, 0);
 });
 

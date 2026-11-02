@@ -94,9 +94,16 @@ export function validateCheckManifest(manifest) {
   }
   for (const [job, ids] of Object.entries(ciProfiles))
     assert.deepEqual(manifest.profiles[`ci-${job}`], ids);
+
+  const partition = Object.values(ciProfiles).flat();
+  assert.equal(
+    partition.length,
+    manifest.profiles.full.length,
+    "CI runs the same number of checks as the canonical full gate.",
+  );
   assert.deepEqual(
-    Object.values(ciProfiles).flat().sort(),
-    [...manifest.profiles.full].sort(),
+    new Set(partition),
+    new Set(manifest.profiles.full),
     "CI partitions the canonical full gate without omissions or duplicates.",
   );
 }

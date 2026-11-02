@@ -15,7 +15,11 @@ The static profile includes `npm run check:actions`, which runs pinned
 actionlint 1.7.12 against both admitted workflows. The runner verifies official
 Windows/Linux x64 release archives by SHA-256 and keeps them under ignored
 `coverage/tools/actionlint/`. Each invocation extracts its own binary and cleans
-that owned extraction. This validates GitHub Actions syntax and expressions in
+that owned extraction. Cached archives are checked and read through the same open
+file handle, then verified by SHA-256. Cache creation is exclusive; a competing
+entry fails without being overwritten. Cache directories are created and checked
+in parent-to-child order before descending into each child.
+This validates GitHub Actions syntax and expressions in
 addition to repository-specific CI policy tests. Optional ShellCheck and
 Pyflakes integrations are disabled consistently; this check does not claim
 separate shell or Python analysis.

@@ -1,12 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import {
   chmod,
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readdir,
-  readFile,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -83,21 +84,43 @@ const workflowFiles = async (root) => {
     files.push(`.github/workflows/${entry.name}`);
   }
   if (!files.length) throw new Error("No actual GitHub workflow files to lint");
-  return files.sort();
+  return files.sort((left, right) => left.localeCompare(right));
 };
 
-const archiveBytes = async (filename, asset, request) => {
-  let bytes;
+const cachedArchiveBytes = async (filename) => {
+  let file;
   try {
-    const info = await lstat(filename);
-    if (!info.isFile() || info.isSymbolicLink())
+    file = await open(
+      filename,
+      constants.O_RDONLY |
+        (constants.O_NONBLOCK ?? 0) |
+        (constants.O_NOFOLLOW ?? 0),
+    );
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    throw error;
+  }
+
+  try {
+    const [info, entry] = await Promise.all([file.stat(), lstat(filename)]);
+    if (
+      !info.isFile() ||
+      !entry.isFile() ||
+      entry.isSymbolicLink() ||
+      info.dev !== entry.dev ||
+      info.ino !== entry.ino
+    )
       throw new Error("Cached actionlint archive must be an ordinary file");
     if (info.size > maximumArchiveBytes)
       throw new Error("Cached actionlint archive exceeds its size limit");
-    bytes = await readFile(filename);
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
+    return await file.readFile();
+  } finally {
+    await file.close();
   }
+};
+
+const archiveBytes = async (filename, asset, request) => {
+  let bytes = await cachedArchiveBytes(filename);
   if (bytes === undefined) {
     const response = await request(asset.url);
     if (!response.ok)
@@ -120,6 +143,7 @@ export const runActionlint = async ({
 } = {}) => {
   const files = await workflowFiles(root);
   let cache = root;
+  // Validate each parent before creating its child.
   for (const segment of [
     "coverage",
     "tools",
