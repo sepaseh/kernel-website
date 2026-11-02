@@ -377,7 +377,7 @@ function validateCreateRequireBindings(ast) {
         );
     return selectValue(node.elements[index], remaining, seen, accept);
   };
-  const selectValue = (node, keys, seen = new Set(), accept) => {
+  const selectValue = (node, keys, seen, accept) => {
     if (!node) return false;
     if (accept(node, seen, keys)) return true;
     if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
