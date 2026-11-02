@@ -22,6 +22,14 @@ resources owned by the test. Verify observable failures, original errors,
 cancellation, coverage artifact identity and cleanup.
 Follow [test reliability](test-reliability.md).
 
+The [boundary check](../scripts/check-boundaries.mjs) traces literal imports,
+local bindings, literal container selections and explicit function return/yield
+expressions. Review invocation argument flow and promise callbacks manually:
+the guard does not propagate values through arbitrary calls or callback
+parameters. Keep module namespaces and builtin loaders in explicit bindings
+inside their owning file. A passing check supplies evidence for these supported
+syntax paths.
+
 A passed local suite proves only the exercised source. It does not establish
 hosted CI, Sonar binding or CodeRabbit approval. This phase requires no
 application server, browser, Python/font verification or external backend.

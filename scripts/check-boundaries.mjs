@@ -102,6 +102,7 @@ function validateCreateRequireBindings(ast) {
     })
     .getTypeChecker();
   const moduleMembers = new Set(["Module", "default"]);
+  const builtinOrigins = ["module", "process", "loader"];
   const stringKey = (node, seen = new Set()) => {
     if (!node) return undefined;
     if (ts.isStringLiteralLike(node)) return node.text;
@@ -209,8 +210,6 @@ function validateCreateRequireBindings(ast) {
       return;
     }
     for (const { key, target: binding } of assignmentEntries(target)) {
-      if (key === undefined) continue;
-
       recordAssignmentTargets(binding, value, [...keys, key]);
     }
   };
@@ -253,153 +252,189 @@ function validateCreateRequireBindings(ast) {
     }
     return hasOrigin(value, sourceOrigin, seen);
   };
-  const boundSelection = (node, keys, seen, accept) => {
+  function* boundSelection(node, keys, seen) {
     const symbol = bindingSymbol(node);
-    if (!symbol || seen.has(symbol)) return false;
+    if (!symbol || seen.has(symbol)) return;
 
     const next = new Set(seen).add(symbol);
     const declared = (symbol.declarations ?? []).flatMap(declarationSources);
-    return [...(assignments.get(symbol) ?? []), ...declared].some((source) =>
-      selectValue(source.value, [...source.keys, ...keys], next, accept),
-    );
-  };
-  const expandedLiteral = (node, seen) => {
-    const array = ts.isArrayLiteralExpression(node);
-    let alternatives = [[]];
-    for (const entry of array ? node.elements : node.properties) {
-      let choices = [[entry]];
-      if (ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry)) {
-        const nested = literalContainers(entry.expression, seen).filter(
-          ({ value }) => ts.isArrayLiteralExpression(value) === array,
-        );
-        if (nested.length)
-          choices = nested.map(({ value }) =>
-            array ? value.elements : value.properties,
-          );
+    for (const source of [...(assignments.get(symbol) ?? []), ...declared])
+      yield* selectionSources(source.value, [...source.keys, ...keys], next);
+  }
+  function* entryChoices(entry, array, seen) {
+    let expanded = false;
+    if (ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry)) {
+      for (const { value } of literalContainers(entry.expression, seen)) {
+        if (ts.isArrayLiteralExpression(value) !== array) continue;
+
+        expanded = true;
+        yield array ? value.elements : value.properties;
       }
-      alternatives = alternatives.flatMap((previous) =>
-        choices.map((choice) => [...previous, ...choice]),
-      );
     }
-    return alternatives.map((entries) => ({
-      value: array
-        ? ts.factory.createArrayLiteralExpression(entries)
-        : ts.factory.createObjectLiteralExpression(entries),
-      visited: seen,
-    }));
-  };
-  const literalContainers = (node, seen) => {
-    const values = [];
-    selectValue(node, [], seen, (value, visited, keys) => {
+    if (!expanded) yield [entry];
+  }
+  function* expandedEntries(entries, index, prefix, array, seen) {
+    if (index === entries.length) {
+      yield prefix;
+      return;
+    }
+    for (const choice of entryChoices(entries[index], array, seen))
+      yield* expandedEntries(
+        entries,
+        index + 1,
+        [...prefix, ...choice],
+        array,
+        seen,
+      );
+  }
+  function* expandedLiteral(node, seen) {
+    const array = ts.isArrayLiteralExpression(node);
+    const entries = array ? node.elements : node.properties;
+    for (const expanded of expandedEntries(entries, 0, [], array, seen))
+      yield {
+        value: array
+          ? ts.factory.createArrayLiteralExpression(expanded)
+          : ts.factory.createObjectLiteralExpression(expanded),
+        visited: seen,
+      };
+  }
+  function* literalContainers(node, seen) {
+    for (const { value, visited, keys } of selectionSources(node, [], seen)) {
+      if (keys.length !== 0) continue;
       if (
-        keys.length === 0 &&
-        (ts.isObjectLiteralExpression(value) ||
-          ts.isArrayLiteralExpression(value))
+        ts.isObjectLiteralExpression(value) ||
+        ts.isArrayLiteralExpression(value)
       )
-        values.push(...expandedLiteral(value, visited));
-      return false;
-    });
-    return values;
-  };
-  const objectSelection = (node, key, remaining, seen, accept) => {
+        yield* expandedLiteral(value, visited);
+    }
+  }
+  function* objectSelection(node, key, remaining, seen) {
     if (objectRest(key)) {
-      const candidates = literalContainers(node, seen);
-      return candidates.some(({ value, visited }) => {
+      for (const { value, visited } of literalContainers(node, seen)) {
         const properties = value.properties.filter((entry) => {
           const name = propertyKey(entry.name);
           return name === undefined || !key.excluded.includes(name);
         });
         const rest = ts.factory.createObjectLiteralExpression(properties);
-        return selectValue(rest, remaining, visited, accept);
-      });
+        yield* selectionSources(rest, remaining, visited);
+      }
+      return;
     }
-
-    return node.properties.some((entry) => {
-      if (ts.isSpreadAssignment(entry))
-        return selectValue(entry.expression, [key, ...remaining], seen, accept);
+    for (const entry of node.properties) {
+      if (ts.isSpreadAssignment(entry)) {
+        yield* selectionSources(entry.expression, [key, ...remaining], seen);
+        continue;
+      }
       const name = propertyKey(entry.name);
-      if (key !== undefined && name !== undefined && name !== key) return false;
+      if (key !== undefined && name !== undefined && name !== key) continue;
 
-      if (ts.isPropertyAssignment(entry))
-        return selectValue(entry.initializer, remaining, seen, accept);
-      if (ts.isShorthandPropertyAssignment(entry))
-        return selectValue(entry.name, remaining, seen, accept);
-      return false;
-    });
-  };
-  const arraySelection = (node, key, remaining, seen, accept) => {
-    return literalContainers(node, seen).some(({ value, visited }) =>
-      selectedArray(value, key, remaining, visited, accept),
-    );
-  };
-  const selectedArray = (node, key, remaining, seen, accept) => {
+      yield* propertySelection(entry, remaining, seen);
+    }
+  }
+  function* propertySelection(entry, keys, seen) {
+    if (ts.isPropertyAssignment(entry))
+      yield* selectionSources(entry.initializer, keys, seen);
+    if (ts.isShorthandPropertyAssignment(entry))
+      yield* selectionSources(entry.name, keys, seen);
+    if (ts.isGetAccessorDeclaration(entry))
+      for (const value of outputExpressions(entry))
+        yield* selectionSources(value, keys, seen);
+  }
+  function* arraySelection(node, key, remaining, seen) {
+    for (const { value, visited } of literalContainers(node, seen))
+      yield* selectedArray(value, key, remaining, visited);
+  }
+  function* uncertainArraySelection(entries, remaining, seen) {
+    for (const entry of entries) {
+      if (ts.isSpreadElement(entry))
+        yield* selectionSources(
+          entry.expression,
+          [undefined, ...remaining],
+          seen,
+        );
+      else yield* selectionSources(entry, remaining, seen);
+    }
+  }
+  function* selectedArray(node, key, remaining, seen) {
     if (objectRest(key)) {
       const properties = node.elements.map((entry, index) =>
         ts.factory.createPropertyAssignment(String(index), entry),
       );
-      return objectSelection(
+      yield* objectSelection(
         ts.factory.createObjectLiteralExpression(properties),
         key,
         remaining,
         seen,
-        accept,
       );
+      return;
     }
     if (typeof key === "object" && key !== null && "rest" in key) {
       const rest = ts.factory.createArrayLiteralExpression(
         node.elements.slice(key.rest),
       );
-      return selectValue(rest, remaining, seen, accept);
+      yield* selectionSources(rest, remaining, seen);
+      return;
     }
-    if (key === undefined)
-      return node.elements.some((entry) =>
-        selectValue(entry, remaining, seen, accept),
-      );
-    if (typeof key !== "string") return false;
+    if (key === undefined) {
+      for (const entry of node.elements)
+        yield* selectionSources(entry, remaining, seen);
+      return;
+    }
+    if (typeof key !== "string") return;
 
     const index = Number(key);
-    if (!Number.isInteger(index) || index < 0 || String(index) !== key)
-      return false;
+    if (!Number.isInteger(index) || index < 0 || String(index) !== key) return;
 
     const spread = node.elements.findIndex(ts.isSpreadElement);
-    if (spread >= 0 && index >= spread)
-      return node.elements
-        .slice(spread)
-        .some((entry) =>
-          ts.isSpreadElement(entry)
-            ? selectValue(
-                entry.expression,
-                [undefined, ...remaining],
-                seen,
-                accept,
-              )
-            : selectValue(entry, remaining, seen, accept),
-        );
-    return selectValue(node.elements[index], remaining, seen, accept);
-  };
-  const selectValue = (node, keys, seen, accept) => {
-    if (!node) return false;
-    if (accept(node, seen, keys)) return true;
-    if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
-      return selectValue(node.expression, keys, seen, accept);
-    if (ts.isIdentifier(node)) return boundSelection(node, keys, seen, accept);
+    if (spread >= 0 && index >= spread) {
+      yield* uncertainArraySelection(
+        node.elements.slice(spread),
+        remaining,
+        seen,
+      );
+      return;
+    }
+    yield* selectionSources(node.elements[index], remaining, seen);
+  }
+  function* selectionSources(node, keys, seen) {
+    if (!node) return;
+    yield { value: node, visited: seen, keys };
+    const alternatives = alternativeValues(node);
+    if (alternatives.length) {
+      for (const value of alternatives)
+        yield* selectionSources(value, keys, seen);
+      return;
+    }
+    if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node)) {
+      yield* selectionSources(node.expression, keys, seen);
+      return;
+    }
+    if (ts.isIdentifier(node)) {
+      yield* boundSelection(node, keys, seen);
+      return;
+    }
     if (
       ts.isPropertyAccessExpression(node) ||
       ts.isElementAccessExpression(node)
-    )
-      return selectValue(
+    ) {
+      yield* selectionSources(
         node.expression,
         [memberKey(node), ...keys],
         seen,
-        accept,
       );
-    if (keys.length === 0) return false;
+      return;
+    }
+    if (keys.length === 0) return;
 
     const [key, ...remaining] = keys;
     if (ts.isObjectLiteralExpression(node))
-      return objectSelection(node, key, remaining, seen, accept);
+      yield* objectSelection(node, key, remaining, seen);
     if (ts.isArrayLiteralExpression(node))
-      return arraySelection(node, key, remaining, seen, accept);
+      yield* arraySelection(node, key, remaining, seen);
+  }
+  const selectValue = (node, keys, seen, accept) => {
+    for (const source of selectionSources(node, keys, seen))
+      if (accept(source.value, source.visited, source.keys)) return true;
     return false;
   };
   const selectedOrigin = (value, keys, origin, seen = new Set()) => {
@@ -411,7 +446,9 @@ function validateCreateRequireBindings(ast) {
     selectValue(value, keys, seen, (selected, visited, remaining) =>
       remaining.length === 0
         ? containsModuleValue(selected, visited)
-        : builtinSelection(selected, remaining, "module", visited),
+        : builtinOrigins.some((origin) =>
+            builtinSelection(selected, remaining, origin, visited),
+          ),
     );
   const importedOrigin = (declaration, origin) => {
     if (ts.isImportClause(declaration))
@@ -508,18 +545,37 @@ function validateCreateRequireBindings(ast) {
     if (!node) return false;
     if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
       return hasOrigin(node.expression, origin, seen);
+    const alternatives = alternativeValues(node);
+    if (alternatives.length)
+      return alternatives.some((value) => hasOrigin(value, origin, seen));
+    if (ts.isObjectLiteralExpression(node))
+      return copiedOrigin(node, origin, seen);
     if (ts.isCallExpression(node)) return callOrigin(node, origin, seen);
     if (ts.isIdentifier(node)) {
-      if (origin === "global" && globalIdentifier(node, "globalThis"))
-        return true;
-      if (origin === "process" && globalIdentifier(node, "process"))
-        return true;
-      if (origin === "loader" && globalIdentifier(node, "require")) return true;
-      return identifierOrigin(node, origin, seen);
+      const globals = {
+        global: "globalThis",
+        loader: "require",
+        process: "process",
+      };
+      return (
+        globalIdentifier(node, globals[origin]) ||
+        identifierOrigin(node, origin, seen)
+      );
     }
     return selectedOrigin(node.expression, [memberKey(node)], origin, seen);
   };
+  const copiedOrigin = (node, origin, seen) => {
+    if (origin !== "module" && origin !== "process") return false;
+
+    return node.properties.some(
+      (entry) =>
+        ts.isSpreadAssignment(entry) &&
+        hasOrigin(entry.expression, origin, seen),
+    );
+  };
   const moduleValue = (node) => hasOrigin(node, "module");
+  const builtinBearingValue = (node) =>
+    builtinOrigins.some((origin) => hasOrigin(node, origin));
   const boundContainer = (node, seen) => {
     const symbol = bindingSymbol(node);
     if (!symbol || seen.has(symbol)) return false;
@@ -530,18 +586,26 @@ function validateCreateRequireBindings(ast) {
       ({ value, keys }) => selectedContainsModule(value, keys, next),
     );
   };
+  function* outputNodes(node) {
+    if (ts.isFunctionLike(node)) return;
+    if (ts.isReturnStatement(node) || ts.isYieldExpression(node))
+      yield node.expression;
+
+    const children = [];
+    ts.forEachChild(node, (child) => {
+      children.push(child);
+    });
+    for (const child of children) yield* outputNodes(child);
+  }
+  function* outputExpressions(node) {
+    if (!node.body) return;
+    if (ts.isBlock(node.body)) yield* outputNodes(node.body);
+    else yield node.body;
+  }
   const returnedModule = (node, seen) => {
-    if (!node.body) return false;
-    if (!ts.isBlock(node.body)) return containsModuleValue(node.body, seen);
-
-    const visitReturn = (child) => {
-      if (ts.isReturnStatement(child))
-        return containsModuleValue(child.expression, seen);
-      if (ts.isFunctionLike(child)) return false;
-
-      return ts.forEachChild(child, visitReturn) === true;
-    };
-    return ts.forEachChild(node.body, visitReturn) === true;
+    for (const value of outputExpressions(node))
+      if (containsModuleValue(value, seen)) return true;
+    return false;
   };
   const alternativeValues = (node) => {
     if (ts.isConditionalExpression(node))
@@ -551,11 +615,16 @@ function validateCreateRequireBindings(ast) {
       valueAlternatives.has(node.operatorToken.kind)
     )
       return [node.left, node.right];
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.CommaToken
+    )
+      return [node.right];
     return [];
   };
   const containsModuleValue = (node, seen = new Set()) => {
     if (!node) return false;
-    if (moduleValue(node)) return true;
+    if (builtinBearingValue(node)) return true;
     const alternatives = alternativeValues(node);
     if (alternatives.length)
       return alternatives.some((value) => containsModuleValue(value, seen));
@@ -599,6 +668,12 @@ function validateCreateRequireBindings(ast) {
     }));
   };
   const forbiddenPattern = (pattern, value, keys = []) => {
+    // Reject builtin-bearing member writes instead of modeling mutable heap aliases.
+    if (
+      ts.isPropertyAccessExpression(pattern) ||
+      ts.isElementAccessExpression(pattern)
+    )
+      return selectedContainsModule(value, keys, new Set());
     if (
       ts.isBinaryExpression(pattern) &&
       pattern.operatorToken.kind === ts.SyntaxKind.EqualsToken
@@ -634,12 +709,16 @@ function validateCreateRequireBindings(ast) {
         );
   const moduleExport = (node) => {
     if (node.moduleSpecifier) {
-      if (!moduleSpecifier(node.moduleSpecifier)) return false;
+      const module = moduleSpecifier(node.moduleSpecifier);
+      const process = builtinSpecifier(node.moduleSpecifier, "process");
+      if (!module && !process) return false;
       if (!node.exportClause || ts.isNamespaceExport(node.exportClause))
         return true;
       return node.exportClause.elements.some((entry) => {
         const key = propertyKey(entry.propertyName ?? entry.name);
-        return key === "createRequire" || moduleMembers.has(key);
+        return module
+          ? key === "createRequire" || moduleMembers.has(key)
+          : key === "getBuiltinModule" || key === "default";
       });
     }
     if (!node.exportClause || !ts.isNamedExports(node.exportClause))
@@ -694,7 +773,7 @@ function validateCreateRequireBindings(ast) {
       forbidden = forbiddenPattern(node.name, node.initializer);
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      writeOperators.has(node.operatorToken.kind)
     )
       forbidden = forbiddenPattern(node.left, node.right);
     assert.equal(
