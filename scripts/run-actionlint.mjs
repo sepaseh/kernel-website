@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 export const actionlintVersion = "1.7.12";
 const maximumArchiveBytes = 16 * 1024 * 1024;
+const archiveDownloadMilliseconds = 300_000;
 const checksums = {
   "linux-x64": {
     name: "actionlint_1.7.12_linux_amd64.tar.gz",
@@ -119,15 +120,29 @@ const cachedArchiveBytes = async (filename) => {
   }
 };
 
+const downloadedArchiveBytes = async (response) => {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body ?? []) {
+    size += chunk.byteLength;
+    if (size > maximumArchiveBytes)
+      throw new Error("actionlint download exceeds its size limit");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, size);
+};
+
 const archiveBytes = async (filename, asset, request) => {
   let bytes = await cachedArchiveBytes(filename);
   if (bytes === undefined) {
-    const response = await request(asset.url);
+    const response = await request(asset.url, {
+      signal: AbortSignal.timeout(archiveDownloadMilliseconds),
+    });
     if (!response.ok)
       throw new Error(
         `actionlint download failed with HTTP ${response.status}`,
       );
-    bytes = Buffer.from(await response.arrayBuffer());
+    bytes = await downloadedArchiveBytes(response);
     verifyActionlintArchive(bytes, asset.sha256);
     await writeFile(filename, bytes, { flag: "wx" });
   }
@@ -141,6 +156,7 @@ export const runActionlint = async ({
   request = fetch,
   execute = spawnSync,
 } = {}) => {
+  root = path.resolve(root);
   const files = await workflowFiles(root);
   let cache = root;
   // Validate each parent before creating its child.
@@ -217,7 +233,7 @@ if (
       throw new Error("Usage: node scripts/run-actionlint.mjs");
     process.exitCode = await runActionlint();
   } catch (error) {
-    console.error(error.message);
+    console.error(error);
     process.exitCode = 1;
   }
 }

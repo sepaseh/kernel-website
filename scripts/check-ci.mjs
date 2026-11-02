@@ -340,6 +340,7 @@ export function validateAdditionalWorkflow(filename, content) {
       "security-events": "write",
     });
     const steps = workflow.jobs.analyze.steps;
+    steps.forEach(unconditional);
     assert.deepEqual(
       steps.map((step) => step.uses),
       [
@@ -352,6 +353,7 @@ export function validateAdditionalWorkflow(filename, content) {
       languages: "javascript-typescript,actions",
       queries: "security-extended",
     });
+    assert.equal(steps[2].with, undefined, "Analyze step must not set inputs.");
   } else {
     assert.fail("Only the real CodeQL security workflow is additional policy.");
   }
@@ -365,6 +367,19 @@ export function validateDependabot(content) {
     ["npm", "github-actions"],
   );
   for (const update of configuration.updates) {
+    assert.deepEqual(
+      new Set(Object.keys(update)),
+      new Set([
+        "commit-message",
+        "directory",
+        "groups",
+        "open-pull-requests-limit",
+        "package-ecosystem",
+        "reviewers",
+        "schedule",
+      ]),
+      "Dependabot updates must use only the reviewed policy fields.",
+    );
     assert.equal(update.directory, "/");
     assert.deepEqual(update.schedule, {
       interval: "weekly",

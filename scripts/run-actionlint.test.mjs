@@ -16,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 
 import {
   actionlintAsset,
@@ -25,7 +26,10 @@ import {
 } from "./run-actionlint.mjs";
 
 const syntheticArchive = Buffer.from("synthetic reviewed archive");
-const fixture = async (context) => {
+const fixture = async (
+  context,
+  { platform = "linux", architecture = "x64" } = {},
+) => {
   const root = await mkdtemp(path.join(tmpdir(), "kernel-actionlint-"));
   context.after(async () => {
     assert.equal(path.dirname(root), path.resolve(tmpdir()));
@@ -44,17 +48,14 @@ const fixture = async (context) => {
     "invalid fixture",
   );
   const asset = {
-    ...actionlintAsset("linux", "x64"),
+    ...actionlintAsset(platform, architecture),
     sha256: createHash("sha256").update(syntheticArchive).digest("hex"),
   };
   const requests = [];
   const executions = [];
   const request = async (url) => {
     requests.push(url);
-    return {
-      ok: true,
-      arrayBuffer: async () => Uint8Array.from(syntheticArchive).buffer,
-    };
+    return new Response(syntheticArchive);
   };
   const execute = (filename, args, options) => {
     executions.push({ filename, args, options });
@@ -74,6 +75,7 @@ test("selects only reviewed official Windows and Linux x64 binaries", () => {
   const linux = actionlintAsset("linux", "x64");
   assert.equal(actionlintVersion, "1.7.12");
   assert.equal(windows.executable, "actionlint.exe");
+  assert.equal(windows.extractor, String.raw`C:\Windows\System32\tar.exe`);
   assert.equal(linux.executable, "actionlint");
   for (const asset of [windows, linux]) {
     assert.match(asset.sha256, /^[a-f0-9]{64}$/);
@@ -128,10 +130,7 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   await assert.rejects(
     runActionlint({
       ...value,
-      request: async () => ({
-        ok: true,
-        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
-      }),
+      request: async () => new Response(new Uint8Array([1, 2, 3])),
     }),
     /pinned SHA-256/,
   );
@@ -141,6 +140,186 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   await writeFile(path.join(value.cache, value.asset.name), "tampered cache");
   await assert.rejects(runActionlint(value), /pinned SHA-256/);
   assert.equal(value.executions.length, 0);
+});
+
+test("extracts and lints the Windows asset through the reviewed extractor", async (context) => {
+  const value = await fixture(context, { platform: "win32" });
+  assert.equal(await runActionlint(value), 0);
+  assert.equal(
+    value.executions[0].filename,
+    String.raw`C:\Windows\System32\tar.exe`,
+  );
+  assert.equal(value.executions[0].args.at(-1), "actionlint.exe");
+  assert.equal(path.basename(value.executions[1].filename), "actionlint.exe");
+});
+
+test("resolves a relative source root before extracting and linting", async (context) => {
+  const value = await fixture(context);
+  const previous = process.cwd();
+  try {
+    process.chdir(path.dirname(value.root));
+    assert.equal(
+      await runActionlint({ ...value, root: path.basename(value.root) }),
+      0,
+    );
+  } finally {
+    process.chdir(previous);
+  }
+  const extraction = value.executions[0];
+  assert.ok(path.isAbsolute(extraction.args[1]));
+  assert.ok(path.isAbsolute(extraction.args[3]));
+  assert.equal(extraction.options.cwd, extraction.args[3]);
+  assert.equal(value.executions[1].options.cwd, value.root);
+});
+
+test("caps streamed downloads and cancels oversized bodies without trusting Content-Length", async (context) => {
+  const value = await fixture(context);
+  for (const headers of [undefined, { "content-length": "1" }]) {
+    const chunks = [
+      Buffer.alloc(8 * 1024 * 1024),
+      Buffer.alloc(9 * 1024 * 1024),
+      Buffer.from("must not be read"),
+    ];
+    let pulls = 0;
+    let cancelled = false;
+    const body = new ReadableStream(
+      {
+        pull(controller) {
+          if (pulls < chunks.length) controller.enqueue(chunks[pulls++]);
+          else controller.close();
+        },
+        cancel() {
+          cancelled = true;
+        },
+      },
+      { highWaterMark: 0 },
+    );
+
+    await assert.rejects(
+      runActionlint({
+        ...value,
+        request: async () => new Response(body, { headers }),
+      }),
+      /download exceeds its size limit/,
+    );
+    assert.equal(pulls, 2);
+    assert.equal(cancelled, true);
+  }
+  assert.equal(value.executions.length, 0);
+  assert.deepEqual(await readdir(value.cache), []);
+});
+
+test("verifies bounded multi-chunk bodies and rejects a missing body", async (context) => {
+  const value = await fixture(context);
+  await assert.rejects(
+    runActionlint({ ...value, request: async () => new Response(null) }),
+    /pinned SHA-256/,
+  );
+  assert.equal(value.executions.length, 0);
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(syntheticArchive.subarray(0, 5));
+      controller.enqueue(syntheticArchive.subarray(5));
+      controller.close();
+    },
+  });
+  assert.equal(
+    await runActionlint({ ...value, request: async () => new Response(body) }),
+    0,
+  );
+});
+
+test("download expiry aborts a pending request without waiting for wall time", async (context) => {
+  const value = await fixture(context);
+  const expiry = new AbortController();
+  const started = Promise.withResolvers();
+  const reason = new DOMException("synthetic download expiry", "TimeoutError");
+  context.mock.method(AbortSignal, "timeout", () => expiry.signal);
+  const operation = runActionlint({
+    ...value,
+    request: (url, { signal }) =>
+      new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        });
+        started.resolve(url);
+      }),
+  });
+
+  await Promise.race([started.promise, operation]);
+  const rejected = assert.rejects(operation, (error) => error === reason);
+  expiry.abort(reason);
+  await rejected;
+  assert.equal(value.executions.length, 0);
+  assert.deepEqual(await readdir(value.cache), []);
+});
+
+test("download expiry also aborts a pending response-body read", async (context) => {
+  const value = await fixture(context);
+  const expiry = new AbortController();
+  const reading = Promise.withResolvers();
+  const reason = new DOMException("synthetic body expiry", "TimeoutError");
+  context.mock.method(AbortSignal, "timeout", () => expiry.signal);
+  const operation = runActionlint({
+    ...value,
+    request: async (url, { signal }) =>
+      new Response(
+        new ReadableStream(
+          {
+            start(controller) {
+              signal.addEventListener(
+                "abort",
+                () => controller.error(signal.reason),
+                {
+                  once: true,
+                },
+              );
+            },
+            pull() {
+              reading.resolve(url);
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+      ),
+  });
+
+  await Promise.race([reading.promise, operation]);
+  const rejected = assert.rejects(operation, (error) => error === reason);
+  expiry.abort(reason);
+  await rejected;
+  assert.equal(value.executions.length, 0);
+  assert.deepEqual(await readdir(value.cache), []);
+});
+
+test("CLI failure output retains AggregateError causes", async (context) => {
+  const value = await fixture(context);
+  const entry = path.join(value.root, "scripts/run-actionlint.mjs");
+  const preload = path.join(value.root, "scripts/failing-fetch.mjs");
+  await writeFile(
+    entry,
+    await readFile(new URL("./run-actionlint.mjs", import.meta.url)),
+  );
+  await writeFile(
+    preload,
+    `globalThis.fetch = async () => {
+      throw new AggregateError([
+        new Error("synthetic execution cause"),
+        new Error("synthetic cleanup cause"),
+      ], "actionlint and cleanup both failed");
+    };\n`,
+  );
+
+  const result = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(preload).href, entry],
+    { cwd: value.root, encoding: "utf8", windowsHide: true },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /actionlint and cleanup both failed/);
+  assert.match(result.stderr, /synthetic execution cause/);
+  assert.match(result.stderr, /synthetic cleanup cause/);
 });
 
 test("reads the checked cache handle even if its pathname is replaced", async (context) => {

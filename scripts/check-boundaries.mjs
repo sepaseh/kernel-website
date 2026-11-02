@@ -21,7 +21,7 @@ const packageOwners = {
   "vitest.config.mjs": new Set(["vitest"]),
   "scripts/check-boundaries.mjs": new Set(["typescript"]),
   "scripts/check-ci.mjs": new Set(["yaml"]),
-  "scripts/check-guidance.mjs": new Set(["yaml"]),
+  "scripts/check-guidance.mjs": new Set(["prettier", "yaml"]),
 };
 
 export function validateStandalonePackage(pkg, lock) {
@@ -75,6 +75,134 @@ export function validateStandalonePackage(pkg, lock) {
   }
 }
 
+function validateCreateRequireBindings(ast) {
+  const checker = ts
+    .createProgram({
+      rootNames: [ast.fileName],
+      options: {
+        allowJs: true,
+        noEmit: true,
+        noLib: true,
+        noResolve: true,
+        types: [],
+      },
+      host: {
+        fileExists: (filename) => filename === ast.fileName,
+        getCanonicalFileName: (filename) => filename,
+        getCurrentDirectory: () => "",
+        getDefaultLibFileName: () => "",
+        getNewLine: () => "\n",
+        getSourceFile: (filename) =>
+          filename === ast.fileName ? ast : undefined,
+        readFile: () => undefined,
+        useCaseSensitiveFileNames: () => true,
+        writeFile: () =>
+          assert.fail("Import validation must never emit files."),
+      },
+    })
+    .getTypeChecker();
+  const assignments = new Map();
+  const collectAssignments = (node) => {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isIdentifier(node.left)
+    ) {
+      const symbol = checker.getSymbolAtLocation(node.left);
+      if (symbol) {
+        const values = assignments.get(symbol) ?? [];
+        values.push(node.right);
+        assignments.set(symbol, values);
+      }
+    }
+    ts.forEachChild(node, collectAssignments);
+  };
+  collectAssignments(ast);
+
+  const moduleSpecifier = (node) =>
+    ts.isStringLiteralLike(node) &&
+    ["module", "node:module"].includes(node.text);
+  const moduleValue = (node, seen = new Set()) => {
+    if (!node) return false;
+    if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
+      return moduleValue(node.expression, seen);
+    if (ts.isCallExpression(node))
+      return (
+        (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) &&
+            node.expression.text === "require" &&
+            !checker.getSymbolAtLocation(node.expression)?.declarations
+              ?.length)) &&
+        node.arguments.length === 1 &&
+        moduleSpecifier(node.arguments[0])
+      );
+    if (!ts.isIdentifier(node)) return false;
+
+    const symbol = checker.getSymbolAtLocation(node);
+    if (!symbol || seen.has(symbol)) return false;
+    seen.add(symbol);
+    if (
+      (assignments.get(symbol) ?? []).some((value) => moduleValue(value, seen))
+    )
+      return true;
+    return (symbol.declarations ?? []).some((declaration) => {
+      if (ts.isVariableDeclaration(declaration))
+        return moduleValue(declaration.initializer, seen);
+      if (ts.isImportClause(declaration))
+        return moduleSpecifier(declaration.parent.moduleSpecifier);
+      if (ts.isNamespaceImport(declaration))
+        return moduleSpecifier(declaration.parent.parent.moduleSpecifier);
+      if (ts.isImportSpecifier(declaration))
+        return (
+          (declaration.propertyName ?? declaration.name).text === "default" &&
+          moduleSpecifier(declaration.parent.parent.parent.moduleSpecifier)
+        );
+      return false;
+    });
+  };
+  const forbiddenKey = (node) =>
+    node &&
+    (ts.isComputedPropertyName(node)
+      ? ts.isStringLiteralLike(node.expression) &&
+        node.expression.text === "createRequire"
+      : node.text === "createRequire");
+  const visit = (node) => {
+    let forbidden = false;
+    if (
+      ts.isImportSpecifier(node) &&
+      moduleSpecifier(node.parent.parent.parent.moduleSpecifier)
+    )
+      forbidden = forbiddenKey(node.propertyName ?? node.name);
+    if (ts.isPropertyAccessExpression(node))
+      forbidden = forbiddenKey(node.name) && moduleValue(node.expression);
+    if (ts.isElementAccessExpression(node))
+      forbidden =
+        ts.isStringLiteralLike(node.argumentExpression) &&
+        forbiddenKey(node.argumentExpression) &&
+        moduleValue(node.expression);
+    if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name))
+      forbidden =
+        node.name.elements.some((entry) =>
+          forbiddenKey(entry.propertyName ?? entry.name),
+        ) && moduleValue(node.initializer);
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isObjectLiteralExpression(node.left)
+    )
+      forbidden =
+        node.left.properties.some((entry) => forbiddenKey(entry.name)) &&
+        moduleValue(node.right);
+    assert.equal(
+      Boolean(forbidden),
+      false,
+      "createRequire bypasses reviewed literal import ownership.",
+    );
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+}
+
 export function validateModuleImports(
   filename,
   source,
@@ -89,6 +217,7 @@ export function validateModuleImports(
     ts.ScriptKind.JS,
   );
   assert.equal(ast.parseDiagnostics.length, 0, "Invalid authored JavaScript.");
+  validateCreateRequireBindings(ast);
   const inspect = (specifier) => {
     assert.ok(
       typeof specifier === "string" && specifier,
@@ -127,21 +256,6 @@ export function validateModuleImports(
     );
   };
   const visit = (node) => {
-    if (
-      ts.isImportDeclaration(node) &&
-      ["module", "node:module"].includes(node.moduleSpecifier.text)
-    ) {
-      const bindings = node.importClause?.namedBindings;
-      if (bindings && ts.isNamedImports(bindings))
-        assert.equal(
-          bindings.elements.some(
-            (entry) =>
-              (entry.propertyName ?? entry.name).text === "createRequire",
-          ),
-          false,
-          "createRequire bypasses reviewed literal import ownership.",
-        );
-    }
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier

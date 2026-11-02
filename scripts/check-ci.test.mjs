@@ -272,6 +272,9 @@ test("CodeQL retains exact permissions and real security analysis", async () => 
     (value) => {
       value.jobs.analyze.if = "false";
     },
+    ...[0, 1, 2].map((index) => (value) => {
+      value.jobs.analyze.steps[index].if = "false";
+    }),
     (value) => {
       value.permissions.contents = "write";
     },
@@ -286,6 +289,9 @@ test("CodeQL retains exact permissions and real security analysis", async () => 
     },
     (value) => {
       value.jobs.analyze.steps[1].with["build-mode"] = "none";
+    },
+    (value) => {
+      value.jobs.analyze.steps[2].with = { upload: "never" };
     },
   ]) {
     const value = structuredClone(original);
@@ -305,6 +311,12 @@ test("Dependabot schedules grouped weekly npm and Actions version updates with b
   for (const change of [
     (value) => {
       value.updates.pop();
+    },
+    ...[0, 1].map((index) => (value) => {
+      value.updates[index].ignore = [{ "dependency-name": "*" }];
+    }),
+    (value) => {
+      value.updates[0]["exclude-paths"] = ["**"];
     },
     (value) => {
       value.updates[0]["open-pull-requests-limit"] = 0;

@@ -26,6 +26,11 @@ and [properties](../sonar-project.properties). Each download uses its own
 successful producer attempt, including analysis-only reruns. A missing or
 mismatched report blocks analysis; the scanner does not rerun tests to replace
 missing evidence.
+
+Each LCOV source record must declare one valid `LF` count matching its distinct
+`DA` entries. A source with no executable lines declares `LF:0` and needs no `DA`
+entries.
+
 Keep all executable governance source analyzed; add no source, rule or coverage
 exclusion or suppression.
 

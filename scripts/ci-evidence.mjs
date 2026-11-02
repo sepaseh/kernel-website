@@ -107,25 +107,56 @@ const regularFile = async (root, relative, optional = false) => {
   }
 };
 
+const completeCoverageRecord = (record) => {
+  if (!record.source)
+    throw new Error("LCOV records require an existing source");
+  if (record.executable !== record.lines.size)
+    throw new Error(
+      "LCOV executable line counts must match measured DA records",
+    );
+
+  record.source = undefined;
+  record.records++;
+};
+
 const parseCoverageLine = (line, record) => {
   if (line.startsWith("SF:")) {
     if (record.source)
       throw new Error("LCOV records must end before another source");
+
     record.source = safeRelative(line.slice(3));
     record.sources.add(record.source);
+    record.executable = undefined;
+    record.lines.clear();
+    return;
+  }
+  if (line.startsWith("LF:")) {
+    if (
+      !record.source ||
+      record.executable !== undefined ||
+      !/^LF:(?:0|[1-9]\d*)$/.test(line)
+    )
+      throw new Error(
+        "LCOV requires one valid executable line count per source",
+      );
+
+    record.executable = Number(line.slice(3));
     return;
   }
   if (line.startsWith("DA:")) {
-    if (!record.source || !/^DA:[1-9]\d*,\d+(?:,[^,\s]+)?$/.test(line))
+    const number = line.slice(3).split(",", 1)[0];
+    if (
+      !record.source ||
+      !/^DA:[1-9]\d*,\d+(?:,[^,\s]+)?$/.test(line) ||
+      record.lines.has(number)
+    )
       throw new Error("LCOV requires valid measured line records");
-    record.measured = true;
+
+    record.lines.add(number);
     return;
   }
   if (line === "end_of_record") {
-    if (!record.source)
-      throw new Error("LCOV records require an existing source");
-    record.source = undefined;
-    record.records++;
+    completeCoverageRecord(record);
     return;
   }
   if (line && !/^[A-Z][A-Z0-9_]*:/.test(line))
@@ -134,16 +165,17 @@ const parseCoverageLine = (line, record) => {
 
 const coverageSources = (bytes) => {
   const record = {
-    source: undefined,
-    measured: false,
+    executable: undefined,
+    lines: new Set(),
     records: 0,
+    source: undefined,
     sources: new Set(),
   };
   const lines = new TextDecoder("utf-8", { fatal: true })
     .decode(bytes)
     .split(/\r?\n/);
   for (const line of lines) parseCoverageLine(line, record);
-  if (record.source || !record.records || !record.measured)
+  if (record.source || !record.records)
     throw new Error("LCOV must contain complete measured source records");
   return record.sources;
 };

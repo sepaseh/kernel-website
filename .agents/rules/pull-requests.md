@@ -86,7 +86,7 @@ it. Use the repository's pull-request conventions in `CONTRIBUTING.md`.
 
 See [validation](../../docs/validation.md),
 [testing](../../docs/testing.md),
-[Sonar guidance](../../docs/validation.md) and [safety](safety.md).
+[Sonar guidance](../../docs/sonarqube.md) and [safety](safety.md).
 
 Post standalone PR comments only with prior explicit user authorization.
 Authorization to fix, commit, push or reply to review threads does not authorize

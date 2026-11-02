@@ -19,6 +19,8 @@ that owned extraction. Cached archives are checked and read through the same ope
 file handle, then verified by SHA-256. Cache creation is exclusive; a competing
 entry fails without being overwritten. Cache directories are created and checked
 in parent-to-child order before descending into each child.
+Downloads have a five-minute overall deadline and stop reading as soon as the
+archive exceeds 16 MiB, including responses without a trustworthy length header.
 This validates GitHub Actions syntax and expressions in
 addition to repository-specific CI policy tests. Optional ShellCheck and
 Pyflakes integrations are disabled consistently; this check does not claim

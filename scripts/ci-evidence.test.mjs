@@ -403,6 +403,55 @@ test("validates every source in a report containing multiple records", async (co
   await assert.rejects(readCoverage(options.root), { code: "ENOENT" });
 });
 
+test("requires measured lines independently for each source with executable lines", async (context) => {
+  const options = await fixture(context);
+  await writeFile(path.join(options.root, "src/another.ts"), "export {};\n");
+  const measured = lcov();
+  const unmeasured = "SF:src/another.ts\nLF:1\nLH:0\nend_of_record\n";
+
+  for (const report of [measured + unmeasured, unmeasured + measured]) {
+    await writeFile(path.join(options.root, "coverage/unit/lcov.info"), report);
+    await assert.rejects(
+      readCoverage(options.root),
+      /match measured DA records/,
+    );
+  }
+});
+
+test("accepts sources without executable lines in any record position", async (context) => {
+  const options = await fixture(context);
+  await writeFile(
+    path.join(options.root, "src/empty.ts"),
+    "// No executable lines.\n",
+  );
+  const empty = "SF:src/empty.ts\nLF:0\nLH:0\nend_of_record\n";
+
+  for (const report of [lcov() + empty, empty + lcov(), empty]) {
+    await writeFile(path.join(options.root, "coverage/unit/lcov.info"), report);
+    assert.equal((await readCoverage(options.root)).toString(), report);
+  }
+});
+
+test("rejects malformed, repeated and inconsistent executable line counts", async (context) => {
+  const options = await fixture(context);
+  const reports = [
+    ...["", "-1", "1.5", "one", "01", "1e0", " 1", "9007199254740993"].map(
+      (count) => lcov().replace("LF:1", `LF:${count}`),
+    ),
+    lcov().replace("LF:1\n", ""),
+    lcov().replace("LF:1", "LF:1\nLF:1"),
+    lcov().replace("LF:1", "LF:0"),
+    lcov().replace("LF:1", "LF:2"),
+    lcov().replace("DA:1,1", "DA:1,1\nDA:1,1"),
+    "LF:0\n" + lcov(),
+  ];
+
+  for (const report of reports) {
+    await writeFile(path.join(options.root, "coverage/unit/lcov.info"), report);
+    await assert.rejects(readCoverage(options.root), /LCOV/);
+  }
+});
+
 test("rejects absolute, escaping, ambiguous and missing source paths", async (context) => {
   const options = await fixture(context);
   for (const source of [

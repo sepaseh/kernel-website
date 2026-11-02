@@ -156,3 +156,80 @@ test("escaped title delimiters and multiline titles cannot hide unpublished dest
       );
   }
 });
+
+test("reference definitions use the same published relative destination checks as inline links", () => {
+  for (const title of [
+    "",
+    ' "Read me"',
+    " 'Read me'",
+    " (Read me)",
+    String.raw` "Read \"me\""`,
+    ' "Read\nme"',
+  ]) {
+    for (const target of ["../README.md", "<../README.md>"])
+      validateGuideLinks(
+        "docs/testing.md",
+        `Read [root][reference].\n\n[reference]: ${target}${title}`,
+      );
+    for (const target of ["../.env.local", "<missing.md>"])
+      assert.throws(
+        () =>
+          validateGuideLinks(
+            "docs/testing.md",
+            `Read [private][reference].\n\n[reference]: ${target}${title}`,
+          ),
+        /Missing or unpublished guide link/,
+      );
+  }
+  for (const definition of [
+    "   [reference]: validation.md#checks",
+    "[reference]:\n  validation.md",
+    "[reference]:\r\n  <validation.md>",
+    String.raw`[escaped\] label]: ../README.md`,
+    "[external]: https://example.test",
+    "[mail]: mailto:public@example.test",
+    "[chat]: codex://threads/example",
+    "[anchor]: #local",
+  ])
+    validateGuideLinks("docs/testing.md", definition);
+  for (const target of [
+    "../.env.local",
+    "missing.md",
+    "../../outside.md",
+    "%zz.md",
+    "/validation.md",
+    "%2fvalidation.md",
+  ])
+    assert.throws(() =>
+      validateGuideLinks("docs/testing.md", `[reference]: ${target}`),
+    );
+  validateGuideLinks(
+    "docs/testing.md",
+    "```markdown\n[reference]: ../.env.local\n```",
+  );
+});
+
+test("Markdown structure distinguishes rendered references from literal code examples", () => {
+  for (const content of [
+    "> Read [private][ref].\n>\n> [ref]: ../.env.local",
+    "Read [private][ref name].\n\n[ref\nname]: ../.env.local",
+    "- Read [private][ref].\n\n  [ref]: ../.env.local",
+  ])
+    assert.throws(
+      () => validateGuideLinks("docs/testing.md", content),
+      /Missing or unpublished guide link/,
+    );
+  for (const content of [
+    "\t[ref]: ../.env.local",
+    "~~~markdown\n[ref]: ../.env.local\n~~~",
+    "    [private](../.env.local)",
+    "`[private](../.env.local)`",
+    "Read [root][ref].\n\n[ref]: ../README\\.md",
+    "Read [root](../README\\.md)",
+    "Read [self]() and [anchor](#section).",
+    "> Read [root][ref].\n>\n> [ref]: <../README.md> 'Root guide'",
+    "![published guide](../README.md)",
+    "Read [reference].\n[reference]: missing.md",
+  ])
+    assert.equal(validateGuideLinks("docs/testing.md", content), undefined);
+});

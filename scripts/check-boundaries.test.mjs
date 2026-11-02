@@ -113,6 +113,78 @@ test("createRequire imports cannot bypass literal package ownership through alia
   );
 });
 
+test("module bindings and simple aliases cannot expose createRequire", () => {
+  for (const builtin of ["module", "node:module"]) {
+    for (const binding of [
+      `import * as modules from '${builtin}';`,
+      `import modules from '${builtin}';`,
+      `import {default as modules} from '${builtin}';`,
+      `const modules = await import('${builtin}');`,
+      `const modules = require('${builtin}');`,
+      `let modules; modules = await import('${builtin}');`,
+      `let modules; modules = require('${builtin}');`,
+    ]) {
+      for (const access of [
+        "modules.createRequire(import.meta.url)('yaml');",
+        "modules['createRequire'](import.meta.url);",
+        "modules[`createRequire`];",
+        "modules?.createRequire;",
+        "const {createRequire} = modules;",
+        "const {createRequire: load} = modules;",
+        "const {['createRequire']: load} = modules;",
+        "let load; ({createRequire: load} = modules);",
+        "const alias = (modules); const another = alias; another.createRequire;",
+        "let alias; alias = modules; let another; another = alias; another.createRequire;",
+        "let alias; let another; alias = another; another = modules; alias.createRequire;",
+      ])
+        assert.throws(
+          () =>
+            validateModuleImports(
+              "scripts/validate.mjs",
+              binding + access,
+              pkg,
+            ),
+          /createRequire bypasses/,
+          binding + access,
+        );
+    }
+    for (const expression of [
+      `(await import('${builtin}')).createRequire;`,
+      `require('${builtin}')['createRequire'];`,
+      `const {createRequire} = await import('${builtin}');`,
+    ])
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", expression, pkg),
+        /createRequire bypasses/,
+      );
+  }
+});
+
+test("module-origin checks preserve other members and unrelated or shadowing bindings", () => {
+  for (const source of [
+    "import * as modules from 'node:module'; modules.isBuiltin('fs');",
+    "import modules from 'node:module'; modules.isBuiltin('fs');",
+    "const modules = await import('node:module'); const {isBuiltin} = modules;",
+    "const modules = require('node:module'); const alias = modules; alias.isBuiltin('fs');",
+    "const other = {createRequire() {}}; other.createRequire;",
+    "const other = {createRequire() {}}; const {createRequire: load} = other;",
+    "const other = {createRequire() {}}; let load; ({createRequire: load} = other);",
+    "import * as modules from 'node:module'; function inspect(modules) { modules.createRequire; }",
+    "import * as modules from 'node:module'; {const modules = {createRequire() {}}; modules.createRequire;}",
+    "import * as modules from 'node:module'; const alias = modules; function inspect(alias) { alias['createRequire']; }",
+    "function inspect(require) { const modules = require('node:module'); modules.createRequire; }",
+    "let other; other = {createRequire() {}}; let alias; alias = other; alias.createRequire;",
+    "let modules; modules = await import('node:module'); function inspect(modules) { modules = {createRequire() {}}; modules.createRequire; }",
+    "let modules; modules = require('node:module'); {let modules; modules = {createRequire() {}}; modules.createRequire;}",
+    "import * as modules from 'node:module'; let alias; alias = modules; function inspect(alias) { alias = {}; alias['createRequire']; }",
+    "let left; let right; left = right; right = left; left.createRequire;",
+    "const left = right; const right = left; left.createRequire;",
+    "unknown.createRequire;",
+    "import * as modules from 'node:module'; modules[0]; modules[member];",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
 test("the actual published tree has no backend source, workspaces or import escapes", async () => {
   await inspectBoundaries();
   const current = JSON.parse(
@@ -143,6 +215,23 @@ test("the reviewed import-sort plugin is permitted only for its ESLint owner", (
   );
   assert.throws(
     () => validateModuleImports("eslint.config.mjs", source, pkg),
+    /Undeclared dependency/,
+  );
+});
+
+test("the Markdown parser is permitted only for its guidance owner", () => {
+  const declared = {
+    ...pkg,
+    devDependencies: { ...pkg.devDependencies, prettier: "1.0.0" },
+  };
+  const source = "import {parsers} from 'prettier/plugins/markdown';";
+  validateModuleImports("scripts/check-guidance.mjs", source, declared);
+  assert.throws(
+    () => validateModuleImports("scripts/validate.mjs", source, declared),
+    /not permitted for this owner/,
+  );
+  assert.throws(
+    () => validateModuleImports("scripts/check-guidance.mjs", source, pkg),
     /Undeclared dependency/,
   );
 });

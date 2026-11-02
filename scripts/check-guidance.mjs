@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parsers } from "prettier/plugins/markdown";
+
 import { validateCheckManifest } from "./check-ci.mjs";
 import {
   completePublicationWork,
@@ -76,16 +78,26 @@ export function validateGuideLinks(filename, content) {
     false,
     "Maintained documentation is English-only.",
   );
+
   const prose = content.replace(/```[\s\S]*?```/g, "");
   assert.equal(
     /[\u0600-\u06ff]/.test(prose),
     false,
     "Maintained documentation is English-only.",
   );
-  const links = /\]\(\s*(<[^>\r\n]+>|[^)\s]+)/g;
-  for (const match of prose.matchAll(links)) {
-    const link = match[1].replace(/^<|>$/g, "");
-    if (/^(?:https?:|mailto:|codex:|#)/.test(link)) continue;
+
+  const nodes = [parsers.markdown.parse(content)];
+  const links = [];
+  while (nodes.length) {
+    const node = nodes.pop();
+    if (["definition", "image", "link"].includes(node.type))
+      links.push(node.url);
+    nodes.push(...(node.children ?? []));
+  }
+
+  for (const link of links) {
+    if (link === "" || /^(?:https?:|mailto:|codex:|#)/.test(link)) continue;
+
     const target = decodeURIComponent(link.split("#")[0]);
     assert.equal(
       target.startsWith("/"),
