@@ -92,16 +92,35 @@ const decodeHtmlHref = (value) => {
   );
 };
 
+const htmlAttributeValue = (attributes, start) => {
+  const quote = attributes[start];
+  if (quote === '"' || quote === "'") {
+    const end = attributes.indexOf(quote, start + 1);
+    if (end < 0)
+      throw new Error("HTML attribute values require a closing quote.");
+
+    return { end: end + 1, value: attributes.slice(start + 1, end) };
+  }
+
+  const boundary = attributes.slice(start).search(/[\s"'`=<>]/);
+  const end = boundary < 0 ? attributes.length : start + boundary;
+  return { end, value: attributes.slice(start, end) };
+};
+
 const openingTagHrefs = (tag) => {
   const attributes = tag.replace(/^<[A-Za-z][\w:-]*/, "").slice(0, -1);
   const values = [];
-  const pattern = /([^\s"'<>/=]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'`=<>]+))?/g;
-  for (const match of attributes.matchAll(pattern)) {
-    if (match[1].toLowerCase() !== "href") continue;
+  const names = /([^\s"'<>/=]+)(\s*=\s*)?/g;
+  let match;
+  while ((match = names.exec(attributes))) {
+    let value = "";
+    if (match[2]) {
+      const attribute = htmlAttributeValue(attributes, names.lastIndex);
+      value = attribute.value;
+      names.lastIndex = attribute.end;
+    }
 
-    const value = match[2] ?? "";
-    const unquoted = /^["']/.test(value) ? value.slice(1, -1) : value;
-    values.push(decodeHtmlHref(unquoted));
+    if (match[1].toLowerCase() === "href") values.push(decodeHtmlHref(value));
   }
   return values;
 };

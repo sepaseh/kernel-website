@@ -325,3 +325,31 @@ test("HTML href whitespace and escaped opening angles preserve rendered destinat
   validateGuideLinks("docs/testing.md", "\\\\\\" + anchor);
   assert.throws(() => validateGuideLinks("docs/testing.md", "\\\\" + anchor));
 });
+
+test("HTML attribute values are consumed before looking for another href name", () => {
+  for (const quote of ['"', "'"]) {
+    validateGuideLinks(
+      "docs/testing.md",
+      `<a hidden title=${quote}href=../.env.local${quote} data-state=ready href = ../README.md>Root</a>`,
+    );
+    assert.throws(() =>
+      validateGuideLinks(
+        "docs/testing.md",
+        `<a title=${quote}href=../README.md${quote} href=../.env.local>Hidden</a>`,
+      ),
+    );
+  }
+  validateGuideLinks("docs/testing.md", "<a hidden href>No destination</a>");
+});
+
+test("malformed HTML attribute quotes fail without rewinding the scanner", () => {
+  for (const quote of ['"', "'"])
+    assert.throws(
+      () =>
+        validateGuideLinks(
+          "docs/testing.md",
+          `<a title=abc${quote}foo=${quote}>`,
+        ),
+      /HTML attribute values require a closing quote/,
+    );
+});
