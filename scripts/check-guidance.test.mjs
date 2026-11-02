@@ -171,6 +171,38 @@ test("external schemes are case-insensitive in inline links and reference defini
       validateGuideLinks("docs/testing.md", content);
 });
 
+test("relative destinations exclude literal queries and fragments before decoding", () => {
+  for (const target of [
+    "../README.md?plain=1",
+    "../README.md?plain=1#section",
+    "../README.md?search=%zz",
+    "../README.md#section?plain=1",
+    "?plain=1",
+    "?plain=1#section",
+  ])
+    for (const content of [
+      `[root](${target})`,
+      `Read [root][ref].\n\n[ref]: ${target}`,
+      `<a href="${target}">Root</a>`,
+    ])
+      validateGuideLinks("docs/testing.md", content);
+
+  for (const target of [
+    "../.env.local?plain=1",
+    "missing.md?plain=1#section",
+    "/README.md?plain=1",
+    "%2fREADME.md?plain=1",
+    "../README.md%3Fplain=1",
+    "../README.md%23section",
+  ])
+    for (const content of [
+      `[root](${target})`,
+      `Read [root][ref].\n\n[ref]: ${target}`,
+      `<a href="${target}">Root</a>`,
+    ])
+      assert.throws(() => validateGuideLinks("docs/testing.md", content));
+});
+
 test("reference definitions use the same published relative destination checks as inline links", () => {
   for (const title of [
     "",
@@ -324,6 +356,35 @@ test("HTML href whitespace and escaped opening angles preserve rendered destinat
 
   validateGuideLinks("docs/testing.md", "\\\\\\" + anchor);
   assert.throws(() => validateGuideLinks("docs/testing.md", "\\\\" + anchor));
+});
+
+test("HTML attribute boundaries use ASCII whitespace rather than Unicode spaces", () => {
+  const anchor = '<a href="../.env.local">Hidden</a>';
+  for (const whitespace of ["\u00a0", "\u000b", "\u2003", "\ufeff"]) {
+    for (const content of [
+      `<a href=../README.md${whitespace}missing>Hidden</a>`,
+      `<a href=${whitespace}../README.md>Hidden</a>`,
+    ])
+      assert.throws(() => validateGuideLinks("docs/testing.md", content));
+    for (const content of [
+      `<a href${whitespace}=../.env.local>No href attribute</a>`,
+      `<a ${whitespace}href=../.env.local>No href attribute</a>`,
+      `<a${whitespace}href=../.env.local>Literal tag-like text`,
+      `<script>Literal</script${whitespace}>${anchor}`,
+    ])
+      validateGuideLinks("docs/testing.md", content);
+    assert.throws(() =>
+      validateGuideLinks(
+        "docs/testing.md",
+        `<script${whitespace}>${anchor}</script>`,
+      ),
+    );
+  }
+  for (const whitespace of [" ", "\t", "\n", "\f", "\r"])
+    validateGuideLinks(
+      "docs/testing.md",
+      `<a${whitespace}href${whitespace}=${whitespace}../README.md>Root</a>`,
+    );
 });
 
 test("HTML attribute values are consumed before looking for another href name", () => {

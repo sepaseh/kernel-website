@@ -119,13 +119,18 @@ function validateCreateRequireBindings(ast) {
       return node.argumentExpression.text;
     return undefined;
   };
+  const restBinding = Symbol("object-rest binding");
   const assignments = new Map();
-  const recordAssignment = (name, value) => {
+  const bindingSymbol = (node) =>
+    ts.isShorthandPropertyAssignment(node.parent)
+      ? checker.getShorthandAssignmentValueSymbol(node.parent)
+      : checker.getSymbolAtLocation(node);
+  const recordAssignment = (name, value, key) => {
     if (!ts.isIdentifier(name)) return;
-    const symbol = checker.getSymbolAtLocation(name);
+    const symbol = bindingSymbol(name);
     if (!symbol) return;
     const values = assignments.get(symbol) ?? [];
-    values.push(value);
+    values.push({ value, key });
     assignments.set(symbol, values);
   };
   const recordAssignmentTargets = (target, value) => {
@@ -135,12 +140,19 @@ function validateCreateRequireBindings(ast) {
     }
     if (!ts.isObjectLiteralExpression(target)) return;
 
-    for (const entry of target.properties)
-      if (moduleMembers.has(propertyKey(entry.name)))
-        recordAssignment(
-          ts.isPropertyAssignment(entry) ? entry.initializer : entry.name,
-          value,
-        );
+    for (const entry of target.properties) {
+      if (ts.isSpreadAssignment(entry)) {
+        recordAssignment(entry.expression, value, restBinding);
+        continue;
+      }
+      const key = propertyKey(entry.name);
+      if (key === undefined) continue;
+      recordAssignment(
+        ts.isPropertyAssignment(entry) ? entry.initializer : entry.name,
+        value,
+        key,
+      );
+    }
   };
   const collectAssignments = (node) => {
     if (
@@ -152,62 +164,117 @@ function validateCreateRequireBindings(ast) {
   };
   collectAssignments(ast);
 
-  const moduleSpecifier = (node) =>
+  const builtinSpecifier = (node, builtin) =>
     ts.isStringLiteralLike(node) &&
-    ["module", "node:module"].includes(node.text);
+    [builtin, "node:" + builtin].includes(node.text);
+  const moduleSpecifier = (node) => builtinSpecifier(node, "module");
   const globalIdentifier = (node, name) =>
     ts.isIdentifier(node) &&
     node.text === name &&
     !checker.getSymbolAtLocation(node)?.declarations?.length;
-  const moduleCall = (node) =>
-    node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-    globalIdentifier(node.expression, "require") ||
-    (memberKey(node.expression) === "getBuiltinModule" &&
-      globalIdentifier(node.expression.expression, "process"));
-  const moduleValue = (node, seen = new Set()) => {
+  const memberOrigin = (key, receiver, origin, seen) => {
+    if (origin === "module")
+      return (
+        (key === restBinding || moduleMembers.has(key)) &&
+        hasOrigin(receiver, "module", seen)
+      );
+    if (origin === "process")
+      return key === "default" && hasOrigin(receiver, "process", seen);
+    return key === "getBuiltinModule" && hasOrigin(receiver, "process", seen);
+  };
+  const importedOrigin = (declaration, origin) => {
+    if (ts.isImportClause(declaration))
+      return builtinSpecifier(declaration.parent.moduleSpecifier, origin);
+    if (ts.isNamespaceImport(declaration))
+      return builtinSpecifier(
+        declaration.parent.parent.moduleSpecifier,
+        origin,
+      );
+    if (!ts.isImportSpecifier(declaration)) return false;
+
+    const key = (declaration.propertyName ?? declaration.name).text;
+    const specifier = declaration.parent.parent.parent.moduleSpecifier;
+    if (origin === "loader")
+      return (
+        key === "getBuiltinModule" && builtinSpecifier(specifier, "process")
+      );
+    const member =
+      origin === "module" ? moduleMembers.has(key) : key === "default";
+    return member && builtinSpecifier(specifier, origin);
+  };
+  const declarationOrigin = (declaration, origin, seen) => {
+    if (ts.isVariableDeclaration(declaration))
+      return hasOrigin(declaration.initializer, origin, seen);
+    if (
+      ts.isBindingElement(declaration) &&
+      ts.isObjectBindingPattern(declaration.parent) &&
+      ts.isVariableDeclaration(declaration.parent.parent)
+    ) {
+      const initializer = declaration.parent.parent.initializer;
+      if (declaration.dotDotDotToken)
+        return origin === "module" && hasOrigin(initializer, origin, seen);
+      return memberOrigin(
+        propertyKey(declaration.propertyName ?? declaration.name),
+        initializer,
+        origin,
+        seen,
+      );
+    }
+    return importedOrigin(declaration, origin);
+  };
+  const identifierOrigin = (node, origin, seen) => {
+    const symbol = bindingSymbol(node);
+    if (!symbol || seen.has(symbol)) return false;
+
+    const next = new Set(seen).add(symbol);
+    const assigned = (assignments.get(symbol) ?? []).some(({ value, key }) =>
+      key === undefined
+        ? hasOrigin(value, origin, next)
+        : memberOrigin(key, value, origin, next),
+    );
+    return (
+      assigned ||
+      (symbol.declarations ?? []).some((declaration) =>
+        declarationOrigin(declaration, origin, next),
+      )
+    );
+  };
+  const callOrigin = (node, origin, seen) => {
+    if (origin === "loader" || node.arguments.length !== 1) return false;
+    if (!builtinSpecifier(node.arguments[0], origin)) return false;
+
+    return (
+      node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+      hasOrigin(node.expression, "loader", seen)
+    );
+  };
+  const hasOrigin = (node, origin, seen = new Set()) => {
     if (!node) return false;
     if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
-      return moduleValue(node.expression, seen);
-    if (ts.isCallExpression(node))
-      return (
-        moduleCall(node) &&
-        node.arguments.length === 1 &&
-        moduleSpecifier(node.arguments[0])
-      );
-    if (moduleMembers.has(memberKey(node)))
-      return moduleValue(node.expression, seen);
-    if (!ts.isIdentifier(node)) return false;
+      return hasOrigin(node.expression, origin, seen);
+    if (ts.isCallExpression(node)) return callOrigin(node, origin, seen);
+    if (ts.isIdentifier(node)) {
+      if (origin === "process" && globalIdentifier(node, "process"))
+        return true;
+      if (origin === "loader" && globalIdentifier(node, "require")) return true;
+      return identifierOrigin(node, origin, seen);
+    }
+    return memberOrigin(memberKey(node), node.expression, origin, seen);
+  };
+  const moduleValue = (node) => hasOrigin(node, "module");
+  const containsModuleValue = (node) => {
+    if (moduleValue(node)) return true;
+    if (ts.isParenthesizedExpression(node))
+      return containsModuleValue(node.expression);
+    if (!ts.isObjectLiteralExpression(node)) return false;
 
-    const symbol = checker.getSymbolAtLocation(node);
-    if (!symbol || seen.has(symbol)) return false;
-    seen.add(symbol);
-    if (
-      (assignments.get(symbol) ?? []).some((value) => moduleValue(value, seen))
-    )
-      return true;
-    return (symbol.declarations ?? []).some((declaration) => {
-      if (ts.isVariableDeclaration(declaration))
-        return moduleValue(declaration.initializer, seen);
-      if (
-        ts.isBindingElement(declaration) &&
-        ts.isObjectBindingPattern(declaration.parent) &&
-        ts.isVariableDeclaration(declaration.parent.parent)
-      )
-        return (
-          moduleMembers.has(
-            propertyKey(declaration.propertyName ?? declaration.name),
-          ) && moduleValue(declaration.parent.parent.initializer, seen)
-        );
-      if (ts.isImportClause(declaration))
-        return moduleSpecifier(declaration.parent.moduleSpecifier);
-      if (ts.isNamespaceImport(declaration))
-        return moduleSpecifier(declaration.parent.parent.moduleSpecifier);
-      if (ts.isImportSpecifier(declaration))
-        return (
-          moduleMembers.has(
-            (declaration.propertyName ?? declaration.name).text,
-          ) && moduleSpecifier(declaration.parent.parent.parent.moduleSpecifier)
-        );
+    return node.properties.some((entry) => {
+      if (ts.isPropertyAssignment(entry))
+        return containsModuleValue(entry.initializer);
+      if (ts.isSpreadAssignment(entry))
+        return containsModuleValue(entry.expression);
+      if (ts.isShorthandPropertyAssignment(entry))
+        return moduleValue(entry.name);
       return false;
     });
   };
@@ -246,8 +313,14 @@ function validateCreateRequireBindings(ast) {
       forbidden = forbiddenKey(node.propertyName ?? node.name);
     if (memberKey(node) === "createRequire")
       forbidden = moduleValue(node.expression);
+    if (
+      ts.isElementAccessExpression(node) &&
+      !ts.isStringLiteralLike(node.argumentExpression)
+    )
+      forbidden = moduleValue(node.expression);
     if (ts.isExportDeclaration(node)) forbidden = moduleExport(node);
-    if (ts.isExportAssignment(node)) forbidden = moduleValue(node.expression);
+    if (ts.isExportAssignment(node))
+      forbidden = containsModuleValue(node.expression);
     if (
       ts.isVariableStatement(node) &&
       node.modifiers?.some(

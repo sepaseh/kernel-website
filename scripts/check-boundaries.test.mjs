@@ -141,6 +141,9 @@ test("module bindings and simple aliases cannot expose createRequire", () => {
         "modules['createRequire'](import.meta.url);",
         "modules[`createRequire`];",
         "modules?.createRequire;",
+        "modules['create' + 'Require'](import.meta.url)('yaml');",
+        "const key = 'createRequire'; modules[key](import.meta.url)('yaml');",
+        "modules[0];",
         "const {createRequire} = modules;",
         "const {createRequire: load} = modules;",
         "const {['createRequire']: load} = modules;",
@@ -176,9 +179,49 @@ test("module bindings and simple aliases cannot expose createRequire", () => {
   }
 });
 
+test("module loader origins follow process imports, aliased callees, reassignments and rest bindings", () => {
+  for (const builtin of ["module", "node:module"]) {
+    for (const binding of [
+      `const load = require; const modules = load('${builtin}');`,
+      `let load; load = require; const modules = load('${builtin}');`,
+      `const load = process.getBuiltinModule; const modules = load('${builtin}');`,
+      `let load; load = process['getBuiltinModule']; const alias = load; const modules = alias('${builtin}');`,
+      `const {getBuiltinModule: load} = process; const modules = load('${builtin}');`,
+      `let load; ({getBuiltinModule: load} = process); const modules = load('${builtin}');`,
+      `let getBuiltinModule; ({getBuiltinModule} = process); const modules = getBuiltinModule('${builtin}');`,
+      `import process from 'node:process'; const modules = process.getBuiltinModule('${builtin}');`,
+      `import * as process from 'node:process'; const modules = process.getBuiltinModule('${builtin}');`,
+      `import {default as runtime} from 'node:process'; const process = runtime; const modules = process.getBuiltinModule('${builtin}');`,
+      `import {getBuiltinModule as load} from 'node:process'; const modules = load('${builtin}');`,
+      `let runtime; runtime = process; const load = runtime.getBuiltinModule; const modules = load('${builtin}');`,
+      `const runtime = await import('node:process'); const modules = runtime.default.getBuiltinModule('${builtin}');`,
+      `const runtime = require('node:process'); const modules = runtime.getBuiltinModule('${builtin}');`,
+      `const {...modules} = await import('${builtin}');`,
+      `const {isBuiltin, ...modules} = require('${builtin}');`,
+      `let modules; ({...modules} = await import('${builtin}'));`,
+      `let Module; ({Module} = await import('${builtin}')); const modules = Module;`,
+    ])
+      assert.throws(
+        () =>
+          validateModuleImports(
+            "scripts/validate.mjs",
+            binding + "modules.createRequire(import.meta.url)('yaml');",
+            pkg,
+          ),
+        /createRequire bypasses/,
+        binding,
+      );
+  }
+});
+
 test("module-origin loaders and namespaces cannot escape through exports", () => {
   for (const builtin of ["module", "node:module"]) {
     for (const source of [
+      `export default {modules: await import('${builtin}')};`,
+      `export default {nested: {modules: await import('${builtin}')}};`,
+      `const modules = await import('${builtin}'); export default {modules};`,
+      `const modules = await import('${builtin}'); export default {nested: {modules}};`,
+      `export default {...await import('${builtin}')};`,
       `export * from '${builtin}';`,
       `export * as modules from '${builtin}';`,
       `export {createRequire} from '${builtin}';`,
@@ -225,7 +268,6 @@ test("module-origin checks preserve other members and unrelated or shadowing bin
     "let left; let right; left = right; right = left; left.createRequire;",
     "const left = right; const right = left; left.createRequire;",
     "unknown.createRequire;",
-    "import * as modules from 'node:module'; modules[0]; modules[member];",
     "function inspect(process) { process.getBuiltinModule('node:module').createRequire; }",
     "const process = {getBuiltinModule() {}}; process.getBuiltinModule('node:module').createRequire;",
     "const other = {getBuiltinModule() {}}; other.getBuiltinModule('node:module').createRequire;",
@@ -245,6 +287,23 @@ test("module-origin checks preserve other members and unrelated or shadowing bin
     "const modules = {createRequire() {}}; export {modules as named};",
     "export function helper() {}",
     "const local = {}; export {local};",
+    "const other = {createRequire() {}}; other['create' + 'Require'];",
+    "function inspect(require) { const load = require; load('node:module').createRequire; }",
+    "function inspect(process) { const load = process.getBuiltinModule; load('node:module').createRequire; }",
+    "import * as process from 'node:process'; function inspect(process) { const load = process.getBuiltinModule; load('node:module').createRequire; }",
+    "const process = {getBuiltinModule() {}}; let load; load = process.getBuiltinModule; load('node:module').createRequire;",
+    "const other = {getBuiltinModule() {}}; const {getBuiltinModule: load} = other; load('node:module').createRequire;",
+    "const other = {getBuiltinModule() {}}; let load; ({getBuiltinModule: load} = other); load('node:module').createRequire;",
+    "const unrelated = () => ({}); let load; load = unrelated; load('node:module').createRequire;",
+    "let load; let alias; load = alias; alias = load; load('node:module').createRequire;",
+    "const {isBuiltin} = await import('node:module'); const load = isBuiltin; load('node:module').createRequire;",
+    "const other = {createRequire() {}}; const {...rest} = other; rest.createRequire;",
+    "const other = {createRequire() {}}; let rest; ({...rest} = other); rest.createRequire;",
+    "const local = {createRequire() {}}; export default {local};",
+    "export default {nested: {createRequire() {}}};",
+    "export default {...{createRequire() {}}};",
+    "export default {get modules() { return {}; }};",
+    "export default {isBuiltin: (await import('node:module')).isBuiltin};",
   ])
     validateModuleImports("scripts/validate.mjs", source, pkg);
 });

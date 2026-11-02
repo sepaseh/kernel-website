@@ -102,7 +102,7 @@ const htmlAttributeValue = (attributes, start) => {
     return { end: end + 1, value: attributes.slice(start + 1, end) };
   }
 
-  const boundary = attributes.slice(start).search(/[\s"'`=<>]/);
+  const boundary = attributes.slice(start).search(/[\t\n\f\r "'`=<>]/);
   const end = boundary < 0 ? attributes.length : start + boundary;
   return { end, value: attributes.slice(start, end) };
 };
@@ -110,7 +110,7 @@ const htmlAttributeValue = (attributes, start) => {
 const openingTagHrefs = (tag) => {
   const attributes = tag.replace(/^<[A-Za-z][\w:-]*/, "").slice(0, -1);
   const values = [];
-  const names = /([^\s"'<>/=]+)(\s*=\s*)?/g;
+  const names = /([^\t\n\f\r "'<>/=]+)([\t\n\f\r ]*=[\t\n\f\r ]*)?/g;
   let match;
   while ((match = names.exec(attributes))) {
     let value = "";
@@ -133,8 +133,8 @@ const htmlHrefs = (fragments) => {
       String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
       String.raw`<\?[^>]*(?:>|$)`,
       `<!${tagTail}`,
-      String.raw`<(script|style|textarea|title)(?=[\s/>])${tagTail}[\s\S]*?(?:<\/\1\s*>|$)`,
-      String.raw`<[A-Za-z][\w:-]*(?=[\s/>])${tagTail}`,
+      String.raw`<(script|style|textarea|title)(?=[\t\n\f\r />])${tagTail}[\s\S]*?(?:<\/\1[\t\n\f\r ]*>|$)`,
+      String.raw`<[A-Za-z][\w:-]*(?=[\t\n\f\r />])${tagTail}`,
     ].join("|"),
     "gi",
   );
@@ -178,7 +178,11 @@ export function validateGuideLinks(filename, content) {
         node.position.start.offset,
         node.position.end.offset,
       );
-      if (/<[A-Za-z][\w:-]*(?=[\s/>])(?:[^"'<>]|"[^"]*"|'[^']*')*>/.test(text))
+      if (
+        /<[A-Za-z][\w:-]*(?=[\t\n\f\r />])(?:[^"'<>]|"[^"]*"|'[^']*')*>/.test(
+          text,
+        )
+      )
         html.push(text);
     }
     nodes.push(...(node.children ?? []).toReversed());
@@ -186,9 +190,9 @@ export function validateGuideLinks(filename, content) {
   links.push(...htmlHrefs(html));
 
   for (const link of links) {
-    if (link === "" || /^(?:https?:|mailto:|codex:|#)/i.test(link)) continue;
+    if (link === "" || /^(?:https?:|mailto:|codex:|[?#])/i.test(link)) continue;
 
-    const target = decodeURIComponent(link.split("#")[0]);
+    const target = decodeURIComponent(link.split(/[?#]/, 1)[0]);
     assert.equal(
       target.startsWith("/"),
       false,
