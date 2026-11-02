@@ -341,6 +341,43 @@ test("HTML comments, raw text and Markdown code examples do not create guide lin
     );
 });
 
+test("attributed raw-text closing tags resume validation after the complete tag", () => {
+  const hidden = '<a href="../.env.local">Hidden</a>';
+  const published = '<a href="../README.md">Root</a>';
+  for (const tag of ["script", "style", "textarea", "title"])
+    for (const attributes of [
+      " data-x=1",
+      " data-x='x > y'",
+      " data-x=\"> <a href='../.env.local'>\"",
+      " \t\n\f\r data-x=1",
+      "/",
+      " /",
+      "/data-x=1",
+      " data-x=1/",
+    ]) {
+      const raw = `<${tag}>${hidden}</${tag.toUpperCase()}${attributes}>`;
+      validateGuideLinks("docs/testing.md", raw + published);
+      assert.throws(
+        () => validateGuideLinks("docs/testing.md", raw + hidden),
+        /Missing or unpublished guide link/,
+      );
+    }
+});
+
+test("raw-text closing tags require an ASCII name boundary and a complete tail", () => {
+  const hidden = '<a href="../.env.local">Hidden</a>';
+  for (const tag of ["script", "style", "textarea", "title"])
+    for (const closing of [
+      `</${tag}extra>`,
+      `</${tag}\u00a0>`,
+      `</${tag}`,
+      `</${tag} data-x=1`,
+      `</${tag} data-x="unterminated>`,
+      `</${tag} data-x='unterminated>`,
+    ])
+      validateGuideLinks("docs/testing.md", `<${tag}>${closing}${hidden}`);
+});
+
 test("HTML href whitespace and escaped opening angles preserve rendered destinations", () => {
   const whitespace = " \t\n\f\r ";
   const anchor = "<a href=../.env.local>Hidden</a>";

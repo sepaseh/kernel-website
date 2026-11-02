@@ -248,6 +248,161 @@ test("module-origin loaders and namespaces cannot escape through exports", () =>
   }
 });
 
+test("module destructuring checks computed keys and nested member paths", () => {
+  for (const source of [
+    "const modules = await import('node:module'); const key = 'createRequire'; const {[key]: load} = modules;",
+    "const modules = await import('node:module'); const key = 'createRequire'; let load; ({[key]: load} = modules);",
+    "const modules = await import('node:module'); const {['create' + 'Require']: load} = modules;",
+    "const {default: {createRequire: load}} = await import('node:module');",
+    "const {Module: {default: {createRequire: load}}} = await import('node:module');",
+    "const {default: {[key]: load}} = await import('node:module');",
+    "let load; ({default: {createRequire: load}} = await import('node:module'));",
+    "let load; ({default: {createRequire: load} = {}} = await import('node:module'));",
+    "const {default: {createRequire: load} = {}} = await import('node:module');",
+    "let load; ({Module: {default: {createRequire: load}}} = await import('node:module'));",
+    "let load; ({default: {[key]: load}} = await import('node:module'));",
+    "const {default: {Module: modules}} = await import('node:module'); modules.createRequire;",
+    "const {default: {...modules}} = await import('node:module'); modules.createRequire;",
+    "let modules; ({default: {Module: modules}} = await import('node:module')); modules.createRequire;",
+    "let modules; ({default: {Module: modules = {}} = {}} = await import('node:module')); modules.createRequire;",
+    "let modules; ({default: {...modules}} = await import('node:module')); modules.createRequire;",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+
+  for (const source of [
+    "const other = {createRequire() {}}; const {[key]: load} = other;",
+    "const other = {createRequire() {}}; let load; ({[key]: load} = other);",
+    "const other = {default: {createRequire() {}}}; const {default: {createRequire: load}} = other;",
+    "const other = {default: {createRequire() {}}}; let load; ({default: {createRequire: load}} = other);",
+    "const other = {default: {createRequire() {}}}; let load; ({default: {createRequire: load} = {}} = other);",
+    "const {default: {isBuiltin}} = await import('node:module'); export {isBuiltin};",
+    "let isBuiltin; ({default: {isBuiltin}} = await import('node:module')); export {isBuiltin};",
+    "const {default: {isBuiltin: {createRequire}}} = await import('node:module');",
+    "const {default: {isBuiltin: {[key]: value}}} = await import('node:module');",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
+test("global process loaders and aliased loaders retain literal specifier checks", () => {
+  for (const receiver of [
+    "globalThis.process",
+    "globalThis['process']",
+    "globalThis[`process`]",
+  ])
+    assert.throws(
+      () =>
+        validateModuleImports(
+          "scripts/validate.mjs",
+          `${receiver}.getBuiltinModule('node:module').createRequire;`,
+          pkg,
+        ),
+      /createRequire bypasses/,
+    );
+  for (const source of [
+    "const root = globalThis; root.process.getBuiltinModule('node:module').createRequire;",
+    "let root; root = globalThis; root['process']['getBuiltinModule']('node:module').createRequire;",
+    "const {process: {getBuiltinModule: load}} = globalThis; load('node:module').createRequire;",
+    "let load; ({process: {getBuiltinModule: load}} = globalThis); load('node:module').createRequire;",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+  for (const source of [
+    "process.getBuiltinModule('mod' + 'ule').createRequire;",
+    "globalThis.process.getBuiltinModule('node:' + 'module').createRequire;",
+    "const load = require; load('node:' + 'module').createRequire;",
+    "let load; load = require; load(specifier);",
+    "const load = process.getBuiltinModule; load('mod' + 'ule').createRequire;",
+    "import {getBuiltinModule as load} from 'node:process'; load(specifier);",
+    "import process from 'node:process'; process.getBuiltinModule(specifier);",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /Computed imports are forbidden/,
+      source,
+    );
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "const load = require; load('yaml');",
+        pkg,
+      ),
+    /not permitted for this owner/,
+  );
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "const load = process.getBuiltinModule; load();",
+        pkg,
+      ),
+    /Imports need one literal argument/,
+  );
+
+  validateModuleImports(
+    "scripts/check-ci.mjs",
+    "const load = require; load('yaml');",
+    pkg,
+  );
+  for (const source of [
+    "process.getBuiltinModule('fs'); globalThis.process.getBuiltinModule('node:fs');",
+    "const load = require; load('./validate-bootstrap.mjs');",
+    "const {getBuiltinModule: load} = process; load('node:fs');",
+    "function inspect(globalThis) { globalThis.process.getBuiltinModule(specifier).createRequire; }",
+    "const globalThis = {process: {getBuiltinModule() {}}}; globalThis.process.getBuiltinModule(specifier).createRequire;",
+    "const other = {process: {getBuiltinModule() {}}}; other.process.getBuiltinModule(specifier).createRequire;",
+    "function inspect(require) { const load = require; load(specifier); }",
+    "function inspect(process) { const load = process.getBuiltinModule; load(specifier); }",
+    "const process = {getBuiltinModule() {}}; process.getBuiltinModule(specifier);",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
+test("export checks follow bound object and array containers without executing functions", () => {
+  const binding = "const modules = await import('node:module');";
+  for (const source of [
+    "const bag = {modules}; export default bag;",
+    "const bag = {modules}; const alias = bag; export {alias};",
+    "let bag; bag = {nested: {modules}}; export default bag;",
+    "export default [modules];",
+    "const bag = [modules]; export default bag;",
+    "const bag = [{nested: modules}]; export const alias = bag;",
+    "let bag; bag = [modules]; const alias = bag; export {alias};",
+    "const bag = [modules]; export default [...bag];",
+    "const bag = {modules}; export default {nested: bag};",
+    "let left; let right; left = right; right = {left, modules}; export default left;",
+    "const bag = {modules}; export default {...bag};",
+    "export let bag; bag = {modules};",
+  ])
+    assert.throws(
+      () =>
+        validateModuleImports("scripts/validate.mjs", binding + source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+
+  for (const source of [
+    "const {isBuiltin} = await import('node:module'); const bag = {isBuiltin}; export default bag;",
+    "const {isBuiltin} = await import('node:module'); const bag = [isBuiltin]; export {bag};",
+    "let left; let right; left = right; right = {left}; export default left;",
+    "const bag = [bag]; export default bag;",
+    "const bag = {createRequire() {}}; export default bag;",
+    "const bag = {get modules() { return {}; }}; export default bag;",
+    "const bag = [, , {value: 1}]; export default bag;",
+    "function build() { return {}; } export default build();",
+    "let bag; export default bag;",
+    "const modules = await import('node:module'); function inspect(modules) { const bag = {modules}; return bag; } export default inspect;",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
 test("module-origin checks preserve other members and unrelated or shadowing bindings", () => {
   for (const source of [
     "import * as modules from 'node:module'; modules.isBuiltin('fs');",

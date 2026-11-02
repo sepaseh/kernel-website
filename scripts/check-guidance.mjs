@@ -133,7 +133,7 @@ const htmlHrefs = (fragments) => {
       String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
       String.raw`<\?[^>]*(?:>|$)`,
       `<!${tagTail}`,
-      String.raw`<(script|style|textarea|title)(?=[\t\n\f\r />])${tagTail}[\s\S]*?(?:<\/\1[\t\n\f\r ]*>|$)`,
+      String.raw`<(script|style|textarea|title)(?=[\t\n\f\r />])${tagTail}[\s\S]*?(?:<\/\1(?=[\t\n\f\r />])${tagTail}|$)`,
       String.raw`<[A-Za-z][\w:-]*(?=[\t\n\f\r />])${tagTail}`,
     ].join("|"),
     "gi",
