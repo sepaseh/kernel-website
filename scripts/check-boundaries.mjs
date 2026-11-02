@@ -102,24 +102,61 @@ function validateCreateRequireBindings(ast) {
     })
     .getTypeChecker();
   const moduleMembers = new Set(["Module", "default"]);
+  const stringKey = (node, seen = new Set()) => {
+    if (!node) return undefined;
+    if (ts.isStringLiteralLike(node)) return node.text;
+    if (ts.isParenthesizedExpression(node))
+      return stringKey(node.expression, seen);
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.PlusToken
+    ) {
+      const left = stringKey(node.left, seen);
+      const right = stringKey(node.right, seen);
+      return left !== undefined && right !== undefined
+        ? left + right
+        : undefined;
+    }
+    if (!ts.isIdentifier(node)) return undefined;
+
+    const symbol = checker.getSymbolAtLocation(node);
+    if (!symbol || seen.has(symbol)) return undefined;
+
+    const declaration = symbol.valueDeclaration;
+    if (
+      !declaration ||
+      !ts.isVariableDeclaration(declaration) ||
+      !(declaration.parent.flags & ts.NodeFlags.Const)
+    )
+      return undefined;
+    return stringKey(declaration.initializer, new Set(seen).add(symbol));
+  };
   const propertyKey = (node) => {
     if (!node) return undefined;
-    if (ts.isComputedPropertyName(node))
-      return ts.isStringLiteralLike(node.expression)
-        ? node.expression.text
-        : undefined;
+    if (ts.isComputedPropertyName(node)) return stringKey(node.expression);
     return node.text;
   };
   const memberKey = (node) => {
     if (ts.isPropertyAccessExpression(node)) return node.name.text;
-    if (
-      ts.isElementAccessExpression(node) &&
-      ts.isStringLiteralLike(node.argumentExpression)
-    )
-      return node.argumentExpression.text;
+    if (ts.isElementAccessExpression(node))
+      return ts.isNumericLiteral(node.argumentExpression)
+        ? node.argumentExpression.text
+        : stringKey(node.argumentExpression);
     return undefined;
   };
-  const restBinding = Symbol("object-rest binding");
+  const objectRest = (key) =>
+    key !== null && typeof key === "object" && "excluded" in key;
+  const writeOperators = new Set([
+    ts.SyntaxKind.EqualsToken,
+    ts.SyntaxKind.QuestionQuestionEqualsToken,
+    ts.SyntaxKind.BarBarEqualsToken,
+    ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+  ]);
+  const valueAlternatives = new Set([
+    ts.SyntaxKind.AmpersandAmpersandToken,
+    ts.SyntaxKind.BarBarToken,
+    ts.SyntaxKind.QuestionQuestionToken,
+  ]);
   const assignments = new Map();
   const bindingSymbol = (node) =>
     ts.isShorthandPropertyAssignment(node.parent)
@@ -134,11 +171,23 @@ function validateCreateRequireBindings(ast) {
     assignments.set(symbol, values);
   };
   const assignmentEntries = (target) => {
+    if (ts.isArrayLiteralExpression(target))
+      return target.elements.map((entry, index) => ({
+        key: ts.isSpreadElement(entry) ? { rest: index } : String(index),
+        target: ts.isSpreadElement(entry) ? entry.expression : entry,
+      }));
     if (!ts.isObjectLiteralExpression(target)) return [];
 
     return target.properties.map((entry) => {
       if (ts.isSpreadAssignment(entry))
-        return { key: restBinding, target: entry.expression };
+        return {
+          key: {
+            excluded: target.properties
+              .filter((property) => !ts.isSpreadAssignment(property))
+              .map((property) => propertyKey(property.name)),
+          },
+          target: entry.expression,
+        };
 
       return {
         key: propertyKey(entry.name),
@@ -152,6 +201,7 @@ function validateCreateRequireBindings(ast) {
       target.operatorToken.kind === ts.SyntaxKind.EqualsToken
     ) {
       recordAssignmentTargets(target.left, value, keys);
+      recordAssignmentTargets(target.left, target.right);
       return;
     }
     if (ts.isIdentifier(target)) {
@@ -167,7 +217,7 @@ function validateCreateRequireBindings(ast) {
   const collectAssignments = (node) => {
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      writeOperators.has(node.operatorToken.kind)
     )
       recordAssignmentTargets(node.left, node.right);
     ts.forEachChild(node, collectAssignments);
@@ -183,10 +233,9 @@ function validateCreateRequireBindings(ast) {
     node.text === name &&
     !checker.getSymbolAtLocation(node)?.declarations?.length;
   const memberSourceOrigin = (key, origin) => {
+    if (origin === "global") return key === "globalThis" ? "global" : undefined;
     if (origin === "module")
-      return key === restBinding || moduleMembers.has(key)
-        ? "module"
-        : undefined;
+      return objectRest(key) || moduleMembers.has(key) ? "module" : undefined;
     if (origin === "process") {
       if (key === "process") return "global";
 
@@ -196,7 +245,7 @@ function validateCreateRequireBindings(ast) {
       ? "process"
       : undefined;
   };
-  const selectedOrigin = (value, keys, origin, seen) => {
+  const builtinSelection = (value, keys, origin, seen) => {
     let sourceOrigin = origin;
     for (const key of keys.toReversed()) {
       sourceOrigin = memberSourceOrigin(key, sourceOrigin);
@@ -204,6 +253,166 @@ function validateCreateRequireBindings(ast) {
     }
     return hasOrigin(value, sourceOrigin, seen);
   };
+  const boundSelection = (node, keys, seen, accept) => {
+    const symbol = bindingSymbol(node);
+    if (!symbol || seen.has(symbol)) return false;
+
+    const next = new Set(seen).add(symbol);
+    const declared = (symbol.declarations ?? []).flatMap(declarationSources);
+    return [...(assignments.get(symbol) ?? []), ...declared].some((source) =>
+      selectValue(source.value, [...source.keys, ...keys], next, accept),
+    );
+  };
+  const expandedLiteral = (node, seen) => {
+    const array = ts.isArrayLiteralExpression(node);
+    let alternatives = [[]];
+    for (const entry of array ? node.elements : node.properties) {
+      let choices = [[entry]];
+      if (ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry)) {
+        const nested = literalContainers(entry.expression, seen).filter(
+          ({ value }) => ts.isArrayLiteralExpression(value) === array,
+        );
+        if (nested.length)
+          choices = nested.map(({ value }) =>
+            array ? value.elements : value.properties,
+          );
+      }
+      alternatives = alternatives.flatMap((previous) =>
+        choices.map((choice) => [...previous, ...choice]),
+      );
+    }
+    return alternatives.map((entries) => ({
+      value: array
+        ? ts.factory.createArrayLiteralExpression(entries)
+        : ts.factory.createObjectLiteralExpression(entries),
+      visited: seen,
+    }));
+  };
+  const literalContainers = (node, seen) => {
+    const values = [];
+    selectValue(node, [], seen, (value, visited, keys) => {
+      if (
+        keys.length === 0 &&
+        (ts.isObjectLiteralExpression(value) ||
+          ts.isArrayLiteralExpression(value))
+      )
+        values.push(...expandedLiteral(value, visited));
+      return false;
+    });
+    return values;
+  };
+  const objectSelection = (node, key, remaining, seen, accept) => {
+    if (objectRest(key)) {
+      const candidates = literalContainers(node, seen);
+      return candidates.some(({ value, visited }) => {
+        const properties = value.properties.filter((entry) => {
+          const name = propertyKey(entry.name);
+          return name === undefined || !key.excluded.includes(name);
+        });
+        const rest = ts.factory.createObjectLiteralExpression(properties);
+        return selectValue(rest, remaining, visited, accept);
+      });
+    }
+
+    return node.properties.some((entry) => {
+      if (ts.isSpreadAssignment(entry))
+        return selectValue(entry.expression, [key, ...remaining], seen, accept);
+      const name = propertyKey(entry.name);
+      if (key !== undefined && name !== undefined && name !== key) return false;
+
+      if (ts.isPropertyAssignment(entry))
+        return selectValue(entry.initializer, remaining, seen, accept);
+      if (ts.isShorthandPropertyAssignment(entry))
+        return selectValue(entry.name, remaining, seen, accept);
+      return false;
+    });
+  };
+  const arraySelection = (node, key, remaining, seen, accept) => {
+    return literalContainers(node, seen).some(({ value, visited }) =>
+      selectedArray(value, key, remaining, visited, accept),
+    );
+  };
+  const selectedArray = (node, key, remaining, seen, accept) => {
+    if (objectRest(key)) {
+      const properties = node.elements.map((entry, index) =>
+        ts.factory.createPropertyAssignment(String(index), entry),
+      );
+      return objectSelection(
+        ts.factory.createObjectLiteralExpression(properties),
+        key,
+        remaining,
+        seen,
+        accept,
+      );
+    }
+    if (typeof key === "object" && key !== null && "rest" in key) {
+      const rest = ts.factory.createArrayLiteralExpression(
+        node.elements.slice(key.rest),
+      );
+      return selectValue(rest, remaining, seen, accept);
+    }
+    if (key === undefined)
+      return node.elements.some((entry) =>
+        selectValue(entry, remaining, seen, accept),
+      );
+    if (typeof key !== "string") return false;
+
+    const index = Number(key);
+    if (!Number.isInteger(index) || index < 0 || String(index) !== key)
+      return false;
+
+    const spread = node.elements.findIndex(ts.isSpreadElement);
+    if (spread >= 0 && index >= spread)
+      return node.elements
+        .slice(spread)
+        .some((entry) =>
+          ts.isSpreadElement(entry)
+            ? selectValue(
+                entry.expression,
+                [undefined, ...remaining],
+                seen,
+                accept,
+              )
+            : selectValue(entry, remaining, seen, accept),
+        );
+    return selectValue(node.elements[index], remaining, seen, accept);
+  };
+  const selectValue = (node, keys, seen = new Set(), accept) => {
+    if (!node) return false;
+    if (accept(node, seen, keys)) return true;
+    if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
+      return selectValue(node.expression, keys, seen, accept);
+    if (ts.isIdentifier(node)) return boundSelection(node, keys, seen, accept);
+    if (
+      ts.isPropertyAccessExpression(node) ||
+      ts.isElementAccessExpression(node)
+    )
+      return selectValue(
+        node.expression,
+        [memberKey(node), ...keys],
+        seen,
+        accept,
+      );
+    if (keys.length === 0) return false;
+
+    const [key, ...remaining] = keys;
+    if (ts.isObjectLiteralExpression(node))
+      return objectSelection(node, key, remaining, seen, accept);
+    if (ts.isArrayLiteralExpression(node))
+      return arraySelection(node, key, remaining, seen, accept);
+    return false;
+  };
+  const selectedOrigin = (value, keys, origin, seen = new Set()) => {
+    return selectValue(value, keys, seen, (selected, visited, remaining) =>
+      builtinSelection(selected, remaining, origin, visited),
+    );
+  };
+  const selectedContainsModule = (value, keys, seen) =>
+    selectValue(value, keys, seen, (selected, visited, remaining) =>
+      remaining.length === 0
+        ? containsModuleValue(selected, visited)
+        : builtinSelection(selected, remaining, "module", visited),
+    );
   const importedOrigin = (declaration, origin) => {
     if (ts.isImportClause(declaration))
       return builtinSpecifier(declaration.parent.moduleSpecifier, origin);
@@ -224,26 +433,50 @@ function validateCreateRequireBindings(ast) {
       origin === "module" ? moduleMembers.has(key) : key === "default";
     return member && builtinSpecifier(specifier, origin);
   };
-  const declarationSource = (declaration) => {
+  const declarationSources = (declaration) => {
     if (ts.isVariableDeclaration(declaration))
-      return { value: declaration.initializer, keys: [] };
+      return [{ value: declaration.initializer, keys: [] }];
+    if (ts.isFunctionDeclaration(declaration))
+      return [{ value: declaration, keys: [] }];
     if (
       !ts.isBindingElement(declaration) ||
-      !ts.isObjectBindingPattern(declaration.parent)
+      !(
+        ts.isObjectBindingPattern(declaration.parent) ||
+        ts.isArrayBindingPattern(declaration.parent)
+      )
     )
-      return undefined;
+      return [];
 
-    const parent = declarationSource(declaration.parent.parent);
-    if (!parent) return undefined;
+    const parents = declarationSources(declaration.parent.parent);
+    const key = bindingKey(declaration);
+    const sources = parents.map(({ value, keys }) => ({
+      value,
+      keys: [...keys, key],
+    }));
+    if (declaration.initializer)
+      sources.push({ value: declaration.initializer, keys: [] });
+    return sources;
+  };
+  const bindingKey = (declaration) => {
+    if (ts.isArrayBindingPattern(declaration.parent)) {
+      const index = declaration.parent.elements.indexOf(declaration);
+      return declaration.dotDotDotToken ? { rest: index } : String(index);
+    }
 
-    const key = declaration.dotDotDotToken
-      ? restBinding
+    return declaration.dotDotDotToken
+      ? {
+          excluded: declaration.parent.elements
+            .filter((entry) => !entry.dotDotDotToken)
+            .map((entry) => propertyKey(entry.propertyName ?? entry.name)),
+        }
       : propertyKey(declaration.propertyName ?? declaration.name);
-    return { value: parent.value, keys: [...parent.keys, key] };
   };
   const declarationOrigin = (declaration, origin, seen) => {
-    const source = declarationSource(declaration);
-    if (source) return selectedOrigin(source.value, source.keys, origin, seen);
+    const sources = declarationSources(declaration);
+    if (sources.length)
+      return sources.some(({ value, keys }) =>
+        selectedOrigin(value, keys, origin, seen),
+      );
     return importedOrigin(declaration, origin);
   };
   const identifierOrigin = (node, origin, seen) => {
@@ -251,6 +484,7 @@ function validateCreateRequireBindings(ast) {
     if (!symbol || seen.has(symbol)) return false;
 
     const next = new Set(seen).add(symbol);
+    // Join possible writes: textual order cannot model conditional writes or closures.
     const assigned = (assignments.get(symbol) ?? []).some(({ value, keys }) =>
       selectedOrigin(value, keys, origin, next),
     );
@@ -291,20 +525,49 @@ function validateCreateRequireBindings(ast) {
     if (!symbol || seen.has(symbol)) return false;
 
     const next = new Set(seen).add(symbol);
-    const declared = (symbol.declarations ?? [])
-      .map(declarationSource)
-      .filter(Boolean);
+    const declared = (symbol.declarations ?? []).flatMap(declarationSources);
     return [...(assignments.get(symbol) ?? []), ...declared].some(
-      ({ value, keys }) =>
-        keys.length === 0 && containsModuleValue(value, next),
+      ({ value, keys }) => selectedContainsModule(value, keys, next),
     );
+  };
+  const returnedModule = (node, seen) => {
+    if (!node.body) return false;
+    if (!ts.isBlock(node.body)) return containsModuleValue(node.body, seen);
+
+    const visitReturn = (child) => {
+      if (ts.isReturnStatement(child))
+        return containsModuleValue(child.expression, seen);
+      if (ts.isFunctionLike(child)) return false;
+
+      return ts.forEachChild(child, visitReturn) === true;
+    };
+    return ts.forEachChild(node.body, visitReturn) === true;
+  };
+  const alternativeValues = (node) => {
+    if (ts.isConditionalExpression(node))
+      return [node.whenTrue, node.whenFalse];
+    if (
+      ts.isBinaryExpression(node) &&
+      valueAlternatives.has(node.operatorToken.kind)
+    )
+      return [node.left, node.right];
+    return [];
   };
   const containsModuleValue = (node, seen = new Set()) => {
     if (!node) return false;
     if (moduleValue(node)) return true;
-    if (ts.isParenthesizedExpression(node))
+    const alternatives = alternativeValues(node);
+    if (alternatives.length)
+      return alternatives.some((value) => containsModuleValue(value, seen));
+    if (ts.isParenthesizedExpression(node) || ts.isAwaitExpression(node))
       return containsModuleValue(node.expression, seen);
     if (ts.isIdentifier(node)) return boundContainer(node, seen);
+    if (ts.isFunctionLike(node)) return returnedModule(node, seen);
+    if (
+      ts.isPropertyAccessExpression(node) ||
+      ts.isElementAccessExpression(node)
+    )
+      return selectedContainsModule(node.expression, [memberKey(node)], seen);
     if (ts.isSpreadElement(node))
       return containsModuleValue(node.expression, seen);
     if (ts.isArrayLiteralExpression(node))
@@ -318,18 +581,21 @@ function validateCreateRequireBindings(ast) {
         return containsModuleValue(entry.expression, seen);
       if (ts.isShorthandPropertyAssignment(entry))
         return containsModuleValue(entry.name, seen);
+      if (ts.isFunctionLike(entry)) return returnedModule(entry, seen);
       return false;
     });
   };
   const forbiddenKey = (node) => propertyKey(node) === "createRequire";
   const declarationEntries = (pattern) => {
-    if (!ts.isObjectBindingPattern(pattern)) return [];
+    if (!(
+      ts.isObjectBindingPattern(pattern) || ts.isArrayBindingPattern(pattern)
+    ))
+      return [];
 
-    return pattern.elements.map((entry) => ({
-      key: entry.dotDotDotToken
-        ? restBinding
-        : propertyKey(entry.propertyName ?? entry.name),
+    return pattern.elements.filter(ts.isBindingElement).map((entry) => ({
+      key: bindingKey(entry),
       target: entry.name,
+      fallback: entry.initializer,
     }));
   };
   const forbiddenPattern = (pattern, value, keys = []) => {
@@ -337,18 +603,27 @@ function validateCreateRequireBindings(ast) {
       ts.isBinaryExpression(pattern) &&
       pattern.operatorToken.kind === ts.SyntaxKind.EqualsToken
     )
-      return forbiddenPattern(pattern.left, value, keys);
+      return (
+        forbiddenPattern(pattern.left, value, keys) ||
+        forbiddenPattern(pattern.left, pattern.right)
+      );
 
-    const entries = ts.isObjectBindingPattern(pattern)
-      ? declarationEntries(pattern)
-      : assignmentEntries(pattern);
-    return entries.some(({ key, target }) => {
+    const entries =
+      ts.isObjectBindingPattern(pattern) || ts.isArrayBindingPattern(pattern)
+        ? declarationEntries(pattern)
+        : assignmentEntries(pattern);
+    return entries.some(({ key, target, fallback }) => {
       if (
         (key === undefined || key === "createRequire") &&
         selectedOrigin(value, keys, "module")
       )
         return true;
-      return forbiddenPattern(target, value, [...keys, key]);
+      if (key === undefined && selectedOrigin(value, keys, "process"))
+        return true;
+      return (
+        forbiddenPattern(target, value, [...keys, key]) ||
+        (fallback !== undefined && forbiddenPattern(target, fallback))
+      );
     });
   };
   const exportedBinding = (name) =>
@@ -376,38 +651,50 @@ function validateCreateRequireBindings(ast) {
       );
     });
   };
+  const exportedNode = (node) => {
+    if (ts.isExportDeclaration(node)) return moduleExport(node);
+    if (ts.isExportAssignment(node))
+      return containsModuleValue(node.expression);
+    if (
+      !node.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+      )
+    )
+      return false;
+
+    if (ts.isFunctionDeclaration(node)) return returnedModule(node);
+    if (ts.isVariableStatement(node))
+      return node.declarationList.declarations.some((declaration) =>
+        exportedBinding(declaration.name),
+      );
+    return false;
+  };
+  const forbiddenMember = (node) => {
+    if (memberKey(node) === "createRequire")
+      return moduleValue(node.expression);
+    if (
+      !ts.isElementAccessExpression(node) ||
+      ts.isStringLiteralLike(node.argumentExpression)
+    )
+      return false;
+
+    return (
+      moduleValue(node.expression) ||
+      (memberKey(node) === undefined && hasOrigin(node.expression, "process"))
+    );
+  };
   const visit = (node) => {
-    let forbidden = false;
+    let forbidden = forbiddenMember(node) || exportedNode(node);
     if (
       ts.isImportSpecifier(node) &&
       moduleSpecifier(node.parent.parent.parent.moduleSpecifier)
     )
       forbidden = forbiddenKey(node.propertyName ?? node.name);
-    if (memberKey(node) === "createRequire")
-      forbidden = moduleValue(node.expression);
-    if (
-      ts.isElementAccessExpression(node) &&
-      !ts.isStringLiteralLike(node.argumentExpression)
-    )
-      forbidden = moduleValue(node.expression);
-    if (ts.isExportDeclaration(node)) forbidden = moduleExport(node);
-    if (ts.isExportAssignment(node))
-      forbidden = containsModuleValue(node.expression);
-    if (
-      ts.isVariableStatement(node) &&
-      node.modifiers?.some(
-        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
-      )
-    )
-      forbidden = node.declarationList.declarations.some((declaration) =>
-        exportedBinding(declaration.name),
-      );
-    if (ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name))
+    if (ts.isVariableDeclaration(node))
       forbidden = forbiddenPattern(node.name, node.initializer);
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isObjectLiteralExpression(node.left)
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken
     )
       forbidden = forbiddenPattern(node.left, node.right);
     assert.equal(
