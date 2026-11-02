@@ -73,36 +73,47 @@ export function validateReadme(content) {
   );
 }
 
+const trimHtmlWhitespace = (value) => {
+  const whitespace = "\t\n\f\r ";
+  let start = 0;
+  let end = value.length;
+  while (start < end && whitespace.includes(value[start])) start++;
+  while (end > start && whitespace.includes(value[end - 1])) end--;
+  return value.slice(start, end);
+};
+
 const decodeHtmlHref = (value) => {
   const quoted = value.replaceAll('"', "&#34;");
   const parsed = htmlParsers.html.parse(`<a href="${quoted}">`, {});
-  return parsed.children[0].attrs[0].valueTokens
-    .map((token) => token.parts[0])
-    .join("")
-    .replace(/^[\t\n\f\r ]+|[\t\n\f\r ]+$/g, "");
+  return trimHtmlWhitespace(
+    parsed.children[0].attrs[0].valueTokens
+      .map((token) => token.parts[0])
+      .join(""),
+  );
 };
 
 const openingTagHrefs = (tag) => {
   const attributes = tag.replace(/^<[A-Za-z][\w:-]*/, "").slice(0, -1);
   const values = [];
-  const pattern =
-    /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g;
+  const pattern = /([^\s"'<>/=]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'`=<>]+))?/g;
   for (const match of attributes.matchAll(pattern)) {
     if (match[1].toLowerCase() !== "href") continue;
 
-    values.push(decodeHtmlHref(match[2] ?? match[3] ?? match[4] ?? ""));
+    const value = match[2] ?? "";
+    const unquoted = /^["']/.test(value) ? value.slice(1, -1) : value;
+    values.push(decodeHtmlHref(unquoted));
   }
   return values;
 };
 
 const htmlHrefs = (fragments) => {
-  const tagTail = String.raw`(?:[^"'<>]|"[^"]*"|'[^']*')*>`;
+  const tagTail = `(?:[^"'<>]|"[^"]*"|'[^']*')*>`;
   const tokens = new RegExp(
     [
       String.raw`<!--[\s\S]*?(?:-->|$)`,
       String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
       String.raw`<\?[^>]*(?:>|$)`,
-      String.raw`<!${tagTail}`,
+      `<!${tagTail}`,
       String.raw`<(script|style|textarea|title)(?=[\s/>])${tagTail}[\s\S]*?(?:<\/\1\s*>|$)`,
       String.raw`<[A-Za-z][\w:-]*(?=[\s/>])${tagTail}`,
     ].join("|"),
@@ -111,7 +122,9 @@ const htmlHrefs = (fragments) => {
   const markup = fragments.join("\n");
   const values = [];
   for (const token of markup.matchAll(tokens)) {
-    const escapes = /\\*$/.exec(markup.slice(0, token.index))[0].length;
+    let escapes = 0;
+    for (let index = token.index - 1; markup[index] === "\\"; index--)
+      escapes++;
     if (escapes % 2 || token[1] || /^<[!?]/.test(token[0])) continue;
 
     values.push(...openingTagHrefs(token[0]));

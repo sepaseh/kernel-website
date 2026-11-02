@@ -128,20 +128,26 @@ function validateCreateRequireBindings(ast) {
     values.push(value);
     assignments.set(symbol, values);
   };
+  const recordAssignmentTargets = (target, value) => {
+    if (ts.isIdentifier(target)) {
+      recordAssignment(target, value);
+      return;
+    }
+    if (!ts.isObjectLiteralExpression(target)) return;
+
+    for (const entry of target.properties)
+      if (moduleMembers.has(propertyKey(entry.name)))
+        recordAssignment(
+          ts.isPropertyAssignment(entry) ? entry.initializer : entry.name,
+          value,
+        );
+  };
   const collectAssignments = (node) => {
     if (
       ts.isBinaryExpression(node) &&
       node.operatorToken.kind === ts.SyntaxKind.EqualsToken
-    ) {
-      recordAssignment(node.left, node.right);
-      if (ts.isObjectLiteralExpression(node.left))
-        for (const entry of node.left.properties)
-          if (moduleMembers.has(propertyKey(entry.name)))
-            recordAssignment(
-              ts.isPropertyAssignment(entry) ? entry.initializer : entry.name,
-              node.right,
-            );
-    }
+    )
+      recordAssignmentTargets(node.left, node.right);
     ts.forEachChild(node, collectAssignments);
   };
   collectAssignments(ast);

@@ -308,3 +308,20 @@ test("HTML comments, raw text and Markdown code examples do not create guide lin
       ),
     );
 });
+
+test("HTML href whitespace and escaped opening angles preserve rendered destinations", () => {
+  const whitespace = " \t\n\f\r ";
+  const anchor = "<a href=../.env.local>Hidden</a>";
+  for (const href of [`${whitespace}../README.md${whitespace}`, whitespace])
+    validateGuideLinks("docs/testing.md", `<a href="${href}">Root</a>`);
+  for (const href of [
+    `${whitespace}../.env.local${whitespace}`,
+    "\u00a0../README.md\u00a0",
+  ])
+    assert.throws(() =>
+      validateGuideLinks("docs/testing.md", `<a href="${href}">Hidden</a>`),
+    );
+
+  validateGuideLinks("docs/testing.md", "\\\\\\" + anchor);
+  assert.throws(() => validateGuideLinks("docs/testing.md", "\\\\" + anchor));
+});
