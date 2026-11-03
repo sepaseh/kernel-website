@@ -823,6 +823,32 @@ test("ambiguous spreads with no forbidden match fail at a deterministic analysis
     validateModuleImports("scripts/validate.mjs", source, pkg);
 });
 
+test("ordinary literal entries do not exhaust the spread budget", () => {
+  const elements = Array(300).fill("0").join(",");
+  const properties = Array.from(
+    { length: 300 },
+    (_, index) => `value${index}: 0`,
+  ).join(",");
+  for (const source of [
+    `const [first] = [${elements}]; export {first};`,
+    `const {value0, ...rest} = {${properties}}; export {rest};`,
+    `const [first] = [${elements}, ...[{}], ${elements}]; export {first};`,
+    `const {value0, ...rest} = {${properties}, ...{extra: 1}, ${properties}}; export {rest};`,
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+
+  const mixed = Array(8).fill(`${elements}, ...options`).join(",");
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        `let options; options = [{}]; options = [1]; const [first] = [${mixed}]; first.createRequire;`,
+        pkg,
+      ),
+    /Literal spread expansion exceeds the import analysis limit/,
+  );
+});
+
 test("selected getters follow explicit returns and remaining member paths", () => {
   const binding = "const modules = await import('node:module');";
   for (const source of [
@@ -994,6 +1020,40 @@ test("assignment expressions retain their resulting value for origins, selection
       ),
     /Computed imports are forbidden/,
   );
+});
+
+test("logical assignment results retain both possible operand values", () => {
+  for (const operator of ["??=", "||=", "&&="]) {
+    for (const source of [
+      `let captured; export default (captured ${operator} await import('node:module'));`,
+      `let captured = await import('node:module'); export default (captured ${operator} {});`,
+      `let captured; (captured ${operator} await import('node:module')).createRequire;`,
+      `let captured; const {modules} = (captured ${operator} {modules: await import('node:module')}); modules.createRequire;`,
+      `let captured; export const getModules = () => (captured ${operator} import('node:module'));`,
+    ])
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", source, pkg),
+        /createRequire bypasses/,
+        source,
+      );
+
+    for (const source of [
+      `let captured = {createRequire() {}}; export default (captured ${operator} {});`,
+      `let captured; const {safe} = (captured ${operator} {safe: 1, modules: await import('node:module')}); export {safe};`,
+      `function inspect(require) { let captured; (captured ${operator} require)(process.argv[2]); }`,
+    ])
+      validateModuleImports("scripts/validate.mjs", source, pkg);
+
+    assert.throws(
+      () =>
+        validateModuleImports(
+          "scripts/validate.mjs",
+          `let captured; (captured ${operator} require)('yaml');`,
+          pkg,
+        ),
+      /not permitted for this owner/,
+    );
+  }
 });
 
 test("module-origin checks preserve other members and unrelated or shadowing bindings", () => {

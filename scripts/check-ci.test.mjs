@@ -163,6 +163,33 @@ test("aggregate cannot omit failed or skipped producers or rerun validation", ()
   }
 });
 
+test("verification and analysis jobs inherit the workflow permissions without overrides", () => {
+  for (const name of [...Object.keys(ciProfiles), "analysis"]) {
+    for (const permissions of [
+      { contents: "write" },
+      "write-all",
+      { contents: "read" },
+      {},
+      null,
+    ]) {
+      const value = structuredClone(ci);
+      value.jobs[name].permissions = permissions;
+      const content = JSON.stringify(value);
+
+      assert.throws(
+        () => validateCiWorkflow(content, manifest),
+        /inherit workflow permissions/,
+        name,
+      );
+      if (name === "analysis")
+        assert.throws(
+          () => validateSonarWorkflow(content),
+          /inherit workflow permissions/,
+        );
+    }
+  }
+});
+
 test("actual aggregate command succeeds only for every successful producer", () => {
   const script = aggregateCommand.slice('node -e "'.length, -1);
   const healthy = Object.fromEntries(
@@ -303,6 +330,24 @@ test("CodeQL retains exact permissions and real security analysis", async () => 
   assert.throws(() =>
     validateAdditionalWorkflow("review-signal", JSON.stringify(original)),
   );
+});
+
+test("CodeQL analysis cannot depend on a prerequisite that skips pull requests", async () => {
+  const original = workflowDocument(await read(".github/workflows/codeql.yml"));
+  for (const needs of ["prerequisite", ["prerequisite"]]) {
+    const value = structuredClone(original);
+    value.jobs.prerequisite = {
+      if: "github.event_name != 'pull_request'",
+      "runs-on": "ubuntu-latest",
+      steps: [{ run: "echo prerequisite" }],
+    };
+    value.jobs.analyze.needs = needs;
+
+    assert.throws(
+      () => validateAdditionalWorkflow("codeql", JSON.stringify(value)),
+      /CodeQL analysis cannot depend on other jobs/,
+    );
+  }
 });
 
 test("Dependabot schedules grouped weekly npm and Actions version updates with bounded PR limits", async () => {

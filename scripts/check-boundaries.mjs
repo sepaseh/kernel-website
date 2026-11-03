@@ -155,8 +155,11 @@ function validateCreateRequireBindings(ast) {
   ]);
   const valueAlternatives = new Set([
     ts.SyntaxKind.AmpersandAmpersandToken,
+    ts.SyntaxKind.AmpersandAmpersandEqualsToken,
     ts.SyntaxKind.BarBarToken,
+    ts.SyntaxKind.BarBarEqualsToken,
     ts.SyntaxKind.QuestionQuestionToken,
+    ts.SyntaxKind.QuestionQuestionEqualsToken,
   ]);
   const assignments = new Map();
   const bindingSymbol = (node) =>
@@ -261,35 +264,48 @@ function validateCreateRequireBindings(ast) {
     for (const source of [...(assignments.get(symbol) ?? []), ...declared])
       yield* selectionSources(source.value, [...source.keys, ...keys], next);
   }
+  const spreadEntry = (entry) =>
+    ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry);
   function* entryChoices(entry, array, seen) {
     let expanded = false;
-    if (ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry)) {
-      for (const { value } of literalContainers(entry.expression, seen)) {
-        if (ts.isArrayLiteralExpression(value) !== array) continue;
+    for (const { value } of literalContainers(entry.expression, seen)) {
+      if (ts.isArrayLiteralExpression(value) !== array) continue;
 
-        expanded = true;
-        yield array ? value.elements : value.properties;
-      }
+      expanded = true;
+      yield array ? value.elements : value.properties;
     }
     if (!expanded) yield [entry];
   }
   // Share the budget across the file, including nested and repeated expansions.
   let remainingSpreadWork = 32_768;
+  const expandedPrefix = (prefix, entries, start, end, choice) => {
+    remainingSpreadWork -= 1 + prefix.length + end - start + choice.length;
+    assert.ok(
+      remainingSpreadWork >= 0,
+      "Literal spread expansion exceeds the import analysis limit.",
+    );
+    const expanded = [...prefix];
+    for (let index = start; index < end; index++) expanded.push(entries[index]);
+    for (const entry of choice) expanded.push(entry);
+    return expanded;
+  };
   function* expandedEntries(entries, index, prefix, array, seen) {
     if (index === entries.length) {
       yield prefix;
       return;
     }
-    for (const choice of entryChoices(entries[index], array, seen)) {
-      remainingSpreadWork -= 1 + prefix.length + choice.length;
-      assert.ok(
-        remainingSpreadWork >= 0,
-        "Literal spread expansion exceeds the import analysis limit.",
-      );
+
+    let spread = index;
+    while (spread < entries.length && !spreadEntry(entries[spread])) spread++;
+    if (spread === entries.length) {
+      yield expandedPrefix(prefix, entries, index, spread, []);
+      return;
+    }
+    for (const choice of entryChoices(entries[spread], array, seen)) {
       yield* expandedEntries(
         entries,
-        index + 1,
-        [...prefix, ...choice],
+        spread + 1,
+        expandedPrefix(prefix, entries, index, spread, choice),
         array,
         seen,
       );
@@ -298,6 +314,11 @@ function validateCreateRequireBindings(ast) {
   function* expandedLiteral(node, seen) {
     const array = ts.isArrayLiteralExpression(node);
     const entries = array ? node.elements : node.properties;
+    if (!entries.some(spreadEntry)) {
+      yield { value: node, visited: seen };
+      return;
+    }
+
     for (const expanded of expandedEntries(entries, 0, [], array, seen))
       yield {
         value: array

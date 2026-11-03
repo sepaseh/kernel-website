@@ -205,6 +205,11 @@ export function validateCiWorkflow(content, manifest) {
   for (const [name, label] of Object.entries(labels)) {
     const job = workflow.jobs[name];
     unconditional(job);
+    assert.equal(
+      Object.hasOwn(job, "permissions"),
+      false,
+      "Verification jobs must inherit workflow permissions.",
+    );
     assert.equal(job.name, label);
     assert.equal(job.needs, undefined);
     assert.equal(job.strategy, undefined);
@@ -260,6 +265,11 @@ export function validateSonarWorkflow(content) {
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const job = workflow.jobs?.analysis;
   assert.equal(job?.name, "SonarQube Cloud analysis");
+  assert.equal(
+    Object.hasOwn(job, "permissions"),
+    false,
+    "Analysis must inherit workflow permissions.",
+  );
   assert.deepEqual(job.needs, ["check", "unit", "governance"]);
   assert.equal(job["runs-on"], "ubuntu-latest");
   assert.equal(job["timeout-minutes"], 15);
@@ -318,6 +328,11 @@ export function validateAdditionalWorkflow(filename, content) {
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
   if (filename === "codeql") {
     unconditional(workflow.jobs.analyze);
+    assert.equal(
+      Object.hasOwn(workflow.jobs.analyze, "needs"),
+      false,
+      "CodeQL analysis cannot depend on other jobs.",
+    );
     assert.equal(
       workflow.jobs.analyze.name,
       "Analyze JavaScript, TypeScript and GitHub Actions",
