@@ -717,6 +717,81 @@ test("non-callable then handlers preserve the receiver without tainting callable
     validateModuleImports("scripts/validate.mjs", source, pkg);
 });
 
+test("then spread arguments select the first expanded handler and preserve possible pass-through", () => {
+  const safe = "const safe = () => ({});";
+  for (const arguments_ of [
+    "...[]",
+    "...[null]",
+    "...[undefined]",
+    "...[value => value]",
+    "...[, safe]",
+    "...[...[], value => value]",
+    "...unknown",
+    "...[], ...unknown",
+    "...unknown, safe",
+    "...(condition ? [safe] : unknown)",
+    "...(condition ? unknown : [safe])",
+  ]) {
+    const pending = `import('node:module').then(${arguments_})`;
+    for (const source of [
+      `export default ${pending};`,
+      `const modules = await ${pending}; modules.createRequire;`,
+    ])
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", safe + source, pkg),
+        /createRequire bypasses/,
+        source,
+      );
+  }
+  for (const source of [
+    "const args = []; export default import('node:module').then(...args);",
+    "const args = [null]; const alias = args; const modules = await import('node:module').then(...alias); modules.createRequire;",
+    "const args = condition ? [] : [safe]; export default import('node:module').then(...args);",
+    "const args = condition ? [safe] : unknown; export default import('node:module').then(...args);",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", safe + source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+  for (const source of [
+    "export default import('node:module').then(...[() => ({})]);",
+    "export default import('node:module').then(...[], safe);",
+    "export default import('node:module').then(...[], ...[], safe);",
+    "export default import('node:module').then(...[...[], safe]);",
+    "export default import('node:module').then(safe, ...unknown);",
+    "export default import('node:module').then(...[safe], ...unknown);",
+    "export default import('node:module').then(...(condition ? [safe] : [() => ({})]));",
+    "const args = [safe]; const alias = args; export default import('node:module').then(...alias);",
+    "const empty = []; const args = [...empty, safe]; export default import('node:module').then(...args);",
+    "export default import('node:fs').then(...unknown);",
+  ])
+    validateModuleImports("scripts/validate.mjs", safe + source, pkg);
+});
+
+test("a null literal in a nullish handler selects only its fallback", () => {
+  const safe = "const safe = () => ({});";
+  for (const source of [
+    "export default import('node:module').then(null ?? (() => ({})));",
+    "export default import('node:module').then((null) ?? safe);",
+    "export default import('node:module').then(null ?? (null ?? safe));",
+    "const handler = null ?? safe; export default import('node:module').then(handler);",
+    "const modules = await import('node:module').then(null ?? (() => ({createRequire() {}}))); modules.createRequire;",
+  ])
+    validateModuleImports("scripts/validate.mjs", safe + source, pkg);
+
+  for (const source of [
+    "export default import('node:module').then(null ?? (value => value));",
+    "export default import('node:module').then(null ?? undefined);",
+    "export default import('node:module').then(0 ?? safe);",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", safe + source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+});
+
 test("computed process destructuring preserves known loaders and rejects unknown keys", () => {
   for (const source of [
     "const {[key]: load} = process; load('node:module').createRequire;",

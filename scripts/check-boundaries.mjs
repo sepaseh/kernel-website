@@ -281,11 +281,16 @@ function validateCreateRequireBindings(ast) {
       yield* selectionSources(source.value, [...source.keys, ...keys], {
         ...(source.state ?? next),
         promiseOnly: state.promiseOnly,
+        terminalOnly: state.terminalOnly,
       });
   }
   const spreadEntry = (entry) =>
     ts.isSpreadElement(entry) || ts.isSpreadAssignment(entry);
   function* entryChoices(entry, array, state) {
+    if (state.terminalOnly) {
+      yield* argumentSpreadChoices(entry, array, state);
+      return;
+    }
     let expanded = false;
     for (const { value } of literalContainers(entry.expression, state)) {
       if (ts.isArrayLiteralExpression(value) !== array) continue;
@@ -294,6 +299,23 @@ function validateCreateRequireBindings(ast) {
       yield array ? value.elements : value.properties;
     }
     if (!expanded) yield [entry];
+  }
+  function* argumentSpreadChoices(entry, array, state) {
+    for (const { value, visited, keys } of selectionSources(
+      entry.expression,
+      [],
+      state,
+    )) {
+      const literal = array
+        ? ts.isArrayLiteralExpression(value)
+        : ts.isObjectLiteralExpression(value);
+      if (keys.length || !literal) {
+        yield [entry];
+        continue;
+      }
+      for (const expanded of expandedLiteral(value, visited))
+        yield array ? expanded.value.elements : expanded.value.properties;
+    }
   }
   // Share the budget across the file, including nested and repeated expansions.
   let remainingSpreadWork = 32_768;
@@ -447,7 +469,17 @@ function validateCreateRequireBindings(ast) {
   function* selectionSources(node, keys, state) {
     if (!node) return;
     if (state.promiseOnly || state.calls.size) consumeThenWork();
-    yield { value: node, visited: state, keys };
+    if (!state.terminalOnly) yield { value: node, visited: state, keys };
+
+    let expanded = false;
+    for (const source of selectionChildren(node, keys, state)) {
+      expanded = true;
+      yield source;
+    }
+    if (state.terminalOnly && !expanded)
+      yield { value: node, visited: state, keys };
+  }
+  function* selectionChildren(node, keys, state) {
     const alternatives = alternativeValues(node);
     if (alternatives.length) {
       for (const value of alternatives)
@@ -728,6 +760,40 @@ function validateCreateRequireBindings(ast) {
     const visited = { ...state, bindings, symbols: new Set() };
     for (const value of outputExpressions(callback)) yield { value, visited };
   }
+  function* firstArgumentSources(entries, state, index = 0) {
+    consumeThenWork();
+    const entry = entries[index];
+    if (!entry) {
+      yield { value: undefined, visited: state, keys: [], missing: true };
+      return;
+    }
+    if (ts.isOmittedExpression(entry)) {
+      yield { value: undefined, visited: state, keys: [] };
+      return;
+    }
+    if (!ts.isSpreadElement(entry)) {
+      yield* selectionSources(entry, [], state);
+      return;
+    }
+
+    for (const source of spreadFirstArguments(entry.expression, state)) {
+      if (source.missing)
+        yield* firstArgumentSources(entries, state, index + 1);
+      else yield source;
+    }
+  }
+  function* spreadFirstArguments(node, state) {
+    const lookup = { ...state, terminalOnly: true };
+    for (const { value, visited, keys } of selectionSources(node, [], lookup)) {
+      if (keys.length || !ts.isArrayLiteralExpression(value)) {
+        yield { value: undefined, visited: state, keys: [] };
+        yield { value: undefined, visited: state, keys: [], missing: true };
+        continue;
+      }
+      for (const expanded of expandedLiteral(value, visited))
+        yield* firstArgumentSources(expanded.value.elements, expanded.visited);
+    }
+  }
   function* thenOutputs(node, state) {
     const receiver = thenReceiver(node);
     if (!receiver || state.calls.has(node)) return;
@@ -736,21 +802,21 @@ function validateCreateRequireBindings(ast) {
     if (!importPromise(receiver, state)) return;
 
     const caller = { ...state, calls: new Set(state.calls).add(node) };
-    if (node.arguments.length === 0) {
-      yield { value: receiver, visited: caller };
-      return;
-    }
-    for (const { value, visited, keys } of selectionSources(
-      node.arguments[0],
-      [],
+    for (const { value, visited, keys } of firstArgumentSources(
+      node.arguments,
       caller,
     )) {
       if (keys.length) continue;
-      if (nonCallableHandler(value)) {
+      if (value === undefined || nonCallableHandler(value)) {
         yield { value: receiver, visited: caller };
         continue;
       }
-      yield* callbackOutputs(value, receiver, visited, caller);
+      yield* callbackOutputs(
+        value,
+        receiver,
+        { ...visited, terminalOnly: state.terminalOnly },
+        caller,
+      );
     }
   }
   const returnedModule = (node, state) => {
@@ -763,6 +829,11 @@ function validateCreateRequireBindings(ast) {
       return [node.whenTrue, node.whenFalse];
     if (!ts.isBinaryExpression(node)) return [];
     const operator = node.operatorToken.kind;
+    if (operator === ts.SyntaxKind.QuestionQuestionToken) {
+      let left = node.left;
+      while (ts.isParenthesizedExpression(left)) left = left.expression;
+      if (left.kind === ts.SyntaxKind.NullKeyword) return [node.right];
+    }
     if (valueAlternatives.has(operator)) return [node.left, node.right];
     if (
       operator === ts.SyntaxKind.CommaToken ||
