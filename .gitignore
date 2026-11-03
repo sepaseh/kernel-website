@@ -1,0 +1,26 @@
+node_modules/
+coverage/
+.next/
+dist/
+.lighthouseci/
+reports/
+test-results/
+playwright-report/
+*.tsbuildinfo
+*.log
+
+# Only the four reviewed public environment examples belong in source.
+.env
+.env.*
+*.env
+*.env.*
+!/.env.example
+!/deploy/docker/compose.env.example
+!/deploy/native/nginx.env.example
+!/deploy/native/website.env.example
+*.local
+
+.vscode/
+.idea/
+.DS_Store
+.agents/settings.local.json

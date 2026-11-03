@@ -1,0 +1,38 @@
+{
+  "name": "kernel-website",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "audit": "node scripts/run-audit.mjs",
+    "check:actions": "node scripts/run-actionlint.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:ci": "node scripts/check-ci.mjs",
+    "check:guidance": "node scripts/check-guidance.mjs",
+    "check:snapshot": "node scripts/validate-bootstrap.mjs",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint .",
+    "test": "npm run test:unit && npm run test:governance",
+    "test:governance": "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-boundaries.test.mjs scripts/check-ci.test.mjs scripts/check-guidance.test.mjs scripts/ci-evidence.test.mjs scripts/run-actionlint.test.mjs scripts/validate-bootstrap.test.mjs scripts/validate.test.mjs scripts/validation.integration.test.mjs",
+    "test:unit": "vitest run --coverage",
+    "validate": "node scripts/validate.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vitest/coverage-v8": "5.0.5",
+    "eslint": "10.14.0",
+    "eslint-plugin-simple-import-sort": "14.0.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5",
+    "yaml": "2.9.1"
+  },
+  "overrides": {
+    "minimatch@10.2.6": "11.0.3"
+  }
+}
