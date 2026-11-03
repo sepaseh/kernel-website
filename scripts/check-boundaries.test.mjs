@@ -635,6 +635,88 @@ test("long then chains preserve safe transformations and module-bearing results"
   );
 });
 
+test("branching then traversal fails at a deterministic analysis limit", () => {
+  const branch = ".then(value => condition ? value : value)";
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "export default import('node:fs')" + branch.repeat(16),
+        pkg,
+      ),
+    /Promise callback traversal exceeds the import analysis limit/,
+  );
+  validateModuleImports(
+    "scripts/validate.mjs",
+    "export default import('node:fs')" + branch.repeat(3),
+    pkg,
+  );
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "export default import('node:module')" + branch.repeat(16),
+        pkg,
+      ),
+    /createRequire bypasses/,
+  );
+});
+
+test("non-callable then handlers preserve the receiver without tainting callable shadows", () => {
+  for (const handler of [
+    "",
+    "null",
+    "undefined",
+    "void 0",
+    "false",
+    "0",
+    "1n",
+    "'ignored'",
+    "/ignored/",
+    "{}",
+    "[]",
+  ]) {
+    const pending = `import('node:module').then(${handler})`;
+    for (const source of [
+      `export default ${pending};`,
+      `const modules = await ${pending}; modules.createRequire;`,
+    ])
+      assert.throws(
+        () => validateModuleImports("scripts/validate.mjs", source, pkg),
+        /createRequire bypasses/,
+        source,
+      );
+    validateModuleImports(
+      "scripts/validate.mjs",
+      `export default import('node:fs').then(${handler});`,
+      pkg,
+    );
+  }
+  for (const source of [
+    "const pending = import('node:module'); export default pending.then();",
+    "const handler = null; export default import('node:module').then(handler);",
+    "const handler = undefined; const alias = handler; export default import('node:module').then(alias);",
+    "const undefined = 0; export default import('node:module').then(undefined);",
+    "const handler = condition ? null : () => ({}); export default import('node:module').then(handler);",
+    "export default import('node:module').then(null, () => ({}));",
+    "export default import('node:module').then().then(value => value);",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+  for (const source of [
+    "export default import('node:module').then(() => null);",
+    "export default import('node:module').then(() => undefined);",
+    "const undefined = () => ({}); export default import('node:module').then(undefined);",
+    "function undefined() { return {}; } export default import('node:module').then(undefined);",
+    "const handler = () => ({}); export default import('node:module').then(handler);",
+    "export default import('node:module').then(() => ({})).then();",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
 test("computed process destructuring preserves known loaders and rejects unknown keys", () => {
   for (const source of [
     "const {[key]: load} = process; load('node:module').createRequire;",

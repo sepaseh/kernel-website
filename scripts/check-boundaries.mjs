@@ -252,6 +252,15 @@ function validateCreateRequireBindings(ast) {
     calls: new Set(),
     symbols: new Set(),
   });
+  // Include unsuccessful branches and promise classification in the file budget.
+  let remainingThenWork = 32_768;
+  const consumeThenWork = () => {
+    remainingThenWork--;
+    assert.ok(
+      remainingThenWork >= 0,
+      "Promise callback traversal exceeds the import analysis limit.",
+    );
+  };
   const builtinSelection = (value, keys, origin, state) => {
     let sourceOrigin = origin;
     for (const key of keys.toReversed()) {
@@ -437,6 +446,7 @@ function validateCreateRequireBindings(ast) {
   }
   function* selectionSources(node, keys, state) {
     if (!node) return;
+    if (state.promiseOnly || state.calls.size) consumeThenWork();
     yield { value: node, visited: state, keys };
     const alternatives = alternativeValues(node);
     if (alternatives.length) {
@@ -609,6 +619,7 @@ function validateCreateRequireBindings(ast) {
   };
   const hasOrigin = (node, origin, state = traversalState()) => {
     if (!node) return false;
+    if (state.calls.size) consumeThenWork();
     if (ts.isAwaitExpression(node) || ts.isParenthesizedExpression(node))
       return hasOrigin(node.expression, origin, state);
     const alternatives = alternativeValues(node);
@@ -683,6 +694,7 @@ function validateCreateRequireBindings(ast) {
       ? node.expression.expression
       : undefined;
   const importPromise = (node, state) => {
+    consumeThenWork();
     const lookup = { ...state, promiseOnly: true };
     for (const { value, visited, keys } of selectionSources(node, [], lookup)) {
       if (keys.length || !ts.isCallExpression(value)) continue;
@@ -695,33 +707,51 @@ function validateCreateRequireBindings(ast) {
     }
     return false;
   };
-  function* thenCallbacks(node, state) {
+  const nonCallableHandler = (node) =>
+    ts.isLiteralExpression(node) ||
+    ts.isObjectLiteralExpression(node) ||
+    ts.isArrayLiteralExpression(node) ||
+    ts.isVoidExpression(node) ||
+    [
+      ts.SyntaxKind.FalseKeyword,
+      ts.SyntaxKind.NullKeyword,
+      ts.SyntaxKind.TrueKeyword,
+    ].includes(node.kind) ||
+    globalIdentifier(node, "undefined");
+  function* callbackOutputs(callback, receiver, state, caller) {
+    if (!ts.isFunctionLike(callback) || !callback.body) return;
+
+    const bindings = new Map(state.bindings);
+    const parameter = callback.parameters[0];
+    if (parameter)
+      bindings.set(parameter, [{ value: receiver, keys: [], state: caller }]);
+    const visited = { ...state, bindings, symbols: new Set() };
+    for (const value of outputExpressions(callback)) yield { value, visited };
+  }
+  function* thenOutputs(node, state) {
     const receiver = thenReceiver(node);
-    if (!receiver || state.calls.has(node) || !importPromise(receiver, state))
-      return;
+    if (!receiver || state.calls.has(node)) return;
+
+    consumeThenWork();
+    if (!importPromise(receiver, state)) return;
 
     const caller = { ...state, calls: new Set(state.calls).add(node) };
+    if (node.arguments.length === 0) {
+      yield { value: receiver, visited: caller };
+      return;
+    }
     for (const { value, visited, keys } of selectionSources(
       node.arguments[0],
       [],
       caller,
     )) {
-      if (keys.length || !ts.isFunctionLike(value) || !value.body) continue;
-
-      const bindings = new Map(visited.bindings);
-      const parameter = value.parameters[0];
-      if (parameter)
-        bindings.set(parameter, [{ value: receiver, keys: [], state: caller }]);
-      yield {
-        callback: value,
-        state: { ...visited, bindings, symbols: new Set() },
-      };
+      if (keys.length) continue;
+      if (nonCallableHandler(value)) {
+        yield { value: receiver, visited: caller };
+        continue;
+      }
+      yield* callbackOutputs(value, receiver, visited, caller);
     }
-  }
-  function* thenOutputs(node, state) {
-    for (const invocation of thenCallbacks(node, state))
-      for (const value of outputExpressions(invocation.callback))
-        yield { value, visited: invocation.state };
   }
   const returnedModule = (node, state) => {
     for (const value of outputExpressions(node))
@@ -741,8 +771,14 @@ function validateCreateRequireBindings(ast) {
       return [node.right];
     return [];
   };
+  const callContainsModule = (node, state) => {
+    for (const { value, visited } of thenOutputs(node, state))
+      if (containsModuleValue(value, visited)) return true;
+    return !thenReceiver(node) && builtinBearingValue(node, state);
+  };
   const containsModuleValue = (node, state = traversalState()) => {
     if (!node) return false;
+    if (state.calls.size) consumeThenWork();
     const alternatives = alternativeValues(node);
     if (alternatives.length)
       return alternatives.some((value) => containsModuleValue(value, state));
@@ -750,11 +786,7 @@ function validateCreateRequireBindings(ast) {
       return containsModuleValue(node.expression, state);
     if (ts.isIdentifier(node)) return boundContainer(node, state);
     if (ts.isFunctionLike(node)) return returnedModule(node, state);
-    if (ts.isCallExpression(node)) {
-      for (const { value, visited } of thenOutputs(node, state))
-        if (containsModuleValue(value, visited)) return true;
-      return !thenReceiver(node) && builtinBearingValue(node, state);
-    }
+    if (ts.isCallExpression(node)) return callContainsModule(node, state);
     if (
       ts.isPropertyAccessExpression(node) ||
       ts.isElementAccessExpression(node)
