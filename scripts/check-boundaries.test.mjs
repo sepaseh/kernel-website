@@ -557,6 +557,84 @@ test("exported functions cannot return module namespaces or module-bearing conta
     validateModuleImports("scripts/validate.mjs", source, pkg);
 });
 
+test("then callbacks cannot forward module namespaces into local receivers or exports", () => {
+  for (const source of [
+    "const modules = await import('node:module').then(value => value); modules.createRequire;",
+    "const modules = await import('node:module').then(value => { return value; }); modules.createRequire;",
+    "const modules = await import('node:module').then(function (value) { return value; }); modules.createRequire;",
+    "const modules = await import('node:module').then(({default: value}) => value); modules.createRequire;",
+    "const modules = await import('node:module').then(value => { const alias = value; return alias; }); modules.createRequire;",
+    "const modules = await import('node:module')['then'](value => value); modules.createRequire;",
+    "export function getModules() { return import('node:module').then(value => value); }",
+    "export const getModules = () => import('node:module').then(value => value);",
+    "export default import('node:module').then(value => value);",
+    "export default import('node:module').then(value => ({modules: value}));",
+    "const box = await import('node:module').then(value => ({modules: value})); box.modules.createRequire;",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+});
+
+test("then forwarding follows receiver aliases, callback aliases and chained results", () => {
+  for (const source of [
+    "const pending = import('node:module'); const modules = await pending.then(value => value); modules.createRequire;",
+    "let pending; pending = import('node:module'); export default pending.then(value => value);",
+    "const forward = value => value; const modules = await import('node:module').then(forward); modules.createRequire;",
+    "const forward = value => value; const alias = forward; export default import('node:module').then(alias);",
+    "function forward(value) { return value; } export default import('node:module').then(forward);",
+    "const modules = await import('node:module').then(value => value).then(next => next); modules.createRequire;",
+    "const modules = await import('node:module').then(value => ({modules: value})).then(({modules}) => modules); modules.createRequire;",
+    "const pending = import('node:module').then(value => value); export default pending.then(next => next);",
+    "let pending; pending = import('node:module').then(value => condition ? pending : value); export {pending};",
+    "const forward = value => condition ? forward : value; export default import('node:module').then(forward);",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+});
+
+test("then callback provenance preserves safe results, lexical scope and independent calls", () => {
+  for (const source of [
+    "export default import('node:module').then(() => ({}));",
+    "const modules = await import('node:module').then(value => ({createRequire() {}})); modules.createRequire;",
+    "export default import('node:module').then(value => value.isBuiltin);",
+    "export default import('node:module').then(({isBuiltin}) => isBuiltin);",
+    "export default import('node:module').then(value => { function unused() { return value; } return {}; });",
+    "const forward = value => value; export default import('node:fs').then(forward);",
+    "const forward = value => value; const unused = import('node:module').then(forward); export default import('node:fs').then(forward);",
+    "const value = await import('node:module'); export default import('node:fs').then(value => value);",
+    "const forward = value => value; export function getSafe() { const forward = value => ({}); return import('node:module').then(forward); }",
+    "export default import('node:module').then(value => value).then(() => ({}));",
+    "let pending; pending = import('node:module').then(value => pending); export {pending};",
+    "const first = value => second; const second = value => first; export default import('node:module').then(first);",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
+test("long then chains preserve safe transformations and module-bearing results", () => {
+  const chain = ".then(value => value)".repeat(24);
+  for (const source of [
+    "export default import('node:fs')" + chain,
+    "export default import('node:module')" + chain + ".then(() => ({}))",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "export default import('node:module')" + chain,
+        pkg,
+      ),
+    /createRequire bypasses/,
+  );
+});
+
 test("computed process destructuring preserves known loaders and rejects unknown keys", () => {
   for (const source of [
     "const {[key]: load} = process; load('node:module').createRequire;",
