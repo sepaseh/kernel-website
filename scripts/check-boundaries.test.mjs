@@ -804,6 +804,25 @@ test("literal spread alternatives stop materializing after a matching module sel
   }
 });
 
+test("ambiguous spreads with no forbidden match fail at a deterministic analysis limit", () => {
+  const spreads = Array(12).fill("...options").join(",");
+  for (const source of [
+    `let options; options = [{}]; options = [1]; const [selected] = [${spreads}]; selected.createRequire;`,
+    `let options; options = {safe: 1}; options = {safe: 2}; const {omitted, ...rest} = {${spreads}}; export {rest};`,
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /Literal spread expansion exceeds the import analysis limit/,
+      source,
+    );
+
+  for (const source of [
+    "let options; options = [{}]; options = [1]; const [selected] = [...options, ...options]; selected.createRequire;",
+    "let options; options = {safe: 1}; options = {safe: 2}; const {omitted, ...rest} = {...options, ...options}; export {rest};",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+});
+
 test("selected getters follow explicit returns and remaining member paths", () => {
   const binding = "const modules = await import('node:module');";
   for (const source of [
@@ -928,6 +947,52 @@ test("comma expressions use the right-hand value for origins, selections and exp
         pkg,
       ),
     /not permitted for this owner/,
+  );
+});
+
+test("assignment expressions retain their resulting value for origins, selections and exports", () => {
+  for (const source of [
+    "let captured; const modules = (captured = await import('node:module')); modules.createRequire;",
+    "let captured; (captured = await import('node:module')).createRequire;",
+    "let captured; const {modules} = (captured = {modules: await import('node:module')}); modules.createRequire;",
+    "let captured; const [modules] = (captured = [await import('node:module')]); modules.createRequire;",
+    "let captured; export default (captured = await import('node:module'));",
+    "let captured; export const getModules = () => (captured = import('node:module'));",
+    "let captured; export function getModules() { return captured = import('node:module'); }",
+    "let captured, alias; const modules = (captured = alias = await import('node:module')); modules.createRequire;",
+  ])
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, pkg),
+      /createRequire bypasses/,
+      source,
+    );
+
+  for (const source of [
+    "let captured = await import('node:module'); const modules = (captured = {createRequire() {}}); modules.createRequire;",
+    "let captured = await import('node:module'); export default (captured = 1);",
+    "let captured; const {safe} = (captured = {safe: 1, modules: await import('node:module')}); export {safe};",
+    "let captured; const load = (captured = value => value); load(process.argv[2]);",
+    "function inspect(require) { let captured; (captured = require)(process.argv[2]); }",
+  ])
+    validateModuleImports("scripts/validate.mjs", source, pkg);
+
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "let captured; (captured = require)('yaml');",
+        pkg,
+      ),
+    /not permitted for this owner/,
+  );
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/validate.mjs",
+        "let captured; (captured = process.getBuiltinModule)(process.argv[2]);",
+        pkg,
+      ),
+    /Computed imports are forbidden/,
   );
 });
 

@@ -273,12 +273,19 @@ function validateCreateRequireBindings(ast) {
     }
     if (!expanded) yield [entry];
   }
+  // Share the budget across the file, including nested and repeated expansions.
+  let remainingSpreadWork = 32_768;
   function* expandedEntries(entries, index, prefix, array, seen) {
     if (index === entries.length) {
       yield prefix;
       return;
     }
-    for (const choice of entryChoices(entries[index], array, seen))
+    for (const choice of entryChoices(entries[index], array, seen)) {
+      remainingSpreadWork -= 1 + prefix.length + choice.length;
+      assert.ok(
+        remainingSpreadWork >= 0,
+        "Literal spread expansion exceeds the import analysis limit.",
+      );
       yield* expandedEntries(
         entries,
         index + 1,
@@ -286,6 +293,7 @@ function validateCreateRequireBindings(ast) {
         array,
         seen,
       );
+    }
   }
   function* expandedLiteral(node, seen) {
     const array = ts.isArrayLiteralExpression(node);
@@ -610,14 +618,12 @@ function validateCreateRequireBindings(ast) {
   const alternativeValues = (node) => {
     if (ts.isConditionalExpression(node))
       return [node.whenTrue, node.whenFalse];
+    if (!ts.isBinaryExpression(node)) return [];
+    const operator = node.operatorToken.kind;
+    if (valueAlternatives.has(operator)) return [node.left, node.right];
     if (
-      ts.isBinaryExpression(node) &&
-      valueAlternatives.has(node.operatorToken.kind)
-    )
-      return [node.left, node.right];
-    if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.CommaToken
+      operator === ts.SyntaxKind.CommaToken ||
+      operator === ts.SyntaxKind.EqualsToken
     )
       return [node.right];
     return [];
