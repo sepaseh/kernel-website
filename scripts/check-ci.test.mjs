@@ -126,11 +126,49 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
     change(value);
     assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
   }
-  const unfiltered = structuredClone(ci);
-  unfiltered.on.pull_request = null;
-  validateCiWorkflow(JSON.stringify(unfiltered), manifest);
   for (const value of ["jobs: [", "jobs: {}\njobs: {}", "[]"])
     assert.throws(() => workflowDocument(value));
+});
+
+test("main pushes cannot filter paths or skip governance verification", () => {
+  for (const field of ["paths", "paths-ignore"]) {
+    const value = structuredClone(ci);
+    value.on.push[field] = ["docs/**"];
+
+    assert.throws(
+      () => validateCiWorkflow(JSON.stringify(value), manifest),
+      /Main pushes must run without additional filters/,
+    );
+  }
+});
+
+test("CI requires explicit pull request activities including ready for review", () => {
+  for (const event of [null, {}]) {
+    const value = structuredClone(ci);
+    value.on.pull_request = event;
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
+  const value = structuredClone(ci);
+  value.on.pull_request.types = value.on.pull_request.types.filter(
+    (activity) => activity !== "ready_for_review",
+  );
+  assert.throws(
+    () => validateCiWorkflow(JSON.stringify(value), manifest),
+    /Required PR activity is missing/,
+  );
+});
+
+test("verification producers cannot change the run directory through job defaults", () => {
+  for (const name of Object.keys(ciProfiles)) {
+    const value = structuredClone(ci);
+    value.jobs[name].defaults = { run: { "working-directory": "other" } };
+
+    assert.throws(
+      () => validateCiWorkflow(JSON.stringify(value), manifest),
+      /Verification jobs cannot override run defaults/,
+      name,
+    );
+  }
 });
 
 test("aggregate cannot omit failed or skipped producers or rerun validation", () => {
@@ -332,20 +370,58 @@ test("CodeQL retains exact permissions and real security analysis", async () => 
   );
 });
 
-test("CodeQL analysis cannot depend on a prerequisite that skips pull requests", async () => {
+test("CodeQL analysis cannot declare job dependencies", async () => {
   const original = workflowDocument(await read(".github/workflows/codeql.yml"));
   for (const needs of ["prerequisite", ["prerequisite"]]) {
     const value = structuredClone(original);
-    value.jobs.prerequisite = {
-      if: "github.event_name != 'pull_request'",
-      "runs-on": "ubuntu-latest",
-      steps: [{ run: "echo prerequisite" }],
-    };
     value.jobs.analyze.needs = needs;
 
     assert.throws(
       () => validateAdditionalWorkflow("codeql", JSON.stringify(value)),
       /CodeQL analysis cannot depend on other jobs/,
+    );
+  }
+});
+
+test("CodeQL cannot add an unreviewed job with a write token", async () => {
+  const value = workflowDocument(await read(".github/workflows/codeql.yml"));
+  value.jobs.extra = {
+    "runs-on": "ubuntu-latest",
+    permissions: { contents: "write" },
+    steps: [{ run: "echo extra job" }],
+  };
+
+  assert.throws(
+    () => validateAdditionalWorkflow("codeql", JSON.stringify(value)),
+    /Only the reviewed CodeQL analysis job is permitted/,
+  );
+});
+
+test("CodeQL checkout cannot analyze a different revision, repository or source subset", async () => {
+  const original = workflowDocument(await read(".github/workflows/codeql.yml"));
+  for (const change of [
+    (inputs) => {
+      inputs.ref = "main";
+    },
+    (inputs) => {
+      delete inputs.ref;
+    },
+    (inputs) => {
+      inputs.repository = "other/repository";
+    },
+    (inputs) => {
+      inputs.path = "other";
+    },
+    (inputs) => {
+      inputs["sparse-checkout"] = "scripts";
+    },
+  ]) {
+    const value = structuredClone(original);
+    change(value.jobs.analyze.steps[0].with);
+
+    assert.throws(
+      () => validateAdditionalWorkflow("codeql", JSON.stringify(value)),
+      /CodeQL must use the exact current-revision checkout inputs/,
     );
   }
 });

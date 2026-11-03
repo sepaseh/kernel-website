@@ -161,26 +161,27 @@ export function validateCiWorkflow(content, manifest) {
     "Every PR including drafts needs CI.",
   );
   const event = workflow.on.pull_request;
-  if (event !== null) {
-    assert.ok(event && typeof event === "object" && !Array.isArray(event));
-    assert.equal(
-      ["paths", "paths-ignore", "branches", "branches-ignore"].some((field) =>
-        Object.hasOwn(event, field),
-      ),
-      false,
-      "PR checks cannot filter paths or target branches.",
+  assert.ok(
+    event && typeof event === "object" && !Array.isArray(event),
+    "CI requires explicit pull request activity types.",
+  );
+  assert.equal(
+    ["paths", "paths-ignore", "branches", "branches-ignore"].some((field) =>
+      Object.hasOwn(event, field),
+    ),
+    false,
+    "PR checks cannot filter paths or target branches.",
+  );
+  for (const activity of [
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+  ])
+    assert.ok(
+      event.types?.includes(activity),
+      "Required PR activity is missing.",
     );
-    for (const activity of [
-      "opened",
-      "synchronize",
-      "reopened",
-      "ready_for_review",
-    ])
-      assert.ok(
-        event.types?.includes(activity),
-        "Required PR activity is missing.",
-      );
-  }
   assert.deepEqual(Object.keys(workflow.jobs), [
     "quality",
     "audit",
@@ -189,7 +190,11 @@ export function validateCiWorkflow(content, manifest) {
     "check",
     "analysis",
   ]);
-  assert.deepEqual(workflow.on.push.branches, ["main"]);
+  assert.deepEqual(
+    workflow.on.push,
+    { branches: ["main"] },
+    "Main pushes must run without additional filters.",
+  );
   assert.ok(Object.hasOwn(workflow.on, "workflow_dispatch"));
   assert.deepEqual(workflow.concurrency, {
     group: "ci-${{ github.event_name }}-${{ github.ref }}",
@@ -205,6 +210,11 @@ export function validateCiWorkflow(content, manifest) {
   for (const [name, label] of Object.entries(labels)) {
     const job = workflow.jobs[name];
     unconditional(job);
+    assert.equal(
+      Object.hasOwn(job, "defaults"),
+      false,
+      "Verification jobs cannot override run defaults.",
+    );
     assert.equal(
       Object.hasOwn(job, "permissions"),
       false,
@@ -327,6 +337,11 @@ export function validateAdditionalWorkflow(filename, content) {
   );
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
   if (filename === "codeql") {
+    assert.deepEqual(
+      Object.keys(workflow.jobs),
+      ["analyze"],
+      "Only the reviewed CodeQL analysis job is permitted.",
+    );
     unconditional(workflow.jobs.analyze);
     assert.equal(
       Object.hasOwn(workflow.jobs.analyze, "needs"),
@@ -363,6 +378,11 @@ export function validateAdditionalWorkflow(filename, content) {
         "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
         "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
       ],
+    );
+    assert.deepEqual(
+      steps[0].with,
+      { ref: "${{ github.sha }}", "persist-credentials": false },
+      "CodeQL must use the exact current-revision checkout inputs.",
     );
     assert.deepEqual(steps[1].with, {
       languages: "javascript-typescript,actions",
