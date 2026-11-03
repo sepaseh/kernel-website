@@ -1325,6 +1325,7 @@ test("then spread arguments select the first expanded handler and preserve possi
     "...[value => value]",
     "...[, safe]",
     "...[...[], value => value]",
+    "...[...(condition ? [safe] : unknown)]",
     "...unknown",
     "...[], ...unknown",
     "...unknown, safe",
@@ -1368,13 +1369,14 @@ test("then spread arguments select the first expanded handler and preserve possi
     validateModuleImports("scripts/validate.mjs", safe + source, pkg);
 });
 
-test("a null literal in a nullish handler selects only its fallback", () => {
+test("null and global undefined in nullish handlers select only their fallback", () => {
   const safe = "const safe = () => ({});";
   for (const source of [
     "export default import('node:module').then(null ?? (() => ({})));",
     "export default import('node:module').then((null) ?? safe);",
     "export default import('node:module').then(null ?? (null ?? safe));",
     "const handler = null ?? safe; export default import('node:module').then(handler);",
+    "export default import('node:module').then(...[(undefined) ?? safe]);",
     "const modules = await import('node:module').then(null ?? (() => ({createRequire() {}}))); modules.createRequire;",
   ])
     validateModuleImports("scripts/validate.mjs", safe + source, pkg);
@@ -1383,6 +1385,8 @@ test("a null literal in a nullish handler selects only its fallback", () => {
     "export default import('node:module').then(null ?? (value => value));",
     "export default import('node:module').then(null ?? undefined);",
     "export default import('node:module').then(0 ?? safe);",
+    "export default import('node:module').then(undefined ?? (value => value));",
+    "const undefined = value => value; export default import('node:module').then(undefined ?? safe);",
   ])
     assert.throws(
       () => validateModuleImports("scripts/validate.mjs", safe + source, pkg),

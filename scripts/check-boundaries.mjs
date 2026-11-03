@@ -1505,7 +1505,11 @@ function validateCreateRequireBindings(ast) {
     if (operator === ts.SyntaxKind.QuestionQuestionToken) {
       let left = node.left;
       while (ts.isParenthesizedExpression(left)) left = left.expression;
-      if (left.kind === ts.SyntaxKind.NullKeyword) return [node.right];
+      if (
+        left.kind === ts.SyntaxKind.NullKeyword ||
+        globalIdentifier(left, "undefined")
+      )
+        return [node.right];
     }
     if (valueAlternatives.has(operator)) return [node.left, node.right];
     if (
