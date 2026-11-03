@@ -33,15 +33,6 @@ Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
 own hosted security workflow. This governance phase runs no application build,
 E2E, visual or performance job.
 
-CI verifies opened and reopened PRs, new commits, and changes to the target
-branch. Draft PRs receive the same checks, so marking one ready for review does
-not repeat them. Comments, reviews, labels and assignments do not trigger CI.
-GitHub delivers title and description edits through the same event as target
-branch changes. For metadata-only edits, GitHub can show a skipped run without
-allocating runners, starting analysis or publishing the required check names.
-These runs use a separate concurrency group so they cannot replace pending
-verification.
-
 ## Prepare an owned export
 
 Identify the exact proposed public bytes, including admitted untracked changes,
