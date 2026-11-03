@@ -289,8 +289,18 @@ export function validateCiWorkflow(content, manifest) {
 export function validateSonarWorkflow(content) {
   const workflow = workflowDocument(content);
   assert.deepEqual(workflow.permissions, { contents: "read" });
+  assert.equal(
+    workflow.defaults?.run?.shell,
+    undefined,
+    "Workflow defaults cannot override the shell.",
+  );
   const job = workflow.jobs?.analysis;
   assert.equal(job?.name, "SonarQube Cloud analysis");
+  assert.equal(
+    Object.hasOwn(job, "defaults"),
+    false,
+    "Analysis cannot override run defaults.",
+  );
   assert.equal(
     Object.hasOwn(job, "permissions"),
     false,
@@ -342,7 +352,14 @@ export function validateSonarWorkflow(content) {
     scanner.with?.args,
     "-Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} -Dsonar.scm.revision=${{ github.event.pull_request.head.sha || github.sha }}",
   );
-  job.steps.forEach(unconditional);
+  for (const step of job.steps) {
+    assert.equal(
+      step.shell,
+      undefined,
+      "Analysis steps cannot override the shell.",
+    );
+    unconditional(step);
+  }
 }
 
 export function validateAdditionalWorkflow(filename, content) {

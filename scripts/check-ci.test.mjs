@@ -293,7 +293,20 @@ test("Sonar requires both real suite artifacts and their own producer attempts w
       value.permissions.contents = "write";
     },
     (value) => {
+      value.defaults = { run: { shell: "sh -c 'exit 0' {0}" } };
+    },
+    (value) => {
       value.jobs.analysis.name = "fake";
+    },
+    (value) => {
+      value.jobs.analysis.defaults = {
+        run: { shell: "sh -c 'exit 0' {0}" },
+      };
+    },
+    (value) => {
+      value.jobs.analysis.defaults = {
+        run: { "working-directory": "other" },
+      };
     },
     (value) => {
       value.jobs.analysis.if = "false";
@@ -307,6 +320,9 @@ test("Sonar requires both real suite artifacts and their own producer attempts w
     (value) => {
       value.jobs.analysis.steps.reverse();
     },
+    ...[2, 4, 6, 7].map((index) => (value) => {
+      value.jobs.analysis.steps[index].shell = "sh -c 'exit 0' {0}";
+    }),
     ...[3, 5].flatMap((index) => [
       (value) => {
         value.jobs.analysis.steps[index].with.name = "foreign-artifact";
