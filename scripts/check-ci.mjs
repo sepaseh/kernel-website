@@ -108,11 +108,16 @@ export function validateCheckManifest(manifest) {
   );
 }
 
-const unconditional = (entry) => {
+const verificationCondition =
+  "github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != ''";
+const verificationName = (name, metadataName) =>
+  `\${{ (${verificationCondition}) && '${name}' || '${metadataName}' }}`;
+
+const requireExecution = (entry, condition) => {
   assert.equal(
-    Object.hasOwn(entry, "if"),
-    false,
-    "Required checks cannot be skipped.",
+    entry.if,
+    condition,
+    "Required checks must use their declared condition.",
   );
   assert.ok(
     entry["continue-on-error"] === undefined ||
@@ -156,43 +161,25 @@ export function validateCiWorkflow(content, manifest) {
   assert.deepEqual(workflow.permissions, {
     contents: "read",
   });
-  assert.ok(
-    Object.hasOwn(workflow.on, "pull_request"),
-    "Every PR including drafts needs CI.",
+  assert.deepEqual(
+    workflow.on,
+    {
+      push: { branches: ["main"] },
+      pull_request: { types: ["opened", "synchronize", "reopened", "edited"] },
+      workflow_dispatch: null,
+    },
+    "Keep PR creation, source updates, reopening and retargeting without filters.",
   );
-  const event = workflow.on.pull_request;
-  if (event !== null) {
-    assert.ok(event && typeof event === "object" && !Array.isArray(event));
-    assert.equal(
-      ["paths", "paths-ignore", "branches", "branches-ignore"].some((field) =>
-        Object.hasOwn(event, field),
-      ),
-      false,
-      "PR checks cannot filter paths or target branches.",
-    );
-    for (const activity of [
-      "opened",
-      "synchronize",
-      "reopened",
-      "ready_for_review",
-    ])
-      assert.ok(
-        event.types?.includes(activity),
-        "Required PR activity is missing.",
-      );
-  }
   assert.deepEqual(Object.keys(workflow.jobs), [
     "quality",
     "audit",
     "unit",
     "governance",
-    "check",
+    "aggregate",
     "analysis",
   ]);
-  assert.deepEqual(workflow.on.push.branches, ["main"]);
-  assert.ok(Object.hasOwn(workflow.on, "workflow_dispatch"));
   assert.deepEqual(workflow.concurrency, {
-    group: "ci-${{ github.event_name }}-${{ github.ref }}",
+    group: `${verificationName("ci", "ci-metadata")}-\${{ github.event_name }}-\${{ github.ref }}`,
     "cancel-in-progress": false,
   });
   assert.equal(workflow.defaults?.run?.["working-directory"], undefined);
@@ -204,7 +191,7 @@ export function validateCiWorkflow(content, manifest) {
   };
   for (const [name, label] of Object.entries(labels)) {
     const job = workflow.jobs[name];
-    unconditional(job);
+    requireExecution(job, verificationCondition);
     assert.equal(job.name, label);
     assert.equal(job.needs, undefined);
     assert.equal(job.strategy, undefined);
@@ -238,12 +225,15 @@ export function validateCiWorkflow(content, manifest) {
         "include-hidden-files": false,
       });
     } else assert.equal(job.outputs, undefined);
-    job.steps.forEach(unconditional);
+    for (const step of job.steps) requireExecution(step);
   }
-  const check = workflow.jobs.check;
+  const check = workflow.jobs.aggregate;
+  assert.equal(
+    check.name,
+    verificationName("check", "Metadata only (aggregate)"),
+  );
   assert.deepEqual(check.needs, Object.keys(ciProfiles));
-  assert.equal(check.if, "always()");
-  assert.equal(check["continue-on-error"], undefined);
+  requireExecution(check, `always() && (${verificationCondition})`);
   assert.equal(check["runs-on"], "ubuntu-latest");
   assert.equal(check["timeout-minutes"], 5);
   assert.deepEqual(check.permissions, {});
@@ -251,7 +241,7 @@ export function validateCiWorkflow(content, manifest) {
   assert.equal(check.steps.length, 1);
   assert.deepEqual(check.steps[0].env, { CI_NEEDS: "${{ toJSON(needs) }}" });
   assert.equal(check.steps[0].run, aggregateCommand);
-  unconditional(check.steps[0]);
+  requireExecution(check.steps[0]);
   validateSonarWorkflow(content);
 }
 
@@ -259,14 +249,17 @@ export function validateSonarWorkflow(content) {
   const workflow = workflowDocument(content);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const job = workflow.jobs?.analysis;
-  assert.equal(job?.name, "SonarQube Cloud analysis");
-  assert.deepEqual(job.needs, ["check", "unit", "governance"]);
+  assert.equal(
+    job?.name,
+    verificationName("SonarQube Cloud analysis", "Metadata only (analysis)"),
+  );
+  assert.deepEqual(job.needs, ["aggregate", "unit", "governance"]);
   assert.equal(job["runs-on"], "ubuntu-latest");
   assert.equal(job["timeout-minutes"], 15);
   assert.equal(job["continue-on-error"], undefined);
   assert.equal(
     job.if,
-    "needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+    `needs.aggregate.result == 'success' && (${verificationCondition}) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)`,
   );
   assert.ok(Array.isArray(job.steps));
   pinnedActions(job);
@@ -306,7 +299,7 @@ export function validateSonarWorkflow(content) {
     scanner.with?.args,
     "-Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} -Dsonar.scm.revision=${{ github.event.pull_request.head.sha || github.sha }}",
   );
-  job.steps.forEach(unconditional);
+  for (const step of job.steps) requireExecution(step);
 }
 
 export function validateAdditionalWorkflow(filename, content) {
@@ -317,7 +310,7 @@ export function validateAdditionalWorkflow(filename, content) {
   );
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
   if (filename === "codeql") {
-    unconditional(workflow.jobs.analyze);
+    requireExecution(workflow.jobs.analyze);
     assert.equal(
       workflow.jobs.analyze.name,
       "Analyze JavaScript, TypeScript and GitHub Actions",
@@ -340,7 +333,7 @@ export function validateAdditionalWorkflow(filename, content) {
       "security-events": "write",
     });
     const steps = workflow.jobs.analyze.steps;
-    steps.forEach(unconditional);
+    steps.forEach((step) => requireExecution(step));
     assert.deepEqual(
       steps.map((step) => step.uses),
       [

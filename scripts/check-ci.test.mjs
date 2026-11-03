@@ -67,13 +67,25 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
       value.on.pull_request = { paths: ["src/**"] };
     },
     (value) => {
-      value.on.pull_request = [];
+      value.on.pull_request = null;
     },
     (value) => {
       value.on.pull_request = { types: ["opened"] };
     },
     (value) => {
       value.defaults = { run: { "working-directory": "other" } };
+    },
+    (value) => {
+      value.on.pull_request.types = ["opened", "synchronize", "reopened"];
+    },
+    (value) => {
+      value.on.pull_request.types.push("ready_for_review");
+    },
+    (value) => {
+      value.on.issue_comment = null;
+    },
+    (value) => {
+      value.concurrency.group = "ci-${{ github.event_name }}-${{ github.ref }}";
     },
     (value) => {
       value.concurrency["cancel-in-progress"] = true;
@@ -126,9 +138,6 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
     change(value);
     assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
   }
-  const unfiltered = structuredClone(ci);
-  unfiltered.on.pull_request = null;
-  validateCiWorkflow(JSON.stringify(unfiltered), manifest);
   for (const value of ["jobs: [", "jobs: {}\njobs: {}", "[]"])
     assert.throws(() => workflowDocument(value));
 });
@@ -136,25 +145,31 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
 test("aggregate cannot omit failed or skipped producers or rerun validation", () => {
   for (const change of [
     (value) => {
-      value.jobs.check.if = "success()";
+      value.jobs.aggregate.if = "success()";
     },
     (value) => {
-      value.jobs.check.needs.pop();
+      value.jobs.aggregate.if = "always()";
     },
     (value) => {
-      value.jobs.check["continue-on-error"] = true;
+      value.jobs.aggregate.name = "check";
     },
     (value) => {
-      value.jobs.check.permissions.contents = "write";
+      value.jobs.aggregate.needs.pop();
     },
     (value) => {
-      value.jobs.check.steps[0].env.CI_NEEDS = "{}";
+      value.jobs.aggregate["continue-on-error"] = true;
     },
     (value) => {
-      value.jobs.check.steps[0].run = "echo success";
+      value.jobs.aggregate.permissions.contents = "write";
     },
     (value) => {
-      value.jobs.check.steps.push({ run: "npm run validate -- full" });
+      value.jobs.aggregate.steps[0].env.CI_NEEDS = "{}";
+    },
+    (value) => {
+      value.jobs.aggregate.steps[0].run = "echo success";
+    },
+    (value) => {
+      value.jobs.aggregate.steps.push({ run: "npm run validate -- full" });
     },
   ]) {
     const value = structuredClone(ci);
@@ -193,7 +208,7 @@ test("Sonar requires both real suite artifacts and their own producer attempts w
       value.permissions.contents = "write";
     },
     (value) => {
-      value.jobs.analysis.name = "fake";
+      value.jobs.analysis.name = "SonarQube Cloud analysis";
     },
     (value) => {
       value.jobs.analysis.if = "false";
