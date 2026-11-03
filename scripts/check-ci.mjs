@@ -172,6 +172,7 @@ export function validateCiWorkflow(content, manifest) {
     false,
     "PR checks cannot filter paths or target branches.",
   );
+  assert.ok(Array.isArray(event.types), "PR activity types must be an array.");
   for (const activity of [
     "opened",
     "synchronize",
@@ -179,7 +180,7 @@ export function validateCiWorkflow(content, manifest) {
     "ready_for_review",
   ])
     assert.ok(
-      event.types?.includes(activity),
+      event.types.includes(activity),
       "Required PR activity is missing.",
     );
   assert.deepEqual(Object.keys(workflow.jobs), [
@@ -201,6 +202,11 @@ export function validateCiWorkflow(content, manifest) {
     "cancel-in-progress": false,
   });
   assert.equal(workflow.defaults?.run?.["working-directory"], undefined);
+  assert.equal(
+    workflow.defaults?.run?.shell,
+    undefined,
+    "Workflow defaults cannot override the shell.",
+  );
   const labels = {
     quality: "Static checks",
     audit: "Dependency audit",
@@ -256,6 +262,11 @@ export function validateCiWorkflow(content, manifest) {
     job.steps.forEach(unconditional);
   }
   const check = workflow.jobs.check;
+  assert.equal(
+    Object.hasOwn(check, "defaults"),
+    false,
+    "Aggregate checks cannot override run defaults.",
+  );
   assert.deepEqual(check.needs, Object.keys(ciProfiles));
   assert.equal(check.if, "always()");
   assert.equal(check["continue-on-error"], undefined);
@@ -264,6 +275,11 @@ export function validateCiWorkflow(content, manifest) {
   assert.deepEqual(check.permissions, {});
   assert.equal(check.outputs, undefined);
   assert.equal(check.steps.length, 1);
+  assert.equal(
+    check.steps[0].shell,
+    undefined,
+    "Aggregate checks cannot override the shell.",
+  );
   assert.deepEqual(check.steps[0].env, { CI_NEEDS: "${{ toJSON(needs) }}" });
   assert.equal(check.steps[0].run, aggregateCommand);
   unconditional(check.steps[0]);

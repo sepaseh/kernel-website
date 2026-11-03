@@ -158,6 +158,16 @@ test("CI requires explicit pull request activities including ready for review", 
   );
 });
 
+test("CI rejects scalar pull request activity types even when all required names occur", () => {
+  const value = structuredClone(ci);
+  value.on.pull_request.types = "opened,synchronize,reopened,ready_for_review";
+
+  assert.throws(
+    () => validateCiWorkflow(JSON.stringify(value), manifest),
+    /PR activity types must be an array/,
+  );
+});
+
 test("verification producers cannot change the run directory through job defaults", () => {
   for (const name of Object.keys(ciProfiles)) {
     const value = structuredClone(ci);
@@ -198,6 +208,31 @@ test("aggregate cannot omit failed or skipped producers or rerun validation", ()
     const value = structuredClone(ci);
     change(value);
     assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
+});
+
+test("aggregate execution cannot be replaced through defaults or a custom shell", () => {
+  for (const change of [
+    (value) => {
+      value.jobs.check.defaults = { run: { shell: "sh -c 'exit 0' {0}" } };
+    },
+    (value) => {
+      value.jobs.check.defaults = { run: { "working-directory": "other" } };
+    },
+    (value) => {
+      value.jobs.check.steps[0].shell = "sh -c 'exit 0' {0}";
+    },
+    (value) => {
+      value.defaults = { run: { shell: "sh -c 'exit 0' {0}" } };
+    },
+  ]) {
+    const value = structuredClone(ci);
+    change(value);
+
+    assert.throws(
+      () => validateCiWorkflow(JSON.stringify(value), manifest),
+      /cannot override/,
+    );
   }
 });
 
