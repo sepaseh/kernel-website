@@ -24,13 +24,16 @@ test("the full profile and CI declare every required check once with its expecte
     "check:actions": "node scripts/run-actionlint.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:ci": "node scripts/check-ci.mjs",
+    "check:fonts":
+      "node -e \"for (const folder of ['fonts', 'governance']) require('node:fs').mkdirSync('coverage/' + folder, { recursive: true })\" && python -m coverage run --data-file=coverage/fonts/.coverage --branch --source=scripts scripts/subset-website-fonts.py --check && python -m coverage xml --data-file=coverage/fonts/.coverage -o coverage/governance/font-coverage.xml && python -m coverage report --data-file=coverage/fonts/.coverage --fail-under=80",
     "check:guidance": "node scripts/check-guidance.mjs",
     "check:snapshot": "node scripts/validate-bootstrap.mjs",
     "format:check": "prettier . --check",
-    lint: "eslint .",
+    lint: 'eslint . --ignore-pattern ".next/**" --ignore-pattern "test-results/**" --ignore-pattern "playwright-report/**" --ignore-pattern "*.tsbuildinfo"',
     "test:governance":
       "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/check-boundaries.test.mjs scripts/check-ci.test.mjs scripts/check-guidance.test.mjs scripts/ci-evidence.test.mjs scripts/run-actionlint.test.mjs scripts/validate-bootstrap.test.mjs scripts/validate.test.mjs scripts/validation.integration.test.mjs",
     "test:unit": "vitest run --coverage",
+    typecheck: "tsc --noEmit -p tsconfig.json",
   };
   const commands = required.map((check) => check.command);
   for (const command of commands) {

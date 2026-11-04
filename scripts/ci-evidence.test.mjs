@@ -32,6 +32,8 @@ const head = "d".repeat(40);
 const base = "e".repeat(40);
 const lcov = (source = "src/example.ts") =>
   `TN:\nSF:${source}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n`;
+const fontCoverage =
+  '<coverage lines-valid="1"><class filename="subset-website-fonts.py"><line number="1" hits="1"/></class></coverage>\n';
 const identityOptions = () => ({
   environment: {
     GITHUB_REPOSITORY: "example/api",
@@ -68,6 +70,7 @@ const fixture = async (context) => {
     await rm(root, { recursive: true, force: true });
   });
   await mkdir(path.join(root, "src"));
+  await mkdir(path.join(root, "scripts"));
   await mkdir(path.join(root, "coverage/unit"), { recursive: true });
   await mkdir(path.join(root, "coverage/governance"), { recursive: true });
   await writeFile(
@@ -76,6 +79,11 @@ const fixture = async (context) => {
   );
   await writeFile(path.join(root, "coverage/unit/lcov.info"), lcov());
   await writeFile(path.join(root, "coverage/governance/lcov.info"), lcov());
+  await writeFile(path.join(root, "scripts/subset-website-fonts.py"), "pass\n");
+  await writeFile(
+    path.join(root, "coverage/governance/font-coverage.xml"),
+    fontCoverage,
+  );
   const outputs = [];
   return {
     root,
@@ -300,6 +308,16 @@ test("suite artifacts remain independent across failed-job and analysis reruns",
   };
   await runEvidence("--verify-coverage", rerunUnit);
   await runEvidence("--verify-coverage", rerunGovernance);
+  const fontReport = path.join(
+    options.root,
+    "coverage/governance/font-coverage.xml",
+  );
+  await writeFile(fontReport, fontCoverage.replace('hits="1"', 'hits="0"'));
+  await assert.rejects(
+    runEvidence("--verify-coverage", rerunGovernance),
+    /does not match/,
+  );
+  await writeFile(fontReport, fontCoverage);
   const report = path.join(options.root, "coverage/governance/lcov.info");
   await writeFile(report, lcov().replace("DA:1,1", "DA:1,0"));
   await runEvidence("--verify-coverage", rerunUnit);
@@ -582,7 +600,6 @@ test(
   async (context) => {
     const { root } = await fixture(context);
     await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-    await mkdir(path.join(root, "scripts"));
     await writeFile(
       path.join(root, ".github/workflows/ci.yml"),
       "name: Synthetic CI\non: push\njobs: {}\n",

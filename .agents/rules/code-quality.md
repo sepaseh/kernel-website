@@ -7,8 +7,8 @@ check for changed files, then use the canonical [full profile](../validation.jso
 on the exact proposed export before an authorized commit, push or PR handoff.
 Follow [validation](../../docs/validation.md); focused checks do not replace it.
 
-Keep one independently installable npm package and inert imports. This governance
-phase contains repository tooling, not application behavior. Validate external
+Keep one independently installable npm package and inert imports. Keep implementations
+within the declared publication scope. Validate external
 data at its boundary, preserve original failures and cancellation, and fail
 clearly on missing required inputs. Keep ownership and cleanup local to resources
 created by the operation.

@@ -3,7 +3,7 @@
 ## Prepare a focused change
 
 Read [the assistant entry point](AGENTS.md), [task navigation](docs/source-navigation.md)
-and matching [rules](.agents/settings.json). This governance phase owns its
+and matching [rules](.agents/settings.json). This foundation phase owns its
 checks and guidance; do not require another repository's source or workflows.
 
 Use the existing checkout and preserve unrelated work. Another implementation
@@ -11,8 +11,8 @@ checkout needs explicit authorization. Choose a `codex/` branch from a verified
 base and keep changes focused on one independently reviewable outcome.
 
 Start with the affected owner tests. Before an authorized commit, push or PR
-handoff, complete [fresh exact-tree validation](docs/validation.md), including all
-ten required checks. Documentation changes use the same full profile.
+handoff, complete [fresh exact-tree validation](docs/validation.md), including every
+required check. Documentation changes use the same full profile.
 Do not stage or commit when a required check fails or cannot run.
 
 ## Publish and review

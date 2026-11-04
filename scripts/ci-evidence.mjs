@@ -180,19 +180,43 @@ const coverageSources = (bytes) => {
   return record.sources;
 };
 
+const readMeasuredReport = async (root, reportPath, label) => {
+  const { filename, info } = await regularFile(root, reportPath);
+  if (info.size === 0 || info.size > maximumCoverageBytes)
+    throw new Error(`Measured ${label} must be nonempty and at most 32 MiB`);
+  const bytes = await readFile(filename);
+  if (bytes.length === 0 || bytes.length > maximumCoverageBytes)
+    throw new Error(`Measured ${label} must be nonempty and at most 32 MiB`);
+  return bytes;
+};
+
 export const readCoverage = async (
   root,
   reportPath = "coverage/unit/lcov.info",
 ) => {
-  const { filename, info } = await regularFile(root, reportPath);
-  if (info.size === 0 || info.size > maximumCoverageBytes)
-    throw new Error("Measured LCOV must be nonempty and at most 32 MiB");
-  const bytes = await readFile(filename);
-  if (bytes.length === 0 || bytes.length > maximumCoverageBytes)
-    throw new Error("Measured LCOV must be nonempty and at most 32 MiB");
+  const bytes = await readMeasuredReport(root, reportPath, "LCOV");
   await Promise.all(
     [...coverageSources(bytes)].map((source) => regularFile(root, source)),
   );
+  return bytes;
+};
+
+const fontCoveragePath = "coverage/governance/font-coverage.xml";
+const readFontCoverage = async (root) => {
+  const bytes = await readMeasuredReport(
+    root,
+    fontCoveragePath,
+    "font coverage",
+  );
+  const report = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  if (
+    !/<coverage\b[^>]*\blines-valid="[1-9]\d*"/.test(report) ||
+    !/<class\b[^>]*\bfilename="(?:scripts\/)?subset-website-fonts\.py"/.test(
+      report,
+    )
+  )
+    throw new Error("Font coverage must measure the published font verifier");
+  await regularFile(root, "scripts/subset-website-fonts.py");
   return bytes;
 };
 
@@ -243,8 +267,13 @@ export const runEvidence = async (
       ? environment.CI_EVIDENCE_PRODUCER_ATTEMPT
       : undefined,
   });
-  const bytes = await readCoverage(root, reportPath);
-  const expected = evidenceManifest(identity, [{ reportPath, bytes }], suite);
+  const reports = [{ reportPath, bytes: await readCoverage(root, reportPath) }];
+  if (suite === "governance")
+    reports.push({
+      reportPath: fontCoveragePath,
+      bytes: await readFontCoverage(root),
+    });
+  const expected = evidenceManifest(identity, reports, suite);
   const { filename, info } = await regularFile(root, manifestPath, !verifying);
   if (verifying) {
     if (info.size > 16 * 1024)

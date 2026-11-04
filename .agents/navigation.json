@@ -50,7 +50,7 @@
       "id": "dependency-audit",
       "when": "Change audit execution or its observable failure and cancellation behavior.",
       "owners": ["scripts/run-audit.mjs"],
-      "contracts": ["package-lock.json", "package.json", "vitest.config.mjs"],
+      "contracts": ["package-lock.json", "package.json", "vitest.config.ts"],
       "tests": ["scripts/run-audit.test.mjs"],
       "checks": ["audit", "lint", "unit-coverage"],
       "rules": [".agents/rules/code-quality.md", ".agents/rules/testing.md"]
@@ -72,6 +72,33 @@
         ".agents/rules/pull-requests.md",
         ".agents/rules/safety.md"
       ]
+    },
+    {
+      "id": "shared-translation",
+      "when": "Change flat root keys, explicit client key selections, ICU variables or locale registration.",
+      "owners": [
+        "src/i18n/catalog-data/locales.ts",
+        "src/i18n/catalog-data/locales/ar.json",
+        "src/i18n/catalog-data/locales/de.json",
+        "src/i18n/catalog-data/locales/en.json",
+        "src/i18n/catalog-data/locales/es.json",
+        "src/i18n/catalog-data/locales/fa.json",
+        "src/i18n/catalog-data/locales/fr.json",
+        "src/i18n/catalog-data/locales/it.json",
+        "src/i18n/catalog-data/locales/pt.json",
+        "src/i18n/catalog-data/locales/ru.json",
+        "src/i18n/catalog-data/locales/tr.json",
+        "src/i18n/catalog-data/website-types.ts",
+        "src/i18n/client-messages.ts"
+      ],
+      "contracts": [".agents/rules/localization.md", "docs/localization.md"],
+      "tests": [
+        "src/i18n/catalog-data/integrity.test.ts",
+        "src/i18n/catalogs.test.ts",
+        "src/i18n/client-messages.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
     }
   ]
 }

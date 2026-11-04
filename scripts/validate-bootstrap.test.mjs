@@ -16,15 +16,26 @@ import {
   completePublicationWork,
   inspectBootstrap,
   ordinaryPath,
-  publicationFiles,
+  publicationInventories,
+  publicationReadiness,
   readPublishedFile,
   validateBootstrapPolicy,
 } from "./validate-bootstrap.mjs";
 
+const currentMarker = JSON.parse(
+  await readFile(
+    new URL("../.github/bootstrap-policy.json", import.meta.url),
+    "utf8",
+  ),
+);
+const publicationPhase = currentMarker.phase;
+const applicationReady = publicationReadiness[publicationPhase];
+const publicationFiles = publicationInventories[publicationPhase];
+
 const policy = () => ({
   schemaVersion: 1,
-  phase: "governance",
-  applicationReady: false,
+  phase: publicationPhase,
+  applicationReady,
   allowedFiles: [...publicationFiles],
 });
 async function fixture(t) {
@@ -57,18 +68,18 @@ async function fixture(t) {
   return { root, put };
 }
 
-test("publication accepts only the reviewed governance inventory with readiness false", () => {
+test("publication accepts only the reviewed phase inventory and matching readiness", () => {
   assert.equal(validateBootstrapPolicy(policy()).size, publicationFiles.length);
   for (const change of [
     { schemaVersion: 2 },
-    { phase: "operations" },
-    { applicationReady: true },
+    { phase: "unreviewed-phase" },
+    { applicationReady: !applicationReady },
     { maximumChangedFiles: 101 },
     { allowedFiles: [] },
     { allowedFiles: undefined },
     { foreign: true },
     ...[
-      "src/app/page.tsx",
+      "runtime-unreviewed/page.tsx",
       ".env.local",
       "deploy/native/website.env.example",
       "scripts/unreviewed.mjs",
@@ -82,6 +93,37 @@ test("publication accepts only the reviewed governance inventory with readiness 
     assert.throws(() => validateBootstrapPolicy({ ...policy(), ...change }));
 });
 
+test("catalog inventories admit only the ten JSON resources", () => {
+  const prefix = "src/i18n/catalog-data/locales/";
+  const expected = [
+    "ar",
+    "de",
+    "en",
+    "es",
+    "fa",
+    "fr",
+    "it",
+    "pt",
+    "ru",
+    "tr",
+  ].map((code) => prefix + code + ".json");
+  for (const files of Object.values(publicationInventories))
+    assert.deepEqual(
+      files.filter((file) => file.startsWith(prefix)),
+      expected,
+    );
+  assert.throws(
+    () =>
+      validateBootstrapPolicy({
+        ...policy(),
+        allowedFiles: publicationFiles.map((file) =>
+          file === prefix + "en.json" ? prefix + "en.ts" : file,
+        ),
+      }),
+    /inventory must match/,
+  );
+});
+
 test("snapshot checks every file without executing authored JavaScript", async (t) => {
   const { root, put } = await fixture(t);
   const sentinel = path.join(root, "not-created");
@@ -92,8 +134,8 @@ test("snapshot checks every file without executing authored JavaScript", async (
   for (const name of [".git", "node_modules", "coverage"])
     await mkdir(path.join(root, name));
   assert.deepEqual(await inspectBootstrap(root), {
-    phase: "governance",
-    applicationReady: false,
+    phase: publicationPhase,
+    applicationReady,
     files: publicationFiles.length,
   });
   await assert.rejects(readFile(sentinel), { code: "ENOENT" });
@@ -109,9 +151,9 @@ test("snapshot rejects unexpected private files, directories and invalid ignored
   for (const name of [
     ".env.local",
     "credentials.key",
-    "src/app/page.tsx",
+    "runtime-unreviewed/page.tsx",
     "server/data/existing.sqlite",
-    "test-results/result.json",
+    "private-results/result.json",
   ]) {
     await put(name, "private sentinel contents must not be parsed");
     await assert.rejects(inspectBootstrap(root), /Unexpected publication/);
@@ -127,6 +169,9 @@ test("snapshot rejects malformed JSON, malformed JavaScript and missing declarat
   await put("package.json", "{");
   await assert.rejects(inspectBootstrap(root), SyntaxError);
   await put("package.json", "{}");
+  await put("src/i18n/catalog-data/locales/en.json", "{");
+  await assert.rejects(inspectBootstrap(root), SyntaxError);
+  await put("src/i18n/catalog-data/locales/en.json", "{}");
   await put("scripts/run-audit.mjs", "export const = ;");
   await assert.rejects(inspectBootstrap(root), /Invalid JavaScript/);
   await put("scripts/run-audit.mjs", "export {};");
@@ -195,4 +240,37 @@ test("independent publication operations drain and retain every failure", async 
     ]),
     ["left", "right"],
   );
+});
+
+test("reviewed cumulative stages cannot mix inventories or activate before application composition", () => {
+  for (const [phase, files] of Object.entries(publicationInventories)) {
+    const declaration = {
+      ...policy(),
+      phase,
+      applicationReady: publicationReadiness[phase],
+      allowedFiles: [...files],
+    };
+    assert.equal(validateBootstrapPolicy(declaration).size, files.length);
+    assert.throws(() =>
+      validateBootstrapPolicy({
+        ...declaration,
+        applicationReady: !declaration.applicationReady,
+      }),
+    );
+    if (!declaration.applicationReady)
+      assert.equal(
+        files.some((file) => file.startsWith("src/app/")),
+        false,
+      );
+    const foreign = publicationInventories.operations.find(
+      (file) => !files.includes(file),
+    );
+    if (foreign)
+      assert.throws(() =>
+        validateBootstrapPolicy({
+          ...declaration,
+          allowedFiles: [...files, foreign],
+        }),
+      );
+  }
 });
