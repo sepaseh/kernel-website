@@ -14,8 +14,11 @@ website, root components or generic lib layers for those responsibilities.
 
 Use HTTP for the configured sample backend. Keep feature-specific pure request DTOs in src/features/<feature>/types.ts and settings DTOs/path constants in src/shared/settings/contracts.ts. Reserve @/shared/contracts for wire concepts actually reused across local owners: Account, OtpResponse, profileNameMaxLength and shared AuthPaths. Owned wire modules may derive from that pure contract without importing runtime behavior. Do not import backend SDKs, database/auth/storage implementation, another checkout or cross-project local packages. Message data comes from @/i18n/catalog-data; it cannot initialize Next/React/next-intl or import feature behavior. The script scripts/check-boundaries.mjs checks production imports, type edges, re-exports, literal dynamic imports, resolved aliases, backend dependencies and local wire/catalog purity. Root apps/ and packages/ scaffolds and npm workspaces are rejected. The current ESLint configuration checks the published TypeScript/TSX and tooling with the registered React Hooks and import-order rules. Read the source marker and exact inventory before changing runtime composition. False-marker phases admit only their declared support owners; do not add entry points or broaden permissions merely to make a test realistic. Runnable composition must add its exact owner permissions, installed package identities and adapter tests with the complete application acceptance described in docs/application.md. Browser tooling and authored suites have a separate required tooling TypeScript project. Imports stay inert and readiness guards remain first.
 
-Mark type-only edges with import type, export type or type specifiers so they
-remain erased. Keep values needed at runtime, including components, classes and
-schema objects, as value imports. Import an internal implementation directly
-when no public module boundary is needed; do not add shortcut barrels solely
-to shorten paths or route server-only code through client-facing exports.
+Use `import type` or `export type` when the whole declaration must be erased.
+Use inline `type` specifiers in declarations that also import or export runtime
+values. Inline specifiers remove bindings, but a compiler can preserve an empty
+import that still evaluates the module. Keep values needed at runtime, including
+components, classes and schema objects, as value imports. Import an internal
+implementation directly when no public module boundary is needed. Do not add
+shortcut barrels solely to shorten paths or route server-only code through
+client-facing exports.
