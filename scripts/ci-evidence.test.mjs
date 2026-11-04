@@ -600,7 +600,6 @@ test(
   async (context) => {
     const { root } = await fixture(context);
     await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-    await mkdir(path.join(root, "scripts"));
     await writeFile(
       path.join(root, ".github/workflows/ci.yml"),
       "name: Synthetic CI\non: push\njobs: {}\n",
