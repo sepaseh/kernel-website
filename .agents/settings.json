@@ -1,6 +1,6 @@
 {
-  "name": "kernel-website-foundation-guidance",
-  "description": "Published foundation scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-client-foundation-guidance",
+  "description": "Published client-foundation scope, exact-tree validation and protected current-head reviews",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",
@@ -23,6 +23,7 @@
     ".agents/skills/commit/SKILL.md",
     ".agents/skills/create-issue/SKILL.md",
     ".agents/skills/create-pr/SKILL.md",
+    ".agents/skills/design-ui/SKILL.md",
     ".agents/skills/review-pr/SKILL.md",
     ".agents/skills/start-issue/SKILL.md",
     ".agents/skills/validate-change/SKILL.md"

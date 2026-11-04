@@ -1,0 +1,19 @@
+# Website design guide
+
+Read the current [source scope](docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+
+## Reuse the system
+
+Identify the feature owner, primary action and relevant loading/empty/data/invalid/error/success/disabled/unauthorized states before styling. Menus/dialogs need actual keyboard, focus and dismissal behavior; an image does not prove interaction.
+
+## Keep behavior and language
+
+Follow [website](.agents/rules/website.md), [imports](.agents/rules/imports.md), [localization](.agents/rules/localization.md), [session](docs/session.md) and [accessibility](docs/accessibility.md). Keep direct named Props/icon conventions, control semantics, password whitespace, OTP ownership, session/mount stale-result guards and cleanup. Preserve supported native attributes and visible error/retry paths.
+
+API settings alone select language and exact ltr/rtl direction. All ten flat catalogs need genuine translations and matching ICU variables. Use explicit client message scopes; no visitor language controls, duplicated catalogs or code-derived direction. Theme is independent of language. Verify both directions, long translated content, keyboard and reduced motion in actual runnable evidence.
+
+## Tools and handoff
+
+Choose the deliverable before selecting a tool: local component source, a design artifact or a hosted prototype have different acceptance. Inspect available host capabilities rather than assuming an integration exists. Map actual components/tokens/states to the design reference. Synthetic prototype data, repository connections, uploads and publication need authorization for their actual external effects. Private source/assets are not uploaded during ordinary local work.
+
+Select actual IDs from the [manifest](.agents/validation.json) through [validation](.agents/skills/validate-change/SKILL.md). Full exact-tree acceptance precedes authorized commit/push/handoff. Unit/governance/font tests do not establish browser layout or visual quality. Runnable composition needs all fifteen checks, real build/browser/CSP/visual results and protected jobs before merge. Baseline changes require explicit authorization and actual visual review.

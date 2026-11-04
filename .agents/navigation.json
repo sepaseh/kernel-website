@@ -48,11 +48,14 @@
     },
     {
       "id": "dependency-audit",
-      "when": "Change audit execution or its observable failure and cancellation behavior.",
+      "when": "Change locked dependencies, audit execution or dependency toolchain behavior.",
       "owners": ["scripts/run-audit.mjs"],
       "contracts": ["package-lock.json", "package.json", "vitest.config.ts"],
-      "tests": ["scripts/run-audit.test.mjs"],
-      "checks": ["audit", "lint", "unit-coverage"],
+      "tests": [
+        "scripts/run-audit.test.mjs",
+        "scripts/dependency-toolchain.test.mjs"
+      ],
+      "checks": ["audit", "lint", "unit-coverage", "governance-coverage"],
       "rules": [".agents/rules/code-quality.md", ".agents/rules/testing.md"]
     },
     {
@@ -72,6 +75,25 @@
         ".agents/rules/pull-requests.md",
         ".agents/rules/safety.md"
       ]
+    },
+    {
+      "id": "auth-session",
+      "when": "Change HTTP forwarding, protected/public 401 behavior, session generations, cookies or stale-result ownership.",
+      "owners": [
+        "src/features/auth/session/SessionProvider.tsx",
+        "src/shared/api/client.ts",
+        "src/shared/api/proxy.ts",
+        "src/shared/hooks/use-operation-scope.ts"
+      ],
+      "contracts": ["docs/session.md", "src/shared/contracts/index.ts"],
+      "tests": [
+        "src/features/auth/session/SessionProvider.test.tsx",
+        "src/shared/api/client.test.ts",
+        "src/shared/api/proxy.test.ts",
+        "src/shared/hooks/use-operation-scope.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
     },
     {
       "id": "shared-translation",
@@ -96,6 +118,34 @@
         "src/i18n/catalog-data/integrity.test.ts",
         "src/i18n/catalogs.test.ts",
         "src/i18n/client-messages.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
+      "id": "http-contract",
+      "when": "Change pure wire DTOs, constants or the twelve client operations sent to the configured HTTP backend.",
+      "owners": [
+        "src/features/account/types.ts",
+        "src/features/auth/login/types.ts",
+        "src/features/auth/recovery/types.ts",
+        "src/features/auth/register/types.ts",
+        "src/shared/contracts/index.ts",
+        "src/shared/settings/contracts.ts"
+      ],
+      "contracts": [
+        ".agents/rules/api-collection.md",
+        ".agents/rules/imports.md"
+      ],
+      "tests": [
+        "scripts/check-boundaries.test.mjs",
+        "src/features/account/api.test.ts",
+        "src/features/auth/login/api.test.ts",
+        "src/features/auth/recovery/api.test.ts",
+        "src/features/auth/register/api.test.ts",
+        "src/features/auth/session/api.test.ts",
+        "src/shared/api/proxy.test.ts",
+        "src/test/api-requests.ts"
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
       "rules": []

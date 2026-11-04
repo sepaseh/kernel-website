@@ -83,7 +83,7 @@ export function workflowDocument(content) {
 }
 
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "foundation");
+  assert.equal(manifest.phase, "client-foundation");
   assert.equal(manifest.applicationReady, false);
   assert.deepEqual(
     manifest.profiles?.full,
@@ -97,7 +97,7 @@ export function validateCheckManifest(manifest) {
   for (const [index, check] of manifest.checks.entries()) {
     assert.equal(check.kind, "required");
     assert.equal(check.command, `npm run ${commands[index]}`);
-    assert.deepEqual(check.scopes, ["foundation"]);
+    assert.deepEqual(check.scopes, [manifest.phase]);
     assert.deepEqual(check.ciJobs, [
       Object.keys(ciProfiles).find((job) => ciProfiles[job].includes(check.id)),
     ]);
@@ -532,6 +532,6 @@ export async function inspectCi(root = repository) {
 if (import.meta.main) {
   await inspectCi();
   console.log(
-    "Foundation CI, native security and real Sonar coverage order passed.",
+    "Client foundation CI, native security and real Sonar coverage order passed.",
   );
 }

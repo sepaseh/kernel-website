@@ -1,7 +1,8 @@
 # Kernel Website assistant instructions
 
-The publication phase is **foundation** and `applicationReady` is **false**.
-This package publishes repository governance, shared website contracts and catalogs, and licensed fonts.
+The publication phase is **client-foundation** and `applicationReady` is **false**.
+This package publishes shared website contracts, catalogs, fonts, client controls,
+session ownership and HTTP consumers.
 It does not deliver a runnable website or establish deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
@@ -43,3 +44,9 @@ Write maintained Markdown and assistant instructions in English. Keep human
 guides flat and task-oriented. Report QA in the task or terminal; save a local
 report only when requested under ignored `test-results/`. Optional guidance
 indexes prove neither host loading nor model comprehension.
+
+Keep authentication and session ownership in src/features/auth, account requests
+in src/features/account, and shared controls in src/shared/ui. Preserve HTTP
+cancellation, cookie/no-store behavior, protected versus public-auth 401 handling,
+and stale session ownership. See [architecture](docs/architecture.md),
+[forms](docs/forms.md), [session](docs/session.md), and [client UI](docs/client-ui.md).

@@ -1,0 +1,55 @@
+import { type ComponentProps, useId } from "react";
+
+import { cn } from "@/shared/lib/cn";
+
+import { Input } from "./input";
+import { Label } from "./label";
+type Props = ComponentProps<"input"> & {
+  label: string;
+  hint?: string;
+  error?: string;
+};
+export const FormField = ({
+  "aria-describedby": externalDescription,
+  "aria-invalid": externalInvalid,
+  className,
+  id,
+  name,
+  label,
+  hint,
+  error,
+  ...props
+}: Props) => {
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
+  const description = error || hint;
+  const describedBy =
+    [externalDescription, description ? `${fieldId}-description` : undefined]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  return (
+    <div className="space-y-2.5">
+      <Label htmlFor={fieldId}>{label}</Label>
+      <Input
+        {...props}
+        name={name}
+        id={fieldId}
+        aria-invalid={Boolean(error) || (externalInvalid ?? false)}
+        aria-describedby={describedBy}
+        className={cn("h-12 rounded-lg px-3.5 text-base", className)}
+      />
+      {description ? (
+        <p
+          id={`${fieldId}-description`}
+          className={
+            error
+              ? "text-sm text-destructive"
+              : "text-sm leading-relaxed text-muted-foreground"
+          }
+        >
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+};

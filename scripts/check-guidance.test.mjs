@@ -458,14 +458,14 @@ test("malformed HTML attribute quotes fail without rewinding the scanner", () =>
 });
 
 test("Markdown references obey the explicit current phase rather than the eventual publication union", () => {
-  const content = "[application](../src/app/page.tsx)";
-  assert.throws(() =>
-    validateGuideLinks(
-      "docs/testing.md",
-      content,
-      publicationInventories.foundation,
-    ),
+  const current = publicationInventories[manifest.phase];
+  validateGuideLinks(
+    "docs/testing.md",
+    "[shared form field](../src/shared/ui/FormField.tsx)",
+    current,
   );
+  const content = "[application](../src/app/page.tsx)";
+  assert.throws(() => validateGuideLinks("docs/testing.md", content, current));
   validateGuideLinks(
     "docs/testing.md",
     content,
@@ -487,7 +487,7 @@ test("evaluation keeps whole cases tied to published tasks, evidence and checks 
       },
     ],
   });
-  const files = publicationInventories.foundation;
+  const files = publicationInventories[manifest.phase];
   validateEvaluation(evaluation(), navigation(), manifest, files);
   for (const change of [
     (value) => {
