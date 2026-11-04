@@ -12,8 +12,11 @@ authorization, cookie attributes, password handling, OTP and session revocation
 remain owned by the configured HTTP backend. Opaque sessions alone do not establish refresh
 rotation or reuse detection.
 
-Local session/form tests cover account/locale/generation ownership, cleanup and
-stale feedback/navigation. Public auth errors retain their form feedback;
-protected mutation expiry notifications remain intact. These client guards do not
-authorize an API write or undo one already accepted by the API. Preserve exact
-password whitespace and OTP destination ownership.
+Local session and operation-scope tests cover account/locale/generation ownership,
+cleanup and invalidation of stale reads, accepted mutations and mount captures.
+HTTP tests cover public-auth and protected-mutation expiry notification behavior.
+Feature form components and tests are not included in this phase, so retained
+input, form feedback, OTP destination ownership and late navigation remain
+integration requirements. These client guards do not authorize an API write or
+undo one already accepted by the API. Preserve exact password whitespace when
+connecting form values to the published HTTP operations.

@@ -2,23 +2,17 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-## Start with existing behavior
+## Check the available evidence
 
-## Run the automated page checks
-
-The accessibility suite scans home, login, registration, recovery and a connected
-account in English/Persian and light/dark themes after fonts are ready. It
-attaches Axe violations and incomplete findings, and keeps violations blocking.
-Keyboard cases check the skip link/main target, retained theme-toggle focus,
-visible outlines, login focus order and native invalid-input focus.
-
-Inspect incomplete findings rather than treating an empty violations list as a
-complete assessment. The e2e wrapper also exercises the other browser journeys in
-both CSP modes; [validation](validation.md) defines the complete publication gate.
+Automated page accessibility checks and an e2e wrapper are not published in this
+phase. The local UI tests exercise component semantics, but do not establish
+page accessibility. [Validation](validation.md) defines the required checks.
+Use the manual checklist below when runnable pages are available; record which
+states were actually reviewed and which remain untested.
 
 ## Review representative states manually
 
-For each changed flow:
+For each available changed flow:
 
 1. Exercise English/LTR and Persian/RTL in both themes. Include loading,
    invalid input, error/retry, OTP/recovery and account-update states.

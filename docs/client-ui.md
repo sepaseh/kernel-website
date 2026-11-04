@@ -40,19 +40,17 @@ API messages as HTML or expose transport diagnostics.
 
 ## Keep state with its feature
 
-[Forms](forms.md) owns submitted values, native validation, pending/error/retry
-states and OTP destinations. [Session](session.md) owns locale/generation/account
-reset identity and guards late results after replacement or unmount. Registration
-and recovery reuse the auth-owned OtpForm while retaining their distinct payloads
-and success destinations.
-
-## Theme, motion and metrics
+[Forms](forms.md) defines the later integration requirements for submitted values,
+native validation, pending/error/retry states and OTP destinations.
+[Session](session.md) supplies generation and mount-operation guards. Feature
+forms, their reset identity and the shared authentication OTP component are not
+published in this phase.
 
 ## Verify a UI change
 
 Run focused owner tests using [testing](testing.md), then applicable type/lint
 checks. Real React Testing Library tests cover native attributes, labels,
 descriptions, disabled/Slot behavior, escaped localized feedback and theme-only
-storage. Provider/static-markup tests cover nonce forwarding, visible content and
-reduced-motion configuration. Form tests use the real HTTP/session owners and
-explicit messages, mocking framework router/document navigation.
+storage. These are local component tests. Feature form integration tests and
+application provider tests for nonce forwarding or reduced-motion configuration
+are not published in this phase; see [form evidence](forms.md#evidence-and-limits).

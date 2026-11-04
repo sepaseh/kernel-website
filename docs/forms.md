@@ -2,6 +2,11 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
+This phase publishes form-value helpers, UI primitives, HTTP operations and
+session hooks. Feature form components and their integration tests are not yet
+published. The form behavior below describes requirements for that later
+integration; the evidence section identifies what is currently tested.
+
 ## Values and controls
 
 [Form helpers](../src/shared/lib/form-values.ts) trim ordinary text, normalize
@@ -54,11 +59,15 @@ to /login?reset=success. Routes are fixed local destinations.
 
 ## Evidence and limits
 
-Feature component tests use real React/RTL, next-intl, SessionProvider, the HTTP
-client and synthetic fetch responses. The
-[shared fixture](../src/test/feature-session.tsx) selects only auth/account
-messages through selectClientMessages, so a full catalog cannot mask a missing
-client key. Only framework router and document navigation are mocked. Tests cover
-validation, exact payload values, pending/error/retry, OTP ownership, account
-replacement and delayed results; they do not establish Next.js routing, browser
-constraint validation, cookie isolation, hydration, visual layout or deployment.
+Current tests cover value normalization and password whitespace, exact HTTP
+payloads, individual UI controls, session ownership, operation scopes and
+cooldowns. They exercise these owners independently; no feature form component
+test currently combines them.
+
+The [shared fixture](../src/test/feature-session.tsx) selects only auth/account
+messages through selectClientMessages, but no current test imports it. Its
+presence does not establish form-level validation, pending/error/retry behavior,
+OTP destination ownership, input reset or late feedback/navigation behavior.
+Add those cases with the feature forms. Local owner tests also do not establish
+Next.js routing, browser constraint validation, cookie isolation, hydration,
+visual layout or deployment.

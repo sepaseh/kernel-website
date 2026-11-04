@@ -38,10 +38,15 @@ test("patched lint dependencies preserve TypeScript project globs and ignore rul
   const { directory, put } = await fixture(t);
   await put(
     "configs/tsconfig.fixture.json",
-    JSON.stringify({ include: ["../src/**/*.ts"] }),
+    JSON.stringify({
+      compilerOptions: { target: "ES2022", jsx: "preserve" },
+      include: ["../src/**/*.ts", "../src/**/*.tsx"],
+    }),
   );
   await put("src/valid.ts", "export const answer: number = 42;\n");
   await put("src/deep/invalid.ts", "const unused: number = 42;\n");
+  await put("src/project.ts", "Promise.resolve(42);\n");
+  await put("src/view.tsx", "const unusedView = <main />;\n");
   await put("src/ignored/invalid.ts", "not valid TypeScript\n");
   const eslint = new ESLint({
     cwd: directory,
@@ -50,13 +55,14 @@ test("patched lint dependencies preserve TypeScript project globs and ignore rul
       { ignores: ["**/ignored/**"] },
       ...tseslint.configs.recommended,
       {
-        files: ["**/*.ts"],
+        files: ["**/*.{ts,tsx}"],
         languageOptions: {
           parserOptions: {
             project: ["configs/tsconfig.*.json"],
             tsconfigRootDir: directory,
           },
         },
+        rules: { "@typescript-eslint/no-floating-promises": "error" },
       },
     ],
   });
@@ -69,13 +75,17 @@ test("patched lint dependencies preserve TypeScript project globs and ignore rul
         path.relative(directory, result.filePath).replaceAll("\\", "/"),
       )
       .sort(),
-    ["src/deep/invalid.ts", "src/valid.ts"],
+    ["src/deep/invalid.ts", "src/project.ts", "src/valid.ts", "src/view.tsx"],
   );
   assert.deepEqual(
     results.flatMap((result) =>
       result.messages.map((message) => message.ruleId),
     ),
-    ["@typescript-eslint/no-unused-vars"],
+    [
+      "@typescript-eslint/no-unused-vars",
+      "@typescript-eslint/no-floating-promises",
+      "@typescript-eslint/no-unused-vars",
+    ],
   );
   assert.equal(
     results.reduce((total, result) => total + result.fatalErrorCount, 0),

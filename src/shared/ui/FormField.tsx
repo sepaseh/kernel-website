@@ -11,6 +11,7 @@ type Props = ComponentProps<"input"> & {
 };
 export const FormField = ({
   "aria-describedby": externalDescription,
+  "aria-invalid": externalInvalid,
   className,
   id,
   name,
@@ -33,7 +34,7 @@ export const FormField = ({
         {...props}
         name={name}
         id={fieldId}
-        aria-invalid={Boolean(error)}
+        aria-invalid={Boolean(error) || (externalInvalid ?? false)}
         aria-describedby={describedBy}
         className={cn("h-12 rounded-lg px-3.5 text-base", className)}
       />

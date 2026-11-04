@@ -62,6 +62,21 @@ describe("form field semantics", () => {
     expect(input.hasAttribute("aria-describedby")).toBe(false);
   });
 
+  it("preserves caller invalidity and gives a field error precedence", () => {
+    render(
+      <>
+        <FormField label="Name" aria-invalid="grammar" />
+        <FormField label="Email" aria-invalid={false} error="Invalid email" />
+      </>,
+    );
+    expect(screen.getByLabelText("Name").getAttribute("aria-invalid")).toBe(
+      "grammar",
+    );
+    expect(screen.getByLabelText("Email").getAttribute("aria-invalid")).toBe(
+      "true",
+    );
+  });
+
   it("keeps two controls with the same form name independently labeled and described", () => {
     render(
       <>
