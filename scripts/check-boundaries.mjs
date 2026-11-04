@@ -94,18 +94,20 @@ const publishedProductionFiles = new Set([
   "src/shared/api/origin.ts",
   "src/i18n/catalog-data/locales.ts",
   "src/i18n/catalog-data/website-types.ts",
-  "src/i18n/catalog-data/locales/ar.ts",
-  "src/i18n/catalog-data/locales/de.ts",
-  "src/i18n/catalog-data/locales/en.ts",
-  "src/i18n/catalog-data/locales/es.ts",
-  "src/i18n/catalog-data/locales/fa.ts",
-  "src/i18n/catalog-data/locales/fr.ts",
-  "src/i18n/catalog-data/locales/it.ts",
-  "src/i18n/catalog-data/locales/pt.ts",
-  "src/i18n/catalog-data/locales/ru.ts",
-  "src/i18n/catalog-data/locales/tr.ts",
   "src/i18n/catalogs.ts",
   "src/shared/settings/language.ts",
+]);
+const publishedCatalogFiles = new Set([
+  "src/i18n/catalog-data/locales/ar.json",
+  "src/i18n/catalog-data/locales/de.json",
+  "src/i18n/catalog-data/locales/en.json",
+  "src/i18n/catalog-data/locales/es.json",
+  "src/i18n/catalog-data/locales/fa.json",
+  "src/i18n/catalog-data/locales/fr.json",
+  "src/i18n/catalog-data/locales/it.json",
+  "src/i18n/catalog-data/locales/pt.json",
+  "src/i18n/catalog-data/locales/ru.json",
+  "src/i18n/catalog-data/locales/tr.json",
 ]);
 const reactRuntimeImport = {
   specifier: "react",
@@ -497,6 +499,23 @@ const packageSourceViolation = ({
     : "Package imports require an exact owner, installed package and runtime/type-only permission";
 };
 
+const catalogSourceViolation = (owner, specifier, target, typeOnly) => {
+  if (
+    owner === "src/i18n/catalogs.ts" &&
+    specifier === "@/" + target.slice("src/".length) &&
+    !typeOnly
+  )
+    return undefined;
+  if (
+    owner === "src/i18n/catalog-data/website-types.ts" &&
+    specifier === "./locales/en.json" &&
+    target === "src/i18n/catalog-data/locales/en.json" &&
+    typeOnly
+  )
+    return undefined;
+  return "Catalog JSON requires the exact runtime registry or erased English type owner";
+};
+
 export const boundaryViolation = ({
   root,
   file,
@@ -529,6 +548,8 @@ export const boundaryViolation = ({
     return owner === "src/shared/fonts/preloads.ts" && !typeOnly
       ? undefined
       : "Only the font preload helper may load the published font manifest";
+  if (publishedCatalogFiles.has(relativeTarget))
+    return catalogSourceViolation(owner, specifier, relativeTarget, typeOnly);
   if (!relativeTarget || !publishedProductionFiles.has(relativeTarget))
     return "Published imports must resolve only to published local production modules";
 

@@ -102,17 +102,17 @@ test("external packages, built-in modules and computed imports are not productio
 });
 
 test("catalog data uses erased local types without runtime imports or fallback catalogs", () => {
-  const owner = path.join(root, "src/i18n/catalog-data/locales/fa.ts");
-  const type = path.join(root, "src/i18n/catalog-data/website-types.ts");
-  assert.equal(check("../website-types.ts", type, owner, true), undefined);
-  assert.ok(check("../website-types.ts", type, owner, false));
+  const owner = path.join(root, "src/i18n/catalog-data/website-types.ts");
+  const type = path.join(root, "src/i18n/catalog-data/locales.ts");
+  assert.equal(check("./locales.ts", type, owner, true), undefined);
+  assert.ok(check("./locales.ts", type, owner, false));
   const [fallback] = inspectImports(
-    'import english from "./en.ts"; export default { ...english };',
+    'import english from "./locales/en.json"; export default { ...english };',
   );
   assert.ok(
     check(
       fallback.specifier,
-      path.join(root, "src/i18n/catalog-data/locales/en.ts"),
+      path.join(root, "src/i18n/catalog-data/locales/en.json"),
       owner,
       fallback.typeOnly,
     ),
@@ -130,13 +130,52 @@ test("catalog data uses erased local types without runtime imports or fallback c
     ),
   );
   assert.ok(check("@/i18n/catalog-data/website-types", type, owner, true));
-  assert.equal(
+});
+
+test("catalog JSON imports require exact resources, registry and erased type owners", () => {
+  const registry = path.join(root, "src/i18n/catalogs.ts");
+  const types = path.join(root, "src/i18n/catalog-data/website-types.ts");
+  for (const code of [
+    "ar",
+    "de",
+    "en",
+    "es",
+    "fa",
+    "fr",
+    "it",
+    "pt",
+    "ru",
+    "tr",
+  ]) {
+    const specifier = `@/i18n/catalog-data/locales/${code}.json`;
+    const target = path.join(
+      root,
+      `src/i18n/catalog-data/locales/${code}.json`,
+    );
+    assert.equal(check(specifier, target, registry), undefined);
+    assert.ok(check(specifier, target, registry, true));
+    assert.ok(check(specifier, target, file));
+    assert.ok(check(specifier, target, types, true));
+    assert.ok(check(specifier.replace(".json", ""), target, registry));
+    assert.ok(check(`./locales/${code}.json`, target, types, false));
+    assert.equal(
+      check(`./locales/${code}.json`, target, types, true) === undefined,
+      code === "en",
+    );
+  }
+  for (const target of [
+    "src/i18n/catalog-data/locales/xx.json",
+    "src/i18n/catalog-data/locales/en.ts",
+    "src/i18n/catalog-data/other.json",
+    "package.json",
+  ])
+    assert.ok(check("@/" + target.slice(4), path.join(root, target), registry));
+  assert.ok(
     check(
-      "@/i18n/catalog-data/locales/fa",
-      path.join(root, "src/i18n/catalog-data/locales/fa.ts"),
-      path.join(root, "src/i18n/catalogs.ts"),
+      "@/i18n/catalog-data/locales/en.json",
+      path.resolve(root, "../other/src/i18n/catalog-data/locales/en.json"),
+      registry,
     ),
-    undefined,
   );
 });
 
@@ -324,13 +363,13 @@ test("the reviewed phase has its exact owned production module count", async () 
     ),
   );
   const reviewedSourceCounts = {
-    foundation: 20,
-    "client-foundation": 44,
-    features: 65,
-    "runners-foundation": 65,
-    "browser-foundation": 65,
-    application: 90,
-    operations: 90,
+    foundation: 10,
+    "client-foundation": 34,
+    features: 55,
+    "runners-foundation": 55,
+    "browser-foundation": 55,
+    application: 80,
+    operations: 80,
   };
   assert.equal(result.files, reviewedSourceCounts[phase]);
   assert.deepEqual(result.violations, []);

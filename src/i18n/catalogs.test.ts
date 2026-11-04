@@ -1,11 +1,32 @@
 import { createTranslator } from "next-intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { localeCodes } from "@/i18n/catalog-data/locales";
 
 import { catalogs } from "./catalogs";
 
 describe("website ICU catalogs", () => {
+  it("loads only the selected locale resource when its loader is called", async () => {
+    const loaded: string[] = [];
+    vi.resetModules();
+    try {
+      for (const code of localeCodes)
+        vi.doMock(`@/i18n/catalog-data/locales/${code}.json`, () => {
+          loaded.push(code);
+          return { default: { account: `Synthetic ${code}` } };
+        });
+      const { catalogs: lazyCatalogs } = await import("./catalogs");
+      expect(loaded).toEqual([]);
+      const selected = await lazyCatalogs.fa();
+      expect(selected.default.account).toBe("Synthetic fa");
+      expect(loaded).toEqual(["fa"]);
+    } finally {
+      for (const code of localeCodes)
+        vi.doUnmock(`@/i18n/catalog-data/locales/${code}.json`);
+      vi.resetModules();
+    }
+  });
+
   it.each(localeCodes)(
     "renders every message in %s without syntax or interpolation fallbacks",
     async (locale) => {

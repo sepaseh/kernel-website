@@ -54,19 +54,20 @@ Keep source/export under one writer and restart if any proposed byte changes.
 Use the exact Node version from [.nvmrc](../.nvmrc) and its npm.
 In the export, create separate empty npm user/global configuration files in the
 owned temporary parent and select them with `NPM_CONFIG_USERCONFIG` and
-`NPM_CONFIG_GLOBALCONFIG`. Install development dependencies from the lockfile:
+`NPM_CONFIG_GLOBALCONFIG`. Use a disposable CPython 3.14.4 environment for the
+font tools. Install both sets of dependencies before running the full profile:
 
 ```text
 npm ci
+python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt
 npm run validate -- full
 ```
 
 Stop on any failed command. Do not reuse installed dependencies, read private
 npm configuration, alter the lockfile or skip checks to obtain a pass.
-Use a disposable Python 3.14.4 environment with the pinned dependencies from
-[font-source/requirements.txt](../font-source/requirements.txt) for font
-regeneration and measured Python coverage. This phase runs no application build
-or browser checks.
+The [wheel lock](../font-source/requirements.txt) covers x64 Windows and x64
+and Arm64 on glibc Linux and macOS. This phase runs no application build or
+browser checks.
 
 ## Record the result and clean up
 

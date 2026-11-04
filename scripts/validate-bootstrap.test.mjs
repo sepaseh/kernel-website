@@ -93,6 +93,37 @@ test("publication accepts only the reviewed phase inventory and matching readine
     assert.throws(() => validateBootstrapPolicy({ ...policy(), ...change }));
 });
 
+test("catalog inventories admit only the ten JSON resources", () => {
+  const prefix = "src/i18n/catalog-data/locales/";
+  const expected = [
+    "ar",
+    "de",
+    "en",
+    "es",
+    "fa",
+    "fr",
+    "it",
+    "pt",
+    "ru",
+    "tr",
+  ].map((code) => prefix + code + ".json");
+  for (const files of Object.values(publicationInventories))
+    assert.deepEqual(
+      files.filter((file) => file.startsWith(prefix)),
+      expected,
+    );
+  assert.throws(
+    () =>
+      validateBootstrapPolicy({
+        ...policy(),
+        allowedFiles: publicationFiles.map((file) =>
+          file === prefix + "en.json" ? prefix + "en.ts" : file,
+        ),
+      }),
+    /inventory must match/,
+  );
+});
+
 test("snapshot checks every file without executing authored JavaScript", async (t) => {
   const { root, put } = await fixture(t);
   const sentinel = path.join(root, "not-created");
@@ -138,6 +169,9 @@ test("snapshot rejects malformed JSON, malformed JavaScript and missing declarat
   await put("package.json", "{");
   await assert.rejects(inspectBootstrap(root), SyntaxError);
   await put("package.json", "{}");
+  await put("src/i18n/catalog-data/locales/en.json", "{");
+  await assert.rejects(inspectBootstrap(root), SyntaxError);
+  await put("src/i18n/catalog-data/locales/en.json", "{}");
   await put("scripts/run-audit.mjs", "export const = ;");
   await assert.rejects(inspectBootstrap(root), /Invalid JavaScript/);
   await put("scripts/run-audit.mjs", "export {};");

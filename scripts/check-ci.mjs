@@ -57,7 +57,7 @@ export const nodeAction =
 export const pythonAction =
   "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0";
 export const fontInstallCommand =
-  "python -m pip install --requirement font-source/requirements.txt";
+  "python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt";
 export const installCommand =
   "npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund";
 export const uploadAction =
@@ -160,6 +160,67 @@ const pinnedActions = (job) => {
   }
 };
 
+function validateProducerJob(job, name, label) {
+  unconditional(job);
+  assert.equal(
+    Object.hasOwn(job, "defaults"),
+    false,
+    "Verification jobs cannot override run defaults.",
+  );
+  assert.equal(
+    Object.hasOwn(job, "permissions"),
+    false,
+    "Verification jobs must inherit workflow permissions.",
+  );
+  assert.equal(job.name, label);
+  assert.equal(job.needs, undefined);
+  assert.equal(job.strategy, undefined);
+  assert.equal(job["timeout-minutes"], name === "audit" ? 5 : 20);
+  assert.equal(job["runs-on"], "ubuntu-latest");
+  pinnedActions(job);
+  assert.equal(job.steps[0].with.ref, "${{ github.sha }}");
+  const suite = name === "unit" || name === "governance";
+  const expected = [checkoutAction, nodeAction];
+  if (name !== "audit") expected.push(installCommand);
+  if (name === "governance") {
+    expected.push(pythonAction, fontInstallCommand);
+    assert.deepEqual(job.steps[3].with, { "python-version": "3.14.4" });
+  }
+  expected.push(`npm run validate -- ci-${name}`);
+  if (suite)
+    expected.push("node scripts/ci-evidence.mjs --record", uploadAction);
+  assert.deepEqual(
+    job.steps.map((step) => step.uses ?? step.run),
+    expected,
+  );
+  if (suite) {
+    assert.deepEqual(job.outputs, {
+      artifact: "${{ steps.evidence.outputs.artifact }}",
+      attempt: "${{ steps.evidence.outputs.attempt }}",
+    });
+    const evidenceIndex = name === "governance" ? 6 : 4;
+    assert.equal(job.steps[evidenceIndex].id, "evidence");
+    assert.deepEqual(job.steps[evidenceIndex].env, {
+      CI_EVIDENCE_SUITE: name,
+    });
+    const paths = [
+      `coverage/${name}/lcov.info`,
+      `coverage/${name}/ci-evidence.json`,
+    ];
+    if (name === "governance")
+      paths.push("coverage/governance/font-coverage.xml");
+    assert.deepEqual(job.steps[evidenceIndex + 1].with, {
+      name: "${{ steps.evidence.outputs.artifact }}",
+      path: `${paths.join("\n")}\n`,
+      "if-no-files-found": "error",
+      "retention-days": 3,
+      overwrite: false,
+      "include-hidden-files": false,
+    });
+  } else assert.equal(job.outputs, undefined);
+  job.steps.forEach(unconditional);
+}
+
 export function validateCiWorkflow(content, manifest) {
   validateCheckManifest(manifest);
   const workflow = workflowDocument(content);
@@ -223,67 +284,9 @@ export function validateCiWorkflow(content, manifest) {
     unit: "Unit tests",
     governance: "Governance tests",
   };
-  for (const [name, label] of Object.entries(labels)) {
-    const job = workflow.jobs[name];
-    unconditional(job);
-    assert.equal(
-      Object.hasOwn(job, "defaults"),
-      false,
-      "Verification jobs cannot override run defaults.",
-    );
-    assert.equal(
-      Object.hasOwn(job, "permissions"),
-      false,
-      "Verification jobs must inherit workflow permissions.",
-    );
-    assert.equal(job.name, label);
-    assert.equal(job.needs, undefined);
-    assert.equal(job.strategy, undefined);
-    assert.equal(job["timeout-minutes"], name === "audit" ? 5 : 20);
-    assert.equal(job["runs-on"], "ubuntu-latest");
-    pinnedActions(job);
-    assert.equal(job.steps[0].with.ref, "${{ github.sha }}");
-    const suite = name === "unit" || name === "governance";
-    const expected = [checkoutAction, nodeAction];
-    if (name !== "audit") expected.push(installCommand);
-    if (name === "governance") {
-      expected.push(pythonAction, fontInstallCommand);
-      assert.deepEqual(job.steps[3].with, { "python-version": "3.14.4" });
-    }
-    expected.push(`npm run validate -- ci-${name}`);
-    if (suite)
-      expected.push("node scripts/ci-evidence.mjs --record", uploadAction);
-    assert.deepEqual(
-      job.steps.map((step) => step.uses ?? step.run),
-      expected,
-    );
-    if (suite) {
-      assert.deepEqual(job.outputs, {
-        artifact: "${{ steps.evidence.outputs.artifact }}",
-        attempt: "${{ steps.evidence.outputs.attempt }}",
-      });
-      const evidenceIndex = name === "governance" ? 6 : 4;
-      assert.equal(job.steps[evidenceIndex].id, "evidence");
-      assert.deepEqual(job.steps[evidenceIndex].env, {
-        CI_EVIDENCE_SUITE: name,
-      });
-      const paths = [
-        `coverage/${name}/lcov.info`,
-        `coverage/${name}/ci-evidence.json`,
-      ];
-      if (name === "governance")
-        paths.push("coverage/governance/font-coverage.xml");
-      assert.deepEqual(job.steps[evidenceIndex + 1].with, {
-        name: "${{ steps.evidence.outputs.artifact }}",
-        path: `${paths.join("\n")}\n`,
-        "if-no-files-found": "error",
-        "retention-days": 3,
-        overwrite: false,
-        "include-hidden-files": false,
-      });
-    } else assert.equal(job.outputs, undefined);
-    job.steps.forEach(unconditional);
-  }
+  for (const [name, label] of Object.entries(labels))
+    validateProducerJob(workflow.jobs[name], name, label);
+
   const check = workflow.jobs.check;
   assert.equal(
     Object.hasOwn(check, "defaults"),

@@ -7,7 +7,7 @@ The [source policy](../.github/bootstrap-policy.json) is the exact admitted inve
 ## Published source
 
 - Shared frontend infrastructure and controls: 11 admitted files.
-- Pure local catalogs: 13 admitted files.
+- Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
 - Licensed font source and real font verification: 2 admitted files.
 
 The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.

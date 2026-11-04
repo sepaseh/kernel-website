@@ -10,8 +10,10 @@ independent. Use this guide to edit messages or trace language selection.
 
 [`localeCodes`](../src/i18n/catalog-data/locales.ts) registers `ar`, `de`, `en`,
 `es`, `fa`, `fr`, `it`, `pt`, `ru` and `tr`. Each code owns one file under
-`src/i18n/catalog-data/locales`. Each current
-catalog exports 107 flat, nonempty literal strings with identical semantic keys.
+`src/i18n/catalog-data/locales/<code>.json`. Each current
+resource contains 107 flat, nonempty literal strings with identical semantic keys.
+JSON keeps translations as data: no imports, expressions or executable statements.
+Every key appears exactly once, including after JSON escape decoding.
 
 Shared meanings use one bare key, such as `login` or `password`. Distinct
 meanings have separate keys, including `accountEmail` and `accountEmailLabel`.
@@ -19,15 +21,21 @@ Keep feature-specific keys explicit, such as `authLoginTitle`. Do not add nested
 namespaces, dotted aliases, fallback spreads or parallel catalog sources.
 
 [`WebsiteTranslationResource`](../src/i18n/catalog-data/website-types.ts) derives
-the key shape through an erased English-catalog type import. English is the type
-shape, not a runtime fallback. Pure catalog data may import only erased local
-types; translation engines, framework code and executable catalog logic stay
-outside this directory. [The loader registry](../src/i18n/catalogs.ts) explicitly
-loads every code and preserves each canonical catalog object.
+the key shape through an erased `en.json` type import. English supplies the type
+shape; each language supplies its own complete messages. Translation engines,
+framework code and executable catalog logic stay outside the resource directory.
+[The loader registry](../src/i18n/catalogs.ts) lazily imports one JSON resource
+for the requested code and preserves its default object across repeated calls.
+Its checked return type and exact-shape type assertions require each resource to
+match the canonical keys and string values.
+
+Use the explicit `.json` extension in imports. TypeScript's current Bundler
+resolution does not resolve an extensionless catalog path to JSON. When updating
+later application stages, change their direct English/Persian imports accordingly.
 
 ## Edit a message
 
-1. Find the key in the feature and all ten catalogs. Reuse a key only when the
+1. Find the key in the feature and all ten JSON resources. Reuse a key only when the
    meaning is the same; a section title and input label may need distinct text.
 2. Update every language with a genuine complete translation. Preserve intentional
    newlines and identical ICU variable names: `accountTitle` uses `{name}`,
@@ -45,9 +53,11 @@ node node_modules/vitest/vitest.mjs run src/i18n/catalog-data/integrity.test.ts 
 
 An intentional new semantic key also changes the current 107-key contract and
 its checked expectations/documentation; make those changes together. Type and
-boundary checks remain required. The tests check flat literal data, key/value
-completeness, placeholders/newlines, repeated-import identity and real next-intl
-interpolation. They do not replace linguistic review.
+boundary checks remain required. The tests check strict JSON, duplicate keys,
+flat string data, exact type/key completeness, placeholders/newlines, lazy loading,
+repeated-import identity and real next-intl interpolation. They do not replace
+linguistic review. JSON resources remain ordinary indexed source; executable
+loaders and translation consumers retain measured coverage.
 
 ## Trace active language and direction
 

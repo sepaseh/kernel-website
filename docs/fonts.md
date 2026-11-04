@@ -8,10 +8,10 @@ The generated subsets are 32,392, 44,188 and 24,168 bytes. The manifest records 
 
 ## Required verification
 
-Follow [validation setup](validation.md#2-install-fresh-dependencies) to create the
-external Python3.14.4 environment and install
-[font-source/requirements.txt](../font-source/requirements.txt). The complete
-profile includes `npm run check:fonts`; the governance CI job installs the pinned dependencies and publishes the measured report for the scanner. For a focused font change, run:
+Follow [validation setup](validation.md#install-and-run-all-checks) to install
+[the hash-locked font tooling](../font-source/requirements.txt) in a disposable
+Python 3.14.4 environment. The governance CI job installs those same wheels
+and publishes the measured report for the scanner. For a focused font change, run:
 
 ```sh
 npm run check:fonts

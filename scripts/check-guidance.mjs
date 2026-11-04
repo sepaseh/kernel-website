@@ -72,13 +72,13 @@ export function validateGuidanceIndexes(settings, navigation, manifest) {
 export function validateReadme(content, phase = "governance", ready = false) {
   assert.match(
     content,
-    new RegExp("\\b" + phase + "\\b", "i"),
+    new RegExp(String.raw`\b${phase}\b`, "i"),
     "README must identify the published scope.",
   );
   assert.match(
     content,
     new RegExp(
-      "application readiness\\s+is\\s+\\*{0,2}" + ready + "\\*{0,2}",
+      String.raw`application readiness\s+is\s+\*{0,2}${ready}\*{0,2}`,
       "i",
     ),
     "README readiness must match its reviewed phase.",

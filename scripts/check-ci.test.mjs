@@ -170,6 +170,12 @@ test("font coverage uses pinned Python and dependencies before measuring and sha
     (value) => {
       value.jobs.governance.steps[4].run = "echo skip dependencies";
     },
+    ...[" --require-hashes", " --only-binary :all:"].map(
+      (option) => (value) => {
+        const install = value.jobs.governance.steps[4];
+        install.run = install.run.replace(option, "");
+      },
+    ),
     (value) => {
       value.jobs.governance.steps[4].if = "false";
     },
