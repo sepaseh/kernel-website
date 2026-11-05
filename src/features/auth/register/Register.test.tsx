@@ -31,6 +31,7 @@ const deferred = () => {
   return { promise, reject, resolve };
 };
 
+/** Signals completion of the real session read before tests start OTP operations. */
 function SessionProbe() {
   const { loading } = useSession();
   return (

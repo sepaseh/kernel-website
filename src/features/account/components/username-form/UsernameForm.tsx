@@ -13,6 +13,7 @@ import { Feedback } from "@/shared/ui/Feedback";
 import { FormField } from "@/shared/ui/FormField";
 
 type UsernameFormProps = { account: Account };
+/** Reset the username draft and feedback when their session owner changes. */
 export const UsernameForm = ({ account }: UsernameFormProps) => {
   const locale = useLocale();
   const { generation } = useSession();
@@ -23,6 +24,10 @@ export const UsernameForm = ({ account }: UsernameFormProps) => {
     />
   );
 };
+/**
+ * Keep a failed edit available for retry, adopting the server's username on success.
+ * The keyed parent keeps the draft isolated from replacement session owners.
+ */
 const UsernameFields = ({ account }: UsernameFormProps) => {
   const t = useTranslations();
 
@@ -33,6 +38,10 @@ const UsernameFields = ({ account }: UsernameFormProps) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [notice, setNotice] = useState<string>();
+  /**
+   * Submit the trimmed lowercase username after native validation.
+   * Ignore a completed write's UI effects if its originating owner was replaced.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;

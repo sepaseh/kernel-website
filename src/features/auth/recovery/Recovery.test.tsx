@@ -30,6 +30,7 @@ const deferred = () => {
   return { promise, reject, resolve };
 };
 
+/** Signals completion of the real session read before tests start recovery operations. */
 function SessionProbe() {
   const { loading } = useSession();
   return (

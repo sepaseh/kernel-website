@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+/** Accept object-shaped hook containers while rejecting null and array payloads. */
 const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -17,8 +18,11 @@ const protectedPushRefspec =
   /(?!-)\+?(?:[^\s"';&|:]*:)?(?:refs\/heads\/)?(?:main|master)/.source;
 const pushDestination = `(?:${protectedPushRefspec}|"${protectedPushRefspec}"|'${protectedPushRefspec}')`;
 
-// This optional pattern guard is a fast host aid, not a shell interpreter or
-// evidence of authorization. The assistant must still follow repository policy.
+/**
+ * Return a blocking reason for malformed payloads or recognized unsafe patterns.
+ * An undefined result is only a pattern check, not authorization or shell parsing;
+ * the assistant must still enforce repository policy and existing task consent.
+ */
 export const inspectHookPayload = (payload) => {
   let input;
   try {

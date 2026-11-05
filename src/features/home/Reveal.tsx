@@ -3,6 +3,10 @@ import { domAnimation, LazyMotion, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import type { ReactNode } from "react";
 type Props = { children: ReactNode; className?: string; delay?: number };
+/**
+ * Keeps server-rendered content visible and delegates animation cleanup to Motion.
+ * Reduced motion disables the initial displacement, duration and delay.
+ */
 export const Reveal = ({ children, className, delay = 0 }: Props) => {
   const reduced = useReducedMotion();
   return (

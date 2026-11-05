@@ -1,6 +1,6 @@
 {
-  "name": "kernel-website-features-guidance",
-  "description": "Published features scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-runners-foundation-guidance",
+  "description": "Published runners-foundation scope, exact-tree validation and protected current-head reviews",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

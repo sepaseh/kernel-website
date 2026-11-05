@@ -14,6 +14,7 @@ import { Feedback } from "@/shared/ui/Feedback";
 import { FormField } from "@/shared/ui/FormField";
 
 type ProfileFormProps = { account: Account };
+/** Reset dirty profile values when the locale, session generation or account changes. */
 export const ProfileForm = ({ account }: ProfileFormProps) => {
   const locale = useLocale();
   const { generation } = useSession();
@@ -24,6 +25,10 @@ export const ProfileForm = ({ account }: ProfileFormProps) => {
     />
   );
 };
+/**
+ * Retain edited names on failure and replace them with server values after success.
+ * The keyed parent prevents another session owner from inheriting these drafts.
+ */
 const ProfileFields = ({ account }: ProfileFormProps) => {
   const t = useTranslations();
 
@@ -35,6 +40,10 @@ const ProfileFields = ({ account }: ProfileFormProps) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [notice, setNotice] = useState<string>();
+  /**
+   * Validate trimmed UTF-16 name lengths before sending the protected mutation.
+   * Only this operation's current owner may accept the returned account or feedback.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;

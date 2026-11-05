@@ -14,6 +14,7 @@ import { FormField } from "@/shared/ui/FormField";
 
 import { login } from "./api";
 
+/** Replaces form input and pending ownership when the locale or session changes. */
 export function Login() {
   const locale = useLocale();
   const { account, generation } = useSession();
@@ -22,6 +23,7 @@ export function Login() {
   );
 }
 
+/** Keeps authentication feedback within the current keyed form lifetime. */
 function LoginForm() {
   const t = useTranslations();
   const locale = useLocale();
@@ -31,6 +33,10 @@ function LoginForm() {
   const pending = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
+  /**
+   * Serializes login with the exact password and permits session refresh and
+   * navigation only for the originating owner. Invalidation does not cancel HTTP.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending.current) return;

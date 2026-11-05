@@ -12,6 +12,7 @@ import { Button } from "@/shared/ui/button";
 import { Feedback } from "@/shared/ui/Feedback";
 import { FormField } from "@/shared/ui/FormField";
 
+/** Discard entered passwords and feedback whenever the session owner changes. */
 export function PasswordForm() {
   const locale = useLocale();
   const { account, generation } = useSession();
@@ -19,6 +20,10 @@ export function PasswordForm() {
     <PasswordFields key={`${locale}:${generation}:${account?.id ?? ""}`} />
   );
 }
+/**
+ * Keep password input within the mounted form and preserve it after a failed write.
+ * Current and new passwords are submitted verbatim, including surrounding spaces.
+ */
 function PasswordFields() {
   const t = useTranslations();
 
@@ -26,6 +31,10 @@ function PasswordFields() {
   const captureOperation = useOperationScope();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
+  /**
+   * Change the password only after browser constraints and confirmation agree.
+   * Session revocation needs a fresh login document; stale owners cannot redirect.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;

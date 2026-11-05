@@ -37,6 +37,7 @@ type OtpFormProps = {
     }
 );
 
+/** Resets input and operation ownership when the flow, locale or session changes. */
 export function OtpForm(props: OtpFormProps) {
   const locale = useLocale();
   const { account, generation } = useSession();
@@ -48,6 +49,7 @@ export function OtpForm(props: OtpFormProps) {
   );
 }
 
+/** Owns one keyed form lifetime, including recipient-specific feedback and cooldown. */
 function OtpFormBody(props: OtpFormProps) {
   const t = useTranslations();
   const locale = useLocale();
@@ -71,10 +73,15 @@ function OtpFormBody(props: OtpFormProps) {
   else if (remaining) codeLabel = t("feedbackResendIn", { seconds: remaining });
   const submitLabel = t(registration ? "register" : "authResetPassword");
 
+  /** Rechecks the live normalized input before accepting an OTP response. */
   const ownsDestination = (destination: RegisterRequest["mobile"]) =>
     form.current !== null &&
     mobileValue(new FormData(form.current)) === destination;
 
+  /**
+   * Serializes code requests with submission and accepts feedback only for the
+   * originating form and unchanged destination; the request itself is not canceled.
+   */
   async function sendCode() {
     if (pending.current || remaining || !form.current) return;
     const destination = mobileValue(new FormData(form.current));
@@ -101,6 +108,10 @@ function OtpFormBody(props: OtpFormProps) {
     }
   }
 
+  /**
+   * Validates normalized fields while preserving password whitespace, then
+   * completes the flow. Only the live owner may refresh or navigate afterward.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending.current) return;

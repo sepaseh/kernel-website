@@ -15,6 +15,7 @@ import { PasswordForm } from "./components/password-form/PasswordForm";
 import { ProfileForm } from "./components/profile-form/ProfileForm";
 import { UsernameForm } from "./components/username-form/UsernameForm";
 
+/** Reset account UI state when the locale, session generation or account changes. */
 export function Account() {
   const locale = useLocale();
   const { account, generation } = useSession();
@@ -25,6 +26,10 @@ export function Account() {
   );
 }
 
+/**
+ * Redirect only a settled anonymous session; failed reads remain visible for retry.
+ * Account content and mutation feedback belong to this mounted session view.
+ */
 function AccountView() {
   const t = useTranslations();
   const locale = useLocale();
@@ -33,6 +38,10 @@ function AccountView() {
   const captureOperation = useOperationScope();
   const [busy, setBusy] = useState(false);
   const [logoutError, setLogoutError] = useState<unknown>();
+  /**
+   * Refresh the provider after server logout even if this view has been replaced.
+   * Only the current view may navigate or show the result; the write is not undone.
+   */
   async function signOut() {
     if (busy) return;
     const isCurrent = captureOperation();

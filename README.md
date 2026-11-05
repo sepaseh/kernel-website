@@ -1,6 +1,6 @@
 # Kernel Website
 
-The current publication phase is **features** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **runners-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
 Runnable application composition is not declared for this phase. Published helpers, authored suites and installed dependencies do not prove a running application.
 
@@ -12,6 +12,12 @@ Runnable application composition is not declared for this phase. Published helpe
 - SEO, CSP and optional Web Vitals delivery helpers.
 - Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
 - Licensed font source and real font verification.
+- Guarded Node runners, a synthetic HTTP fixture and deployment templates.
+
+The [runner contracts](docs/runner-foundation.md), [HTTP fixture](docs/api-fixture.md)
+and [deployment references](docs/deployment.md) are exercised through isolated
+owner tests. Application launch, build, packaging and delivery commands remain
+blocked by the false readiness marker.
 
 Start with [Contributing](CONTRIBUTING.md), [task navigation](docs/source-navigation.md), [source scope](docs/bootstrap.md) and [exact-tree validation](docs/validation.md). [AGENTS](AGENTS.md) owns assistant entry instructions.
 
