@@ -123,7 +123,7 @@ describe("profile form ownership", () => {
       expect(screen.getByRole("alert").textContent).toContain(
         messages.nameTooLong.replace("{max}", "1000"),
       );
-      expect(field(messages[name]).value.trim().length).toBe(1001);
+      expect(field(messages[name]).value.trim()).toHaveLength(1001);
       fireEvent.change(field(messages[name]), { target: { value: "Grace" } });
       fireEvent.click(
         screen.getByRole("button", { name: messages.accountSaveProfile }),
