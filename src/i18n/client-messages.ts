@@ -37,6 +37,7 @@ const sharedClientKeys = [
 const clientKeys = {
   account: [
     ...sharedClientKeys,
+    "nameTooLong",
     "accountChangePassword",
     "accountCheckAgain",
     "accountCurrentPassword",
@@ -66,6 +67,7 @@ const clientKeys = {
   ],
   auth: [
     ...sharedClientKeys,
+    "nameTooLong",
     "authAccountSideLabel",
     "authAccountSideText",
     "authAccountSideTitle",

@@ -89,6 +89,7 @@
   "metadataTitle": "Kernel — Un punto di partenza chiaro",
   "mobile": "Numero di cellulare",
   "mobileInvalid": "Inserisci un numero di cellulare di 11 cifre che inizi con 09.",
+  "nameTooLong": "Il nome e il cognome devono contenere al massimo {max} caratteri dopo la rimozione degli spazi iniziali e finali.",
   "networkError": "Non è stato possibile completare la richiesta. Riprova.",
   "newPassword": "Nuova password",
   "otp": "Codice di verifica",

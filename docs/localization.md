@@ -11,7 +11,7 @@ independent. Use this guide to edit messages or trace language selection.
 [`localeCodes`](../src/i18n/catalog-data/locales.ts) registers `ar`, `de`, `en`,
 `es`, `fa`, `fr`, `it`, `pt`, `ru` and `tr`. Each code owns one file under
 `src/i18n/catalog-data/locales/<code>.json`. Each current
-resource contains 107 flat, nonempty literal strings with identical semantic keys.
+resource contains 108 flat, nonempty literal strings with identical semantic keys.
 JSON keeps translations as data: no imports, expressions or executable statements.
 Every key appears exactly once, including after JSON escape decoding.
 
@@ -51,7 +51,7 @@ later application stages, change their direct English/Persian imports accordingl
 node node_modules/vitest/vitest.mjs run src/i18n/catalog-data/integrity.test.ts src/i18n/catalogs.test.ts src/i18n/client-messages.test.ts
 ```
 
-An intentional new semantic key also changes the current 107-key contract and
+An intentional new semantic key also changes the current 108-key contract and
 its checked expectations/documentation; make those changes together. Type and
 boundary checks remain required. The tests check strict JSON, duplicate keys,
 flat string data, exact type/key completeness, placeholders/newlines, lazy loading,

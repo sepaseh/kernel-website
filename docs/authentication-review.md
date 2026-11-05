@@ -15,8 +15,9 @@ rotation or reuse detection.
 Local session and operation-scope tests cover account/locale/generation ownership,
 cleanup and invalidation of stale reads, accepted mutations and mount captures.
 HTTP tests cover public-auth and protected-mutation expiry notification behavior.
-Feature form components and tests are not included in this phase, so retained
-input, form feedback, OTP destination ownership and late navigation remain
-integration requirements. These client guards do not authorize an API write or
-undo one already accepted by the API. Preserve exact password whitespace when
-connecting form values to the published HTTP operations.
+Feature form tests also cover retained input, form feedback, OTP destination
+ownership and stale navigation with synthetic HTTP responses and controlled
+navigation adapters. These client guards do not authorize an API write or undo
+one already accepted by the API. Preserve exact password whitespace from form
+values through the HTTP operations. Local tests do not establish live backend
+authentication, browser navigation or deployed cookie behavior.

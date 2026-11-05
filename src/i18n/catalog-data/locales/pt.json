@@ -89,6 +89,7 @@
   "metadataTitle": "Kernel — Um ponto de partida claro",
   "mobile": "Número de telemóvel",
   "mobileInvalid": "Introduza um número de telemóvel de 11 algarismos começado por 09.",
+  "nameTooLong": "O nome e o sobrenome devem ter no máximo {max} caracteres após a remoção dos espaços no início e no fim.",
   "networkError": "Não foi possível concluir o pedido. Tente novamente.",
   "newPassword": "Nova palavra-passe",
   "otp": "Código de verificação",

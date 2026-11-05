@@ -48,6 +48,7 @@ describe("website ICU catalogs", () => {
           name: "Ada",
           email: "qa@example.com",
           seconds: 17,
+          max: 1000,
         });
         expect(rendered, `${locale}:${key}`).not.toBe("");
         expect(rendered, `${locale}:${key}`).not.toMatch(
@@ -57,6 +58,7 @@ describe("website ICU catalogs", () => {
         if (source.includes("{email}"))
           expect(rendered).toContain("qa@example.com");
         if (source.includes("{seconds}")) expect(rendered).toContain("17");
+        if (source.includes("{max}")) expect(rendered).toContain("1000");
       }
     },
   );

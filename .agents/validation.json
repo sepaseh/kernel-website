@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "client-foundation",
+  "phase": "features",
   "applicationReady": false,
   "checks": [
     {
@@ -8,84 +8,84 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "actions-lint",
       "command": "npm run check:actions",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["audit"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["unit"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     },
     {
       "id": "font-integrity",
       "command": "npm run check:fonts",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["client-foundation"]
+      "scopes": ["features"]
     }
   ],
   "profiles": {

@@ -1,6 +1,6 @@
 {
-  "name": "kernel-website-client-foundation-guidance",
-  "description": "Published client-foundation scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-features-guidance",
+  "description": "Published features scope, exact-tree validation and protected current-head reviews",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",
@@ -28,7 +28,12 @@
     ".agents/skills/start-issue/SKILL.md",
     ".agents/skills/validate-change/SKILL.md"
   ],
-  "optionalHooks": [],
+  "optionalHooks": [
+    ".agents/hooks/block-dangerous.mjs",
+    ".agents/hooks/block-dangerous.sh",
+    ".agents/hooks/post-edit-format.sh",
+    ".agents/hooks/quality-gate.sh"
+  ],
   "navigation": ".agents/navigation.json",
   "validation": ".agents/validation.json",
   "recommendedChecks": [
@@ -48,5 +53,6 @@
   "recommendedChecksSource": {
     "path": ".agents/validation.json",
     "profile": "full"
-  }
+  },
+  "evaluation": ".agents/evaluation/cases.json"
 }

@@ -89,6 +89,7 @@
   "metadataTitle": "Kernel — Ein klarer Ausgangspunkt",
   "mobile": "Mobilnummer",
   "mobileInvalid": "Geben Sie eine elfstellige Mobilnummer ein, die mit 09 beginnt.",
+  "nameTooLong": "Vor- und Nachname dürfen nach dem Entfernen äußerer Leerzeichen höchstens {max} Zeichen lang sein.",
   "networkError": "Die Anfrage konnte nicht abgeschlossen werden. Versuchen Sie es erneut.",
   "newPassword": "Neues Passwort",
   "otp": "Bestätigungscode",

@@ -2,10 +2,10 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-This phase publishes form-value helpers, UI primitives, HTTP operations and
-session hooks. Feature form components and their integration tests are not yet
-published. The form behavior below describes requirements for that later
-integration; the evidence section identifies what is currently tested.
+This phase publishes login, registration, recovery and account form components
+with their local integration tests. They combine form-value helpers, UI
+primitives, HTTP operations and session hooks. Application routes and browser
+execution remain outside this phase.
 
 ## Values and controls
 
@@ -59,15 +59,16 @@ to /login?reset=success. Routes are fixed local destinations.
 
 ## Evidence and limits
 
-Current tests cover value normalization and password whitespace, exact HTTP
-payloads, individual UI controls, session ownership, operation scopes and
-cooldowns. They exercise these owners independently; no feature form component
-test currently combines them.
+The [login](../src/features/auth/login/Login.test.tsx),
+[registration](../src/features/auth/register/Register.test.tsx),
+[recovery](../src/features/auth/recovery/Recovery.test.tsx) and
+[account](../src/features/account/Account.test.tsx) suites use the
+[shared fixture](../src/test/feature-session.tsx), which selects only auth/account
+messages through selectClientMessages. The suites exercise normalized values,
+exact HTTP payloads, pending/error/retry behavior, retained input, OTP destination
+ownership and stale feedback/navigation. Account form owner tests cover email
+verification, profile and username responses, password changes and owner resets.
 
-The [shared fixture](../src/test/feature-session.tsx) selects only auth/account
-messages through selectClientMessages, but no current test imports it. Its
-presence does not establish form-level validation, pending/error/retry behavior,
-OTP destination ownership, input reset or late feedback/navigation behavior.
-Add those cases with the feature forms. Local owner tests also do not establish
-Next.js routing, browser constraint validation, cookie isolation, hydration,
-visual layout or deployment.
+These local tests use synthetic responses and controlled navigation adapters.
+They do not establish Next.js routing, browser constraint validation, cookie
+isolation, hydration, visual layout or deployment.

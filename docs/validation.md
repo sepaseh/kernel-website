@@ -30,7 +30,7 @@ The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
 Unit and governance jobs each record and upload their measured coverage once;
 Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. This client-foundation phase runs no application build,
+own hosted security workflow. The features phase runs no application build,
 E2E, visual or performance job.
 
 ## Prepare an owned export

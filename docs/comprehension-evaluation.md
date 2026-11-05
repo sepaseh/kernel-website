@@ -1,0 +1,28 @@
+# Source comprehension evaluation
+
+Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+
+[Case specifications](../.agents/evaluation/cases.json) cover the published source
+boundaries. Each case has an English prompt, task IDs, local evidence, check IDs
+and observable positive/negative criteria. The assistant specification and human guide are English-only. A case file is not an executed benchmark or proof that an assistant discovered instructions.
+
+## Run and record a bounded evaluation
+
+1. Identify the exact commit/tree plus any dirty/untracked source in scope. Exclude
+   real environments, credentials, private state and unrelated checkout contents.
+2. Give a fresh subject the prompt and an allowlisted source snapshot. Keep answer
+   criteria, previous answers and historical QA outside the subject's input.
+   Independently verify source fingerprints.
+3. Record the exposed host/model/version, configuration, allowed tools, source
+   scope and observed loading in [run template](../.agents/evaluation/run-template.json).
+   If loading is not observable, leave it not-verified. Keep unavailable
+   time/token/cost fields null rather than estimating them as measurements.
+4. Evaluate source-grounded answers against the criteria. Record partial coverage,
+   missing evidence, assumptions and limits. A clarified prompt is a new trial,
+   not permission to silently rescore an older answer.
+
+The [guidance checker](../scripts/check-guidance.mjs) checks metadata, paths, links
+and command projections. It does not execute an assistant, prove semantic-map
+completeness, measure discovery or judge answer quality. The checked-in template is unrun. Report actual observations in the task or terminal; save a local evaluation report only when explicitly requested, under ignored `test-results/`. Do not add run reports to the evaluation directory or documentation.
+Use [navigation](source-navigation.md), [architecture](architecture.md) and the
+[canonical manifest](../.agents/validation.json) to identify actual owners and checks.
