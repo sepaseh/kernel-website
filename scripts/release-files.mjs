@@ -191,25 +191,24 @@ async function copyDirectoryEntry(
   skip,
   overwrite,
   destinationRoot,
+  budget,
 ) {
   if (ancestors.has(source))
     throw new Error("Cannot package a circular directory link.");
   assertCopySeparation(source, await physicalOutputPath(destinationRoot));
   const nested = new Set(ancestors).add(source);
   await ensureArtifactDirectory(destination);
-  await completeArtifactWork(
-    (await readdir(source)).map((name) =>
-      copyEntry(
-        path.join(source, name),
-        path.join(destination, name),
-        sourceRoot,
-        nested,
-        skip,
-        overwrite,
-        destinationRoot,
-      ),
-    ),
-  );
+  for (const name of await readdir(source))
+    await copyEntry(
+      path.join(source, name),
+      path.join(destination, name),
+      sourceRoot,
+      nested,
+      skip,
+      overwrite,
+      destinationRoot,
+      budget,
+    );
 }
 
 async function copyFileEntry(source, destination, overwrite, destinationRoot) {
@@ -262,11 +261,14 @@ async function copyEntry(
   skip,
   overwrite,
   destinationRoot,
+  budget,
 ) {
   const relative = path.relative(sourceRoot, source).split(path.sep).join("/");
   if (!insideArtifactRoot(sourceRoot, source))
     throw new Error("Artifact source must stay inside its declared tree.");
   if (skip.has(relative) || excludedArtifactPath(relative)) return;
+  if (++budget.entries > budget.maxEntries)
+    throw new Error("Artifact copy exceeds its total entry budget.");
   const resolved = await realpath(source);
   if (!insideArtifactRoot(sourceRoot, resolved))
     throw new Error("Cannot package a link outside its source tree.");
@@ -281,8 +283,12 @@ async function copyEntry(
       skip,
       overwrite,
       destinationRoot,
+      budget,
     );
   } else if (entry.isFile()) {
+    budget.bytes += entry.size;
+    if (budget.bytes > budget.maxBytes)
+      throw new Error("Artifact copy exceeds its total byte budget.");
     await copyFileEntry(resolved, destination, overwrite, destinationRoot);
   } else throw new Error("Unsupported release file.");
 }
@@ -292,6 +298,8 @@ export async function copyArtifactTree({
   sourceRoot,
   skipPaths = [],
   overwrite = false,
+  maxEntries = 100_000,
+  maxBytes = 1024 * 1024 * 1024,
 }) {
   if (
     typeof overwrite !== "boolean" ||
@@ -301,6 +309,13 @@ export async function copyArtifactTree({
     throw new Error(
       "Artifact copy options must declare boolean overwrite and string skip paths.",
     );
+  if (
+    !Number.isSafeInteger(maxEntries) ||
+    maxEntries < 1 ||
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < 1
+  )
+    throw new Error("Artifact copy budgets must be positive safe integers.");
   const root = await artifactDirectory(sourceRoot);
   const from = absolutePath(source);
   if (!insideArtifactRoot(root, from))
@@ -314,7 +329,12 @@ export async function copyArtifactTree({
   if (excludedArtifactPath(path.relative(root, resolved))) return;
   const target = await physicalOutputPath(destination);
   assertCopySeparation(resolved, target);
-  await copyEntry(from, target, root, new Set(), skip, overwrite, target);
+  await copyEntry(from, target, root, new Set(), skip, overwrite, target, {
+    entries: 0,
+    bytes: 0,
+    maxEntries,
+    maxBytes,
+  });
 }
 
 export async function runDeliveryCommand(main, root, action) {

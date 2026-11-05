@@ -274,6 +274,9 @@ test("registration requires a requested destination-bound code and returns isola
         .status,
       400,
     );
+  let clock = Date.now();
+  const issuedAt = clock;
+  t.mock.method(Date, "now", () => clock);
   const issued = await request("/auth/otp-request", {
     body: { mobile: number, purpose: "register" },
     method: "POST",
@@ -282,6 +285,12 @@ test("registration requires a requested destination-bound code and returns isola
     expires_in: 300,
     remaining_seconds: 60,
   });
+  clock += 300_001;
+  assert.equal(
+    (await request("/auth/register", { body, method: "POST" })).status,
+    400,
+  );
+  clock = issuedAt;
   for (const change of [
     { otp: "000000" },
     { first_name: "x".repeat(1001) },
@@ -534,6 +543,94 @@ test("profile, username and destination-bound email mutations preserve other ses
   assert.equal(
     (await request("/account/me", { cookie: second.cookie })).status,
     200,
+  );
+});
+
+test("usernames cannot shadow another account's mobile login identifier", async (t) => {
+  const { request } = await fixture(t);
+  const first = await register(request, "09180001007");
+  const second = await register(request, "09180001008");
+  const update = (username) =>
+    request("/account/update-username", {
+      body: { username },
+      cookie: first.cookie,
+      method: "POST",
+    });
+  const rejected = await update(second.body.account.mobile);
+  assert.equal(rejected.status, 409);
+  assert.match((await rejected.json()).message, /username is already taken/);
+  const unchanged = await (
+    await request("/account/me", { cookie: first.cookie })
+  ).json();
+  assert.equal(unchanged.username, undefined);
+  assert.equal(
+    (await login(request, second.body.account.mobile, password)).body.account
+      .id,
+    second.body.account.id,
+  );
+
+  assert.equal((await update(first.body.account.mobile)).status, 200);
+  assert.equal(
+    (await login(request, first.body.account.mobile, password)).body.account.id,
+    first.body.account.id,
+  );
+  assert.equal((await update("website_first")).status, 200);
+  assert.equal(
+    (await login(request, "website_first", password)).body.account.id,
+    first.body.account.id,
+  );
+});
+
+test("registration cannot claim an existing username as a mobile or consume its code on conflict", async (t) => {
+  const { request } = await fixture(t);
+  const first = await register(request, "09180001009");
+  const number = "09180001010";
+  const update = (username) =>
+    request("/account/update-username", {
+      body: { username },
+      cookie: first.cookie,
+      method: "POST",
+    });
+  assert.equal((await update(number)).status, 200);
+  assert.equal(
+    (
+      await request("/auth/otp-request", {
+        body: { mobile: number, purpose: "register" },
+        method: "POST",
+      })
+    ).status,
+    200,
+  );
+  const body = {
+    mobile: number,
+    first_name: "New",
+    last_name: "Tester",
+    password,
+    otp: "123456",
+  };
+  const rejected = await request("/auth/register", { body, method: "POST" });
+  assert.equal(rejected.status, 409);
+  assert.match(
+    (await rejected.json()).message,
+    /mobile is already used as a username/,
+  );
+  assert.equal(
+    (await login(request, number, password)).body.account.id,
+    first.body.account.id,
+  );
+
+  assert.equal((await update("website_owner")).status, 200);
+  const accepted = await request("/auth/register", { body, method: "POST" });
+  assert.equal(accepted.status, 201);
+  const second = await accepted.json();
+  assert.notEqual(second.account.id, first.body.account.id);
+  assert.equal(
+    (await login(request, number, password)).body.account.id,
+    second.account.id,
+  );
+  assert.equal(
+    (await login(request, "website_owner", password)).body.account.id,
+    first.body.account.id,
   );
 });
 

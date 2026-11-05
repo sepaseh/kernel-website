@@ -110,6 +110,45 @@ test("owned execution uses its explicit environment and drains output before suc
   );
 });
 
+test("completion-only execution drains explicit and implicit output pipes", async (t) => {
+  const root = await fixture(t);
+  const source = `
+    import {writeFile} from 'node:fs/promises';
+    const written = [];
+    for (const stream of [process.stdout, process.stderr]) {
+      const output = Buffer.alloc(4 * 1024 * 1024);
+      await new Promise((resolve, reject) => {
+        stream.write(output, (error) => error ? reject(error) : resolve());
+      });
+      written.push(output.length);
+    }
+    await writeFile('drained.json', JSON.stringify(written));
+  `;
+  for (const stdio of [
+    "pipe",
+    "overlapped",
+    null,
+    [],
+    ["ignore"],
+    ["ignore", "pipe"],
+    ["ignore", "ignore"],
+    ["ignore", null, "ignore"],
+    ["ignore", undefined, "ignore"],
+    ["ignore", "ignore", null],
+    ["ignore", "ignore", undefined],
+    ["ignore", "overlapped", "overlapped"],
+  ]) {
+    assert.deepEqual(await runOwnedProcess(options(root, source, { stdio })), {
+      code: 0,
+      signal: null,
+    });
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(root, "drained.json"), "utf8")),
+      [4 * 1024 * 1024, 4 * 1024 * 1024],
+    );
+  }
+});
+
 test("owned environment is a single own-entry snapshot without inherited launch options", async (t) => {
   const root = await fixture(t);
   const env = Object.create({

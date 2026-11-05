@@ -104,12 +104,37 @@ export async function writeRenderedConfiguration(output, rendered, force) {
   await ensureArtifactDirectory(path.dirname(output));
   if (!force) {
     const handle = await open(output, "wx");
+    const failures = [];
+    let owned;
     try {
+      owned = await handle.stat();
       await handle.writeFile(rendered);
-    } finally {
-      await handle.close();
+    } catch (error) {
+      failures.push(error);
     }
-    return;
+    try {
+      await handle.close();
+    } catch (error) {
+      failures.push(error);
+    }
+    if (!failures.length) return;
+
+    try {
+      const current = await lstat(output);
+      if (
+        current.isFile() &&
+        !current.isSymbolicLink() &&
+        current.dev === owned?.dev &&
+        current.ino === owned?.ino
+      )
+        await rm(output);
+    } catch (error) {
+      if (error.code !== "ENOENT") failures.push(error);
+    }
+    if (failures.length === 1) throw failures[0];
+    throw new AggregateError(failures, "Rendered output creation failed.", {
+      cause: failures[0],
+    });
   }
 
   const existing = await outputEntry(output);

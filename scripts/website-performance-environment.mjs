@@ -1,28 +1,51 @@
 import { lstatSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+function assertUnlinkedDirectory(directory, optional = false) {
+  let info;
+  try {
+    info = lstatSync(directory);
+  } catch (error) {
+    if (optional && error.code === "ENOENT") return false;
+    throw error;
+  }
+  if (info.isSymbolicLink())
+    throw new Error(
+      "Performance tools require an unlinked owned website directory.",
+    );
+  if (!info.isDirectory())
+    throw new Error("Performance website path must be a directory.");
+  return true;
+}
+
 export function assertCleanWebsiteEnvironment(websiteDirectory) {
   const directory = path.resolve(websiteDirectory);
+  const ancestors = [];
   let cursor = directory;
   while (true) {
-    if (lstatSync(cursor).isSymbolicLink())
-      throw new Error(
-        "Performance tools require an unlinked owned website directory.",
-      );
+    ancestors.push(cursor);
     const parent = path.dirname(cursor);
     if (parent === cursor) break;
     cursor = parent;
   }
-  if (!lstatSync(directory).isDirectory())
-    throw new Error("Performance website path must be a directory.");
+  for (const ancestor of ancestors.reverse()) assertUnlinkedDirectory(ancestor);
+
+  const standalone = path.join(directory, ".next/standalone");
+  const directories = [directory];
   if (
-    readdirSync(directory).some(
-      (name) => /^\.env(?:\.|$)/i.test(name) && name !== ".env.example",
-    )
+    assertUnlinkedDirectory(path.join(directory, ".next"), true) &&
+    assertUnlinkedDirectory(standalone, true)
   )
-    throw new Error(
-      "Isolated performance tools require a clean website checkout without runtime dotenv files. No file was read or changed; use a clean checkout with installed dependencies.",
-    );
+    directories.push(standalone);
+  for (const candidate of directories)
+    if (
+      readdirSync(candidate).some(
+        (name) => /^\.env(?:\.|$)/i.test(name) && name !== ".env.example",
+      )
+    )
+      throw new Error(
+        "Isolated performance tools require a clean website checkout without runtime dotenv files. No file was read or changed; use a clean checkout with installed dependencies.",
+      );
 }
 
 export function websitePerformanceEnvironment(

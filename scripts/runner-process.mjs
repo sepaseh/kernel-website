@@ -185,7 +185,9 @@ export function startOwnedProcess({
 }
 
 export async function runOwnedProcess(options) {
-  return startOwnedProcess(options).completion;
+  const owned = startOwnedProcess(options);
+  for (const stream of owned.child.stdio.slice(1)) stream?.resume?.();
+  return owned.completion;
 }
 
 export async function runVerificationCli(main, root, action) {

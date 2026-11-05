@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +12,16 @@ import {
 } from "./release-files.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
+
+async function existingAssetDirectory(directory) {
+  try {
+    return await artifactDirectory(directory);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return undefined;
+  }
+}
+
 export async function prepareStandalone(root = repository) {
   const directory = await requireApplicationReady(root);
   const destination = path.join(directory, ".next/standalone");
@@ -20,6 +31,16 @@ export async function prepareStandalone(root = repository) {
     artifactDirectory(path.join(directory, "public")),
     artifactDirectory(path.join(directory, ".next/static")),
   ]);
+  const existing = await completeArtifactWork(
+    ["public", ".next/static"].map((name) =>
+      existingAssetDirectory(path.join(destination, name)),
+    ),
+  );
+  await completeArtifactWork(
+    existing
+      .filter((directory) => directory !== undefined)
+      .map((directory) => rm(directory, { recursive: true })),
+  );
   await completeArtifactWork([
     copyArtifactTree({
       source: path.join(directory, "public"),

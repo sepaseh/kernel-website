@@ -53,7 +53,9 @@ certificate/key contents stay at operator-controlled paths outside it.
 
 The [ACME bootstrap](nginx/acme-bootstrap.conf.template) serves only the challenge
 path and otherwise returns 503. The [TLS template](nginx/kernel-website.conf.template)
-provides unknown-host rejection, TLS, release marker and the website proxy. Review
+keeps the same `/var/www/acme` webroot available over HTTP for renewals and redirects
+other HTTP paths to HTTPS. It provides unknown-host rejection, TLS, release marker
+and the website proxy. Review
 certificate issuance/renewal and trusted forwarding. A shared Nginx listener
 needs one operator-owned default rejection block per address/port; do not install
 multiple conflicting default-server blocks.

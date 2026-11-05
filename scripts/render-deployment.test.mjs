@@ -297,6 +297,153 @@ test("failed staged writes and publication close the handle and preserve existin
   }
 });
 
+test("exclusive rendering removes owned partial output and preserves write and close failures", async (context) => {
+  const directory = await temporaryFixture(context);
+  const originalOpen = filesystem.open;
+  for (const operation of ["write", "close", "both"]) {
+    const output = path.join(directory, `${operation}.conf`);
+    const writeFailure = new Error("Synthetic exclusive write failure");
+    const closeFailure = new Error("Synthetic exclusive close failure");
+    let handle;
+
+    await withFileOperations(
+      context,
+      {
+        open: async (...args) => {
+          handle = await originalOpen(...args);
+          const write = handle.writeFile.bind(handle);
+          const close = handle.close.bind(handle);
+          context.mock.method(handle, "writeFile", async () => {
+            await write("partial bytes");
+            if (operation !== "close") throw writeFailure;
+          });
+          context.mock.method(handle, "close", async () => {
+            await close();
+            if (operation !== "write") throw closeFailure;
+          });
+          return handle;
+        },
+      },
+      () =>
+        assert.rejects(
+          writeRenderedConfiguration(output, "new configuration", false),
+          (error) => {
+            if (operation === "both") {
+              assert.ok(error instanceof AggregateError);
+              assert.deepEqual(error.errors, [writeFailure, closeFailure]);
+              assert.equal(error.cause, writeFailure);
+            } else
+              assert.equal(
+                error,
+                operation === "write" ? writeFailure : closeFailure,
+              );
+            return true;
+          },
+        ),
+    );
+
+    assert.equal(handle.fd, -1);
+    await assert.rejects(readFile(output), { code: "ENOENT" });
+  }
+  assert.deepEqual(await readdir(directory), []);
+});
+
+test("failed exclusive rendering preserves unrelated output replacements and link targets", async (context) => {
+  const directory = await temporaryFixture(context);
+  const originalOpen = filesystem.open;
+  for (const kind of ["regular", "linked", "removed"]) {
+    const root = path.join(directory, kind);
+    await mkdir(root);
+    const output = path.join(root, "nginx.conf");
+    const displaced = path.join(root, "displaced.conf");
+    const unrelated = path.join(root, "unrelated.conf");
+    await writeFile(unrelated, "preserve unrelated bytes");
+    const failure = new Error(
+      "Synthetic write failure after output replacement",
+    );
+    let handle;
+
+    await withFileOperations(
+      context,
+      {
+        open: async (...args) => {
+          handle = await originalOpen(...args);
+          const write = handle.writeFile.bind(handle);
+          context.mock.method(handle, "writeFile", async () => {
+            await write("owned partial bytes");
+            await rename(output, displaced);
+            if (kind === "linked") {
+              if (process.platform === "win32") await link(unrelated, output);
+              else await symlink(unrelated, output, "file");
+            } else if (kind === "regular")
+              await writeFile(output, "preserve replacement bytes");
+            throw failure;
+          });
+          return handle;
+        },
+      },
+      () =>
+        assert.rejects(
+          writeRenderedConfiguration(output, "new configuration", false),
+          (error) => error === failure,
+        ),
+    );
+
+    assert.equal(handle.fd, -1);
+    assert.equal(await readFile(displaced, "utf8"), "owned partial bytes");
+    assert.equal(await readFile(unrelated, "utf8"), "preserve unrelated bytes");
+    if (kind === "removed")
+      await assert.rejects(readFile(output), { code: "ENOENT" });
+    else
+      assert.equal(
+        await readFile(output, "utf8"),
+        kind === "linked"
+          ? "preserve unrelated bytes"
+          : "preserve replacement bytes",
+      );
+  }
+});
+
+test("exclusive output cleanup failures retain the first write failure and an existing output is never claimed", async (context) => {
+  const directory = await temporaryFixture(context);
+  const output = path.join(directory, "nginx.conf");
+  const originalOpen = filesystem.open;
+  const writeFailure = new Error("Synthetic exclusive write failure");
+  const cleanupFailure = new Error("Synthetic exclusive cleanup failure");
+  await withFileOperations(
+    context,
+    {
+      open: async (...args) => {
+        const handle = await originalOpen(...args);
+        context.mock.method(handle, "writeFile", async () => {
+          throw writeFailure;
+        });
+        return handle;
+      },
+      rm: async () => {
+        throw cleanupFailure;
+      },
+    },
+    () =>
+      assert.rejects(
+        writeRenderedConfiguration(output, "new configuration", false),
+        (error) => {
+          assert.ok(error instanceof AggregateError);
+          assert.deepEqual(error.errors, [writeFailure, cleanupFailure]);
+          assert.equal(error.cause, writeFailure);
+          return true;
+        },
+      ),
+  );
+
+  await writeFile(output, "preserve existing bytes");
+  await assert.rejects(
+    writeRenderedConfiguration(output, "replacement configuration", false),
+    { code: "EEXIST" },
+  );
+  assert.equal(await readFile(output, "utf8"), "preserve existing bytes");
+});
+
 test("renderer CLI refuses paths outside its owned repository before reading or overwriting", async (context) => {
   const directory = await temporaryFixture(context);
   const root = path.join(directory, "website");

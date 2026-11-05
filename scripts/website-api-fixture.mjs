@@ -301,7 +301,9 @@ export function createWebsiteApiFixture(environment = process.env) {
             throw new FixtureError(400, "Invalid synthetic fixture username.");
           if (
             [...accounts.values()].some(
-              (owner) => owner !== account && owner.username === username,
+              (owner) =>
+                owner !== account &&
+                (owner.username === username || owner.mobile === username),
             )
           )
             throw new FixtureError(
@@ -438,6 +440,11 @@ export function createWebsiteApiFixture(environment = process.env) {
             throw new FixtureError(
               409,
               "The synthetic mobile is already registered.",
+            );
+          if ([...accounts.values()].some((owner) => owner.username === number))
+            throw new FixtureError(
+              409,
+              "The synthetic mobile is already used as a username.",
             );
           const account = {
             administrator: false,

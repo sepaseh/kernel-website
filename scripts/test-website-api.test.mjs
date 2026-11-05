@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import childProcess from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -7,6 +8,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -136,16 +138,36 @@ test("cancelling the owned responder drains its child", async (t) => {
     "import{writeFileSync,renameSync}from'node:fs';process.stdin.resume();writeFileSync('started.tmp','owned');renameSync('started.tmp','started');",
   );
   const controller = new AbortController();
-  await assert.rejects(
-    abortOnFixtureFile(root, "started", controller, () =>
-      runWebsiteApi({
-        root,
-        inherited,
-        stdio: ["pipe", "ignore", "ignore"],
-        signal: controller.signal,
-      }),
-    ),
-    /aborted/,
-  );
+  const spawn = childProcess.spawn;
+  const children = [];
+  let closeObserved = false;
+  const observedSpawn = t.mock.method(childProcess, "spawn", (...args) => {
+    const child = spawn(...args);
+    children.push(child);
+    child.once("close", () => {
+      closeObserved = true;
+    });
+    return child;
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(
+      abortOnFixtureFile(root, "started", controller, () =>
+        runWebsiteApi({
+          root,
+          inherited,
+          stdio: ["pipe", "ignore", "ignore"],
+          signal: controller.signal,
+        }),
+      ),
+      /aborted/,
+    );
+    assert.equal(children.length, 1);
+    assert.equal(closeObserved, true);
+    assert.ok(children[0].exitCode !== null || children[0].signalCode !== null);
+  } finally {
+    observedSpawn.mock.restore();
+    syncBuiltinESMExports();
+  }
   assert.equal(await readFile(path.join(root, "started"), "utf8"), "owned");
 });

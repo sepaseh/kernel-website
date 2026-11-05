@@ -24,7 +24,7 @@ a real Next build, browser execution or an application readiness declaration.
 | [start-website.mjs](../scripts/start-website.mjs)                             | Validates website inputs, prepares guarded standalone files and awaits the owned server.                                                                              |
 | [test-website-api.mjs](../scripts/test-website-api.mjs)                       | Starts the local test-only HTTP fixture with fresh in-memory state and a filtered environment, then drains its direct child.                                          |
 | [test-website-server.mjs](../scripts/test-website-server.mjs)                 | Builds with verified Next, prepares standalone files and serves after success; explicit skip-build mode still requires a guarded build ID.                            |
-| [analyze-website-performance.mjs](../scripts/analyze-website-performance.mjs) | Runs verified local Next analysis and exclusively creates bounded owned output, preserving unrelated files on failure.                                                |
+| [analyze-website-performance.mjs](../scripts/analyze-website-performance.mjs) | Runs verified local Next analysis; only its export path exclusively creates bounded owned output and preserves unrelated files on failure.                            |
 
 `resolveNextCli` checks the selected website's manifest, lock and installed
 `node_modules/next` identity/version, then selects an unlinked local CLI. It has
@@ -35,6 +35,11 @@ API port and website origin. It performs no external source or dependency
 verification. [The fixture contract](api-fixture.md) defines its synthetic scope.
 
 ## Inputs and process ownership
+
+The analyzer's `--export` mode owns an exclusive `graph.jsonl`, limits it to
+64 MiB and removes its claimed output on failure. The default `--output` mode
+delegates output creation to Next; this wrapper does not bound or clean those
+framework-owned files.
 
 The process helper is called after its entry has checked readiness; it does not
 own a source root. It owns only the direct child object it creates. Idempotent

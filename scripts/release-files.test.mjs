@@ -269,6 +269,78 @@ test("overwrite copying replaces a destination link swapped after validation wit
   assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
 });
 
+test("copy budgets bound repeated sibling dependency expansion while permitting ordinary duplicates", async (t) => {
+  const root = await fixture(t);
+  const source = path.join(root, "source");
+  await put(source, "dependency/index.js", "data");
+  await symlink(
+    path.join(source, "dependency"),
+    path.join(source, "linked"),
+    "junction",
+  );
+  const duplicate = path.join(root, "duplicate");
+  await copyArtifactTree({
+    source,
+    destination: duplicate,
+    sourceRoot: source,
+    maxEntries: 5,
+    maxBytes: 8,
+  });
+  for (const name of ["dependency", "linked"])
+    assert.equal(
+      await readFile(path.join(duplicate, name, "index.js"), "utf8"),
+      "data",
+    );
+  await assert.rejects(
+    copyArtifactTree({
+      source,
+      destination: path.join(root, "byte-limited"),
+      sourceRoot: source,
+      maxBytes: 7,
+    }),
+    /total byte budget/,
+  );
+  for (const limits of [
+    { maxEntries: 0 },
+    { maxEntries: 1.5 },
+    { maxBytes: Infinity },
+    { maxBytes: "100" },
+  ])
+    await assert.rejects(
+      copyArtifactTree({
+        source,
+        destination: duplicate,
+        sourceRoot: source,
+        ...limits,
+      }),
+      /budgets must be positive safe integers/,
+    );
+
+  const expanded = path.join(root, "expanded-source");
+  for (let depth = 0; depth < 7; depth++) {
+    const directory = path.join(expanded, `layer-${depth}`);
+    await put(directory, "entry.js", "x");
+    if (depth > 0)
+      for (const name of ["left", "right"])
+        await symlink(
+          path.join(expanded, `layer-${depth - 1}`),
+          path.join(directory, name),
+          "junction",
+        );
+  }
+  const bounded = path.join(root, "bounded-output");
+  await assert.rejects(
+    copyArtifactTree({
+      source: path.join(expanded, "layer-6"),
+      destination: bounded,
+      sourceRoot: expanded,
+      maxEntries: 64,
+    }),
+    /total entry budget/,
+  );
+  assert.ok((await readdir(bounded, { recursive: true })).length <= 63);
+});
+
 test("overwrite staging cleans its owned file after a failed rename and preserves the existing destination", async (t) => {
   const root = await fixture(t);
   const sourceRoot = path.join(root, "source");

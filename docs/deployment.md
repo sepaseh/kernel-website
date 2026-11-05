@@ -51,6 +51,11 @@ Review actual artifact contents: the [file policy](../scripts/release-files.mjs)
 excludes private/runtime file classes but cannot recognize a credential embedded
 in an otherwise allowed file.
 
+By default, each artifact-tree copy has a shared traversal budget of 100,000 entries and
+1 GiB of file bytes. Materialized copies of repeated dependency links count
+again; callers may set explicit entry and byte limits. Crossing either limit fails
+the operation rather than allowing a shared-link graph to expand without bound.
+
 When preparation overwrites an asset, it stages bytes in an exclusively created
 destination file, preserves source permissions, closes both handles and renames
 the stage over the destination. A failure removes only its claimed staging file. Physical local
@@ -124,6 +129,10 @@ Success exits zero only for a 200 HTML response containing an HTML document; it
 does not follow redirects. Replace the address if the installed listener differs.
 This helper requires the matching shipped readiness marker. Never toggle a false
 marker to enter operations.
+
+API and website probes both stop reading after 1 MiB and cancel the unread
+response stream. A response exceeding that limit fails readiness even if its
+status and document markers would otherwise be valid.
 
 Verify the running build against the artifact identity as well as the gateway's
 `/_kernel/release` response. Demonstrate atomic current-selection replacement and
