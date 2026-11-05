@@ -13,6 +13,9 @@ const gitPrefix = `\\bgit(?:\\.exe)?\\s+(?:(?:${gitValueOption}|${gitFlagOption}
 // Exclusion operands can look like force flags; consume them with their option.
 const cleanArgument = `(?:(?:-e|--exclude)\\s+${shellWord}|(?!(?:--|-e|--exclude)(?:\\s|$))${shellWord})`;
 const pushRemote = `(?:--repo(?:=|[ \\t]+))?(?:origin|upstream|"(?:origin|upstream)"|'(?:origin|upstream)')`;
+const protectedPushRefspec =
+  /(?!-)\+?(?:[^\s"';&|:]*:)?(?:refs\/heads\/)?(?:main|master)/.source;
+const pushDestination = `(?:${protectedPushRefspec}|"${protectedPushRefspec}"|'${protectedPushRefspec}')`;
 
 // This optional pattern guard is a fast host aid, not a shell interpreter or
 // evidence of authorization. The assistant must still follow repository policy.
@@ -45,7 +48,7 @@ export const inspectHookPayload = (payload) => {
     /branch\b[^\r\n]*-[dD](?:\s|$)/,
   ].map((pattern) => new RegExp(`${gitPrefix}${pattern.source}`));
   const directMainPush = new RegExp(
-    `${gitPrefix}push\\b[^\\r\\n;&|]*[ \\t]${pushRemote}(?=[ \\t])[^\\r\\n;&|]*(?:[ \\t]\\+?|:)(?:refs/heads/)?(?:main|master)(?=[\\s;&|]|$)`,
+    `${gitPrefix}push(?:[ \\t]+${shellWord})*[ \\t]+${pushRemote}(?:[ \\t]+${shellWord})*[ \\t]+${pushDestination}(?=[\\s;&|]|$)`,
   );
   const environmentExposure = [
     /\b(?:printenv|export -p)\b/i,

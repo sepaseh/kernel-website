@@ -199,6 +199,55 @@ test("guard matches complete protected push destinations rather than source or s
     assert.equal(inspectHookPayload({ command }), undefined, command);
 });
 
+test("guard matches quoted protected refspecs as complete arguments", () => {
+  for (const quote of ["'", '"']) {
+    for (const refspec of [
+      "main",
+      "master",
+      "refs/heads/main",
+      "HEAD:main",
+      "HEAD:refs/heads/master",
+      "+HEAD:refs/heads/main",
+      ":main",
+    ]) {
+      const command = `git push origin ${quote}${refspec}${quote}`;
+      assert.match(
+        inspectHookPayload({ command }),
+        /Direct push to main\/master/,
+        command,
+      );
+    }
+    for (const refspec of [
+      "domain",
+      "feature/main",
+      "main:feature",
+      "HEAD:refs/heads/topic/main",
+      "refs/tags/main",
+    ]) {
+      const command = `git push origin ${quote}${refspec}${quote}`;
+      assert.equal(inspectHookPayload({ command }), undefined, command);
+    }
+  }
+  for (const command of [
+    `git push "origin" 'HEAD:main'`,
+    `git -C "synthetic repository" push --repo=origin "main"`,
+    `git push origin feature 'HEAD:main'; echo done`,
+  ])
+    assert.match(
+      inspectHookPayload({ command }),
+      /Direct push to main\/master/,
+      command,
+    );
+  for (const command of [
+    `git push origin feature --push-option="note main"`,
+    `git push origin feature --push-option="note 'HEAD:main' extra"`,
+    `git push origin '--push-option=HEAD:main' feature`,
+    `git push origin feature; echo 'HEAD:main'`,
+    `git push origin feature\necho "main"`,
+  ])
+    assert.equal(inspectHookPayload({ command }), undefined, command);
+});
+
 test("Node safety entrypoint preserves inspected exit status", () => {
   assert.equal(run({ command: "npm run typecheck" }).status, 0);
   assert.equal(run({ command: "git push --force origin feature" }).status, 2);
