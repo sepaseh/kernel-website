@@ -83,11 +83,11 @@ const EmailFields = ({ account }: EmailFormProps) => {
         locale,
       );
       if (!isCurrent()) return;
+      setRequestedEmail(undefined);
       const updated = await getAccount(locale);
       if (!isCurrent()) return;
       acceptAccount(updated);
       setEmail(updated.email ?? requestedEmail);
-      setRequestedEmail(undefined);
       setNotice(t("accountEmailVerified"));
     } catch (error_) {
       if (isCurrent()) setError(error_);

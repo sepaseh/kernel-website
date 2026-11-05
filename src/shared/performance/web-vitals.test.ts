@@ -81,6 +81,7 @@ describe("website standard Web Vitals boundary", () => {
     cleanups.push(subscribeToWebVitals(reports));
     reportWebVital(metric("INP", Number.NaN));
     reportWebVital(metric("CLS", 0.1, Infinity));
+    reportWebVital(Object.assign(metric("LCP", 50), { name: "FID" }));
     reportWebVital(metric("INP", 201));
     expect(reports).toHaveBeenCalledTimes(1);
   });

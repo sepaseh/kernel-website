@@ -185,14 +185,16 @@ describe("account view ownership", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("discards late logout completion after a newer session is loaded", async () => {
+  it("refreshes a replaced view after logout succeeds and lets the current anonymous session redirect", async () => {
     const signOut = deferred();
+    const signedOutRead = deferred();
     let reads = 0;
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => {
         if (path === "/api/auth/logout") return signOut.promise;
         reads += 1;
+        if (reads === 3) return signedOutRead.promise;
         return Promise.resolve(
           Response.json(
             accountFixture({ first_name: reads === 1 ? "Ada" : "Bea" }),
@@ -213,8 +215,15 @@ describe("account view ownership", () => {
       ),
     );
     await act(async () => signOut.resolve(new Response(null, { status: 204 })));
+    expect(reads).toBe(3);
+    expect(screen.queryByTestId("account-content")).toBeNull();
     expect(router.replace).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
+    await act(async () =>
+      signedOutRead.resolve(Response.json({}, { status: 401 })),
+    );
+    expect(router.replace).toHaveBeenCalledExactlyOnceWith("/login");
+    expect(screen.queryByTestId("account-content")).toBeNull();
   });
 
   it("discards late logout failure after its account owner is replaced", async () => {

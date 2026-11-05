@@ -9,6 +9,8 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { useSession } from "@/features/auth/session/SessionProvider";
+import en from "@/i18n/catalog-data/locales/en.json";
+import fa from "@/i18n/catalog-data/locales/fa.json";
 import type { Account } from "@/shared/contracts";
 import { accountFixture, FeatureTestProvider } from "@/test/feature-session";
 
@@ -28,6 +30,7 @@ function View() {
 function setup(
   write: (init: RequestInit) => Promise<Response>,
   read = () => accountFixture(),
+  locale: "en" | "fa" = "en",
 ) {
   const fetch = vi.fn((path: string, init: RequestInit) =>
     path === "/api/account/me"
@@ -36,7 +39,7 @@ function setup(
   );
   vi.stubGlobal("fetch", fetch);
   render(
-    <FeatureTestProvider scope="account">
+    <FeatureTestProvider scope="account" locale={locale}>
       <View />
     </FeatureTestProvider>,
   );
@@ -56,7 +59,8 @@ describe("profile form ownership", () => {
     });
     await screen.findByLabelText("First name");
     expect(field("Mobile number").readOnly).toBe(true);
-    expect(field("First name").maxLength).toBe(1000);
+    expect(field("First name").hasAttribute("maxlength")).toBe(false);
+    expect(field("Last name").hasAttribute("maxlength")).toBe(false);
     fireEvent.change(field("First name"), { target: { value: "  Grace  " } });
     fireEvent.change(field("Last name"), { target: { value: "  Hopper  " } });
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
@@ -70,6 +74,64 @@ describe("profile form ownership", () => {
     expect(field("First name").value).toBe("Grace");
     expect(field("Last name").value).toBe("Hopper");
   });
+
+  it("accepts padded names at the trimmed UTF-16 limit", async () => {
+    const firstName = "a".repeat(1000);
+    const lastName = "😀".repeat(500);
+    const write = vi.fn<(init: RequestInit) => Promise<Response>>(async () =>
+      Response.json(
+        accountFixture({ first_name: firstName, last_name: lastName }),
+      ),
+    );
+    setup(write);
+    await screen.findByLabelText(en.firstName);
+    fireEvent.change(field(en.firstName), {
+      target: { value: `  ${firstName}  ` },
+    });
+    fireEvent.change(field(en.lastName), {
+      target: { value: `  ${lastName}  ` },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: en.accountSaveProfile }),
+    );
+    await screen.findByRole("status");
+    expect(write).toHaveBeenCalledOnce();
+    expect(JSON.parse(String(write.mock.calls[0][0].body))).toEqual({
+      first_name: firstName,
+      last_name: lastName,
+    });
+  });
+
+  it.each([
+    ["en", "firstName", en],
+    ["fa", "lastName", fa],
+  ] as const)(
+    "rejects an overlong %s name and permits a corrected retry",
+    async (locale, name, messages) => {
+      const write = vi.fn<(init: RequestInit) => Promise<Response>>(async () =>
+        Response.json(accountFixture()),
+      );
+      setup(write, undefined, locale);
+      await screen.findByLabelText(messages[name]);
+      fireEvent.change(field(messages[name]), {
+        target: { value: `  ${"😀".repeat(500)}a  ` },
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: messages.accountSaveProfile }),
+      );
+      expect(write).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert").textContent).toContain(
+        messages.nameTooLong.replace("{max}", "1000"),
+      );
+      expect(field(messages[name]).value.trim().length).toBe(1001);
+      fireEvent.change(field(messages[name]), { target: { value: "Grace" } });
+      fireEvent.click(
+        screen.getByRole("button", { name: messages.accountSaveProfile }),
+      );
+      await screen.findByRole("status");
+      expect(write).toHaveBeenCalledOnce();
+    },
+  );
 
   it("retains entered values after failure and prevents duplicate writes while pending", async () => {
     let resolve!: (value: Response) => void;

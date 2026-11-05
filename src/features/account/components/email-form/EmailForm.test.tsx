@@ -216,6 +216,54 @@ describe("email verification ownership", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("consumes a verified code even when reloading the account fails", async () => {
+    let reads = 0;
+    const fetch = vi.fn((path: string) => {
+      if (path === "/api/account/me") {
+        reads += 1;
+        return reads === 1
+          ? Promise.resolve(Response.json(accountFixture()))
+          : Promise.reject(new Error("Synthetic account reload failed"));
+      }
+      return Promise.resolve(
+        path.endsWith("request-email-verification")
+          ? cooldown()
+          : new Response(null, { status: 204 }),
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <FeatureTestProvider scope="account">
+        <View />
+      </FeatureTestProvider>,
+    );
+    await screen.findByLabelText("Email");
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    fireEvent.change(email(), { target: { value: "verified@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    await screen.findByText("Verification code requested.");
+    fireEvent.change(otp(), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify email" }));
+    await screen.findByText("Synthetic account reload failed");
+
+    const verify = screen.getByRole("button", {
+      name: "Verify email",
+    }) as HTMLButtonElement;
+    expect(verify.disabled).toBe(true);
+    expect(email().value).toBe("verified@example.test");
+    expect(otp().value).toBe("123456");
+    fireEvent.submit(email().form!);
+    expect(
+      fetch.mock.calls.filter(([path]) => path === "/api/account/verify-email"),
+    ).toHaveLength(1);
+
+    act(() => vi.advanceTimersByTime(1000));
+    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+    await screen.findByText("Verification code requested.");
+    expect(verify.disabled).toBe(false);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("starts empty when the account has no email", async () => {
     setup(
       async () => cooldown(),

@@ -106,10 +106,10 @@ describe("complete local website catalogs", () => {
     );
   });
 
-  it("loads all 107 canonical keys as flat nonempty strings in every language", async () => {
+  it("loads all 108 canonical keys as flat nonempty strings in every language", async () => {
     const english = (await catalogs.en()).default;
     const keys = Object.keys(english).sort();
-    expect(keys).toHaveLength(107);
+    expect(keys).toHaveLength(108);
     for (const { code, messages } of await entries()) {
       expect(Object.keys(messages).sort(), code).toEqual(keys);
       for (const [key, value] of Object.entries(messages)) {

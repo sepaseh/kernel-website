@@ -69,6 +69,49 @@ test("guard accepts ordinary documentation, public examples and safe checks", ()
     assert.equal(typeof inspectHookPayload(payload), "string");
 });
 
+test("guard recognizes dangerous Git subcommands after global options", () => {
+  for (const prefix of [
+    "git -C /synthetic/repository",
+    'git -C "synthetic repository" -c advice.detachedHead=false',
+    "git -c 'alias.example=log --oneline' --git-dir=synthetic.git",
+    'git.exe --git-dir="synthetic repository/.git" --work-tree=synthetic',
+    "git --no-pager -Csynthetic -cadvice.detachedHead=false",
+  ]) {
+    for (const subcommand of [
+      "push --force origin feature",
+      "push -f origin feature",
+      "reset --hard HEAD~1",
+      "clean -fd",
+      "branch --delete stale",
+      "branch -D stale",
+      "push origin main",
+    ]) {
+      const command = `${prefix} ${subcommand}`;
+      assert.equal(typeof inspectHookPayload({ command }), "string", command);
+    }
+    for (const subcommand of ["status", "push origin feature"])
+      assert.equal(
+        inspectHookPayload({ command: `${prefix} ${subcommand}` }),
+        undefined,
+      );
+  }
+});
+
+test("guard blocks option-bearing environment dumps without blocking child commands", () => {
+  for (const command of ["env -0", "env --null | sort", "env -i -0"])
+    assert.match(
+      inspectHookPayload({ command }),
+      /Environment variable exposure/,
+    );
+  for (const command of [
+    "env -i node --version",
+    "env --null node --version",
+    "myenv -0",
+    "environment-check -0",
+  ])
+    assert.equal(inspectHookPayload({ command }), undefined, command);
+});
+
 test("Node safety entrypoint preserves inspected exit status", () => {
   assert.equal(run({ command: "npm run typecheck" }).status, 0);
   assert.equal(run({ command: "git push --force origin feature" }).status, 2);

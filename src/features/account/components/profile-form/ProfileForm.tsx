@@ -39,6 +39,16 @@ const ProfileFields = ({ account }: ProfileFormProps) => {
     event.preventDefault();
     if (busy || !event.currentTarget.reportValidity()) return;
     const data = new FormData(event.currentTarget);
+    const firstName = textValue(data, "first_name");
+    const lastName = textValue(data, "last_name");
+    if (
+      firstName.length > profileNameMaxLength ||
+      lastName.length > profileNameMaxLength
+    ) {
+      setNotice(undefined);
+      setError(new Error(t("nameTooLong", { max: profileNameMaxLength })));
+      return;
+    }
     const isCurrent = captureOperation();
     setBusy(true);
     setError(undefined);
@@ -46,8 +56,8 @@ const ProfileFields = ({ account }: ProfileFormProps) => {
     try {
       const updated = await updateProfile(
         {
-          first_name: textValue(data, "first_name"),
-          last_name: textValue(data, "last_name"),
+          first_name: firstName,
+          last_name: lastName,
         },
         locale,
       );
@@ -79,7 +89,6 @@ const ProfileFields = ({ account }: ProfileFormProps) => {
               onChange={(event) => setFirstName(event.target.value)}
               autoComplete="given-name"
               required
-              maxLength={profileNameMaxLength}
             />
             <FormField
               id="profile-last-name"
@@ -89,7 +98,6 @@ const ProfileFields = ({ account }: ProfileFormProps) => {
               onChange={(event) => setLastName(event.target.value)}
               autoComplete="family-name"
               required
-              maxLength={profileNameMaxLength}
             />
           </div>
           <FormField

@@ -4,6 +4,13 @@ import { fileURLToPath } from "node:url";
 const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+const shellWord = /(?:[^\s"';&|]|"[^"\r\n]*"|'[^'\r\n]*')+/.source;
+const gitValueOption = `(?:-[Cc]\\s*|--(?:git-dir|work-tree|namespace|config-env)(?:=|\\s+))${shellWord}`;
+const gitFlagOption =
+  /(?:-[pP]|--(?:no-pager|paginate|bare|no-replace-objects|literal-pathspecs|glob-pathspecs|noglob-pathspecs|icase-pathspecs|no-optional-locks|no-lazy-fetch))/
+    .source;
+const gitPrefix = `\\bgit(?:\\.exe)?\\s+(?:(?:${gitValueOption}|${gitFlagOption})\\s+)*`;
+
 // This optional pattern guard is a fast host aid, not a shell interpreter or
 // evidence of authorization. The assistant must still follow repository policy.
 export const inspectHookPayload = (payload) => {
@@ -25,19 +32,20 @@ export const inspectHookPayload = (payload) => {
     return "Safety hook command and file path must be strings; command blocked.";
 
   const dangerousGit = [
-    /\bgit(?:\.exe)?\s+push\b[^\r\n]*--force(?:-with-lease|-if-includes)?(?:[=\s]|$)/,
-    /\bgit(?:\.exe)?\s+push\b[^\r\n]*-[fF](?:\s|$)/,
-    /\bgit(?:\.exe)?\s+reset\b[^\r\n]*--hard(?:\s|$)/,
-    /\bgit(?:\.exe)?\s+clean\s+-[a-z]*f/,
-    /\bgit(?:\.exe)?\s+branch\b[^\r\n]*--delete(?:\s|$)/,
-    /\bgit(?:\.exe)?\s+branch\b[^\r\n]*-[dD](?:\s|$)/,
-  ];
-  const directMainPush =
-    /\bgit(?:\.exe)?\s+push\b[^\r\n]*(?:origin|upstream)\b[^\r\n]*(?:main|master)(?:\s|$)/;
+    /push\b[^\r\n]*--force(?:-with-lease|-if-includes)?(?:[=\s]|$)/,
+    /push\b[^\r\n]*-[fF](?:\s|$)/,
+    /reset\b[^\r\n]*--hard(?:\s|$)/,
+    /clean\s+-[a-z]*f/,
+    /branch\b[^\r\n]*--delete(?:\s|$)/,
+    /branch\b[^\r\n]*-[dD](?:\s|$)/,
+  ].map((pattern) => new RegExp(`${gitPrefix}${pattern.source}`));
+  const directMainPush = new RegExp(
+    `${gitPrefix}push\\b[^\\r\\n]*(?:origin|upstream)\\b[^\\r\\n]*(?:main|master)(?:\\s|$)`,
+  );
   const environmentExposure = [
     /\b(?:printenv|export -p)\b/i,
     /echo[^\r\n]*(?:TOKEN|API_KEY|SECRET|PASSWORD|CREDENTIAL)/i,
-    /(?:^|[;&|\s])env(?:\s*$|\s*\|)/i,
+    /(?:^|[;&|\s])env(?:\s+-[^\s;&|]+)*(?:\s*$|\s*\|)/i,
     /\b(?:Get-ChildItem|gci)\s+Env:/i,
   ];
   const productionEndpoint =

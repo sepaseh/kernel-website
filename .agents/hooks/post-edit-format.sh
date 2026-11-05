@@ -8,6 +8,7 @@ if [[ -z "$NODE_BIN" ]]; then
   exit 2
 fi
 PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd) || exit 2
+HOST_PROJECT_DIR=$PROJECT_DIR
 case "$NODE_BIN" in
   *.exe)
     if command -v wslpath >/dev/null 2>&1; then
@@ -41,7 +42,15 @@ try {
     if (typeof filename !== "string" || !filename.trim())
       throw new Error("Post-edit file path must be a nonempty string.");
     const root = realpathSync(process.argv[1]);
-    const resolved = path.resolve(root, filename);
+    let candidate = filename;
+    if (process.platform === "win32" && filename.startsWith("/") && !filename.startsWith("//")) {
+      // Use the same host project location whose native path the wrapper converted.
+      const hostRoot = process.argv[2].slice("--host-root=".length);
+      candidate = path.posix.relative(hostRoot, filename);
+      if (candidate === ".." || candidate.startsWith("../") || path.posix.isAbsolute(candidate))
+        throw new Error("Post-edit file must remain inside this project.");
+    }
+    const resolved = path.resolve(root, candidate);
     const relative = path.relative(root, resolved);
     if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative))
       throw new Error("Post-edit file must remain inside this project.");
@@ -74,4 +83,5 @@ try {
 }
 NODE
 )
-exec "$NODE_BIN" --input-type=module -e "$NODE_SCRIPT" "$PROJECT_DIR"
+# Preserve the POSIX root argument when Git Bash launches Windows Node.
+MSYS2_ARG_CONV_EXCL='--host-root=' exec "$NODE_BIN" --input-type=module -e "$NODE_SCRIPT" "$PROJECT_DIR" "--host-root=$HOST_PROJECT_DIR"

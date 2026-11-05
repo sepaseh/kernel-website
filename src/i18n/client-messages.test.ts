@@ -73,6 +73,7 @@ const expectedKeys = {
     "login",
     "mobile",
     "mobileInvalid",
+    "nameTooLong",
     "networkError",
     "newPassword",
     "otp",
@@ -130,6 +131,7 @@ const expectedKeys = {
     "login",
     "mobile",
     "mobileInvalid",
+    "nameTooLong",
     "networkError",
     "newPassword",
     "otp",
@@ -185,6 +187,8 @@ describe("route-scoped flat client translations", () => {
       expect(accountText("accountTitle", { name: "Ada" })).toContain("Ada");
       expect(accountText("accountLogout")).toBe(messages.accountLogout);
       expect(accountText("accountEmailLabel")).toBe(messages.accountEmailLabel);
+      expect(authText("nameTooLong", { max: 1000 })).toContain("1000");
+      expect(accountText("nameTooLong", { max: 1000 })).toContain("1000");
     },
   );
 

@@ -89,6 +89,7 @@
   "metadataTitle": "Kernel — Net bir başlangıç noktası",
   "mobile": "Cep telefonu numarası",
   "mobileInvalid": "09 ile başlayan 11 haneli bir cep telefonu numarası girin.",
+  "nameTooLong": "Ad ve soyad, baştaki ve sondaki boşluklar kaldırıldıktan sonra en fazla {max} karakter içermelidir.",
   "networkError": "İstek tamamlanamadı. Lütfen tekrar deneyin.",
   "newPassword": "Yeni parola",
   "otp": "Doğrulama kodu",

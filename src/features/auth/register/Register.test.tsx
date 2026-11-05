@@ -95,13 +95,89 @@ describe("registration form", () => {
       en.passwordMismatch,
     );
     expect(fetch).toHaveBeenCalledOnce();
-    expect(
-      (screen.getByLabelText(en.firstName) as HTMLInputElement).maxLength,
-    ).toBe(1000);
+    expect(screen.getByLabelText(en.firstName).hasAttribute("maxlength")).toBe(
+      false,
+    );
+    expect(screen.getByLabelText(en.lastName).hasAttribute("maxlength")).toBe(
+      false,
+    );
     expect(
       screen.getByRole("link", { name: en.login }).getAttribute("href"),
     ).toBe("/login");
   });
+
+  it("accepts padded registration names at the trimmed UTF-16 limit", async () => {
+    const firstName = "a".repeat(1000);
+    const lastName = "😀".repeat(500);
+    const fetch = vi.fn<(path: string, init: RequestInit) => Promise<Response>>(
+      (path) =>
+        Promise.resolve(
+          path === "/api/account/me"
+            ? anonymous()
+            : new Response(null, { status: 204 }),
+        ),
+    );
+    await mount(fetch);
+    fill();
+    fireEvent.change(screen.getByLabelText(en.firstName), {
+      target: { value: `  ${firstName}  ` },
+    });
+    fireEvent.change(screen.getByLabelText(en.lastName), {
+      target: { value: `  ${lastName}  ` },
+    });
+    fireEvent.submit(screen.getByTestId("register-form"));
+    await waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith("/account"),
+    );
+    const writes = fetch.mock.calls.filter(
+      ([path]) => path === "/api/auth/register",
+    );
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(String(writes[0][1].body))).toEqual({
+      first_name: firstName,
+      last_name: lastName,
+      mobile: "09120000000",
+      otp: "123456",
+      password: "  unchanged password  ",
+    });
+  });
+
+  it.each([en.firstName, en.lastName])(
+    "rejects an overlong registration %s and allows correction",
+    async (label) => {
+      const fetch = vi.fn<
+        (path: string, init: RequestInit) => Promise<Response>
+      >((path) =>
+        Promise.resolve(
+          path === "/api/account/me"
+            ? anonymous()
+            : new Response(null, { status: 204 }),
+        ),
+      );
+      await mount(fetch);
+      fill();
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: `  ${"😀".repeat(500)}a  ` },
+      });
+      fireEvent.submit(screen.getByTestId("register-form"));
+      expect(
+        fetch.mock.calls.filter(([path]) => path === "/api/auth/register"),
+      ).toHaveLength(0);
+      expect(screen.getByRole("alert").textContent).toContain(
+        en.nameTooLong.replace("{max}", "1000"),
+      );
+      fireEvent.change(screen.getByLabelText(label), {
+        target: { value: "  Ada  " },
+      });
+      fireEvent.submit(screen.getByTestId("register-form"));
+      await waitFor(() =>
+        expect(router.replace).toHaveBeenCalledWith("/account"),
+      );
+      expect(
+        fetch.mock.calls.filter(([path]) => path === "/api/auth/register"),
+      ).toHaveLength(1);
+    },
+  );
 
   it("normalizes the code destination and blocks overlap until its cooldown expires", async () => {
     const pending = deferred();

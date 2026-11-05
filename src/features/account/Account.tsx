@@ -40,8 +40,8 @@ function AccountView() {
     setLogoutError(undefined);
     try {
       await logout(locale);
-      if (!isCurrent()) return;
       refresh();
+      if (!isCurrent()) return;
       router.replace("/login");
     } catch (error_) {
       if (isCurrent()) setLogoutError(error_);

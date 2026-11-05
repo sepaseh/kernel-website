@@ -115,6 +115,16 @@ function OtpFormBody(props: OtpFormProps) {
       setError(new Error(t("passwordMismatch")));
       return;
     }
+    const firstName = textValue(data, "first_name");
+    const lastName = textValue(data, "last_name");
+    if (
+      registration &&
+      (firstName.length > profileNameMaxLength ||
+        lastName.length > profileNameMaxLength)
+    ) {
+      setError(new Error(t("nameTooLong", { max: profileNameMaxLength })));
+      return;
+    }
     const isCurrent = captureOperation();
     pending.current = true;
     setBusy(true);
@@ -130,8 +140,8 @@ function OtpFormBody(props: OtpFormProps) {
         await props.complete(
           {
             ...value,
-            first_name: textValue(data, "first_name"),
-            last_name: textValue(data, "last_name"),
+            first_name: firstName,
+            last_name: lastName,
           },
           locale,
         );
@@ -174,14 +184,12 @@ function OtpFormBody(props: OtpFormProps) {
                 label={t("firstName")}
                 autoComplete="given-name"
                 required
-                maxLength={profileNameMaxLength}
               />
               <FormField
                 name="last_name"
                 label={t("lastName")}
                 autoComplete="family-name"
                 required
-                maxLength={profileNameMaxLength}
               />
             </div>
           ) : null}

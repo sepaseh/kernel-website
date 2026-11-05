@@ -89,6 +89,7 @@
   "metadataTitle": "Kernel — Un punto de partida claro",
   "mobile": "Número de móvil",
   "mobileInvalid": "Introduce un número de móvil de 11 dígitos que empiece por 09.",
+  "nameTooLong": "El nombre y los apellidos deben tener como máximo {max} caracteres tras quitar los espacios de los extremos.",
   "networkError": "No se ha podido completar la solicitud. Inténtalo de nuevo.",
   "newPassword": "Nueva contraseña",
   "otp": "Código de verificación",
