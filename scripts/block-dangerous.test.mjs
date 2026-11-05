@@ -112,6 +112,93 @@ test("guard blocks option-bearing environment dumps without blocking child comma
     assert.equal(inspectHookPayload({ command }), undefined, command);
 });
 
+test("guard blocks separate and long clean force flags before the path separator", () => {
+  for (const command of [
+    "git clean -d -f",
+    "git clean --force",
+    "git clean -x -ff",
+    "git clean -df",
+    "git clean -fX",
+    "git clean -dfX",
+    "git clean -Xf",
+    "git clean --force -d",
+    'git -C "synthetic repository" clean -d --force',
+    "git clean -n -f",
+    "git clean -f; echo done",
+  ])
+    assert.match(
+      inspectHookPayload({ command }),
+      /Dangerous git pattern/,
+      command,
+    );
+
+  for (const command of [
+    "git clean -n",
+    "git clean --dry-run",
+    "git clean --forceful",
+    "git clean -- -file",
+    "git clean -e -file",
+    "git clean --exclude --force",
+    "git clean -n; echo -f",
+  ])
+    assert.equal(inspectHookPayload({ command }), undefined, command);
+});
+
+test("guard matches complete protected push destinations rather than source or suffix names", () => {
+  for (const destination of [
+    "main",
+    "master",
+    "refs/heads/main",
+    "refs/heads/master",
+    "HEAD:main",
+    "HEAD:refs/heads/main",
+    "feature:master",
+    "+HEAD:main",
+  ])
+    for (const prefix of ["git", 'git -C "synthetic repository"']) {
+      const command = `${prefix} push origin ${destination}`;
+      assert.match(
+        inspectHookPayload({ command }),
+        /Direct push to main\/master/,
+        command,
+      );
+    }
+
+  assert.match(
+    inspectHookPayload({ command: "git push upstream main; echo done" }),
+    /Direct push to main\/master/,
+  );
+  assert.match(
+    inspectHookPayload({ command: "git push\torigin\tmain" }),
+    /Direct push to main\/master/,
+  );
+  for (const remote of [
+    '"origin"',
+    "'upstream'",
+    "--repo=origin",
+    '--repo="upstream"',
+    "--repo origin",
+  ])
+    assert.match(
+      inspectHookPayload({ command: `git push ${remote} HEAD:main` }),
+      /Direct push to main\/master/,
+      remote,
+    );
+  for (const command of [
+    "git push origin domain",
+    "git push upstream remaster",
+    "git push origin feature/main",
+    "git push origin feature:topic/main",
+    "git push origin main:feature",
+    "git push origin refs/heads/main:refs/heads/feature",
+    "git push origin main-fix",
+    "git push origin feature; echo main",
+    "git push origin feature\nmain",
+    "git push origin feature\r\nmain",
+  ])
+    assert.equal(inspectHookPayload({ command }), undefined, command);
+});
+
 test("Node safety entrypoint preserves inspected exit status", () => {
   assert.equal(run({ command: "npm run typecheck" }).status, 0);
   assert.equal(run({ command: "git push --force origin feature" }).status, 2);
