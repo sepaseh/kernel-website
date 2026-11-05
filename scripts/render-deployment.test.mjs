@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import filesystem from "node:fs/promises";
 import {
+  chmod,
+  link,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   realpath,
+  rename,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -20,7 +26,22 @@ import {
   publicValues,
   temporaryFixture,
 } from "./deployment.test-support.mjs";
-import { renderDeploymentTemplate } from "./render-deployment.mjs";
+import {
+  renderDeploymentTemplate,
+  writeRenderedConfiguration,
+} from "./render-deployment.mjs";
+
+async function withFileOperations(context, operations, action) {
+  try {
+    for (const [name, implementation] of Object.entries(operations))
+      context.mock.method(filesystem, name, implementation);
+    syncBuiltinESMExports();
+    await action();
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+}
 
 test("configuration rendering preserves nginx variables and only exposes approved fields", () => {
   assert.equal(
@@ -134,6 +155,144 @@ test("renderer CLI refuses overwrites unless explicitly requested", async () => 
       recursive: true,
       force: true,
     });
+  }
+});
+
+test("forced rendering creates missing output and preserves existing file permissions", async (context) => {
+  const directory = await temporaryFixture(context);
+  const output = path.join(directory, "nginx.conf");
+  await writeRenderedConfiguration(output, "first configuration", true);
+  await chmod(output, 0o640);
+  const original = await filesystem.open(output, "r");
+  const mode = (await original.stat()).mode & 0o777;
+  await original.close();
+
+  await writeRenderedConfiguration(output, "replacement configuration", true);
+  const replacement = await filesystem.open(output, "r");
+  try {
+    assert.equal((await replacement.stat()).mode & 0o777, mode);
+    assert.equal(
+      await replacement.readFile("utf8"),
+      "replacement configuration",
+    );
+  } finally {
+    await replacement.close();
+  }
+  assert.deepEqual(await readdir(directory), ["nginx.conf"]);
+});
+
+test("forced rendering rejects output replacement during staging without touching the replacement or link target", async (context) => {
+  const directory = await temporaryFixture(context);
+  const originalOpen = filesystem.open;
+  for (const kind of ["regular", "linked", "newly-created"]) {
+    const root = path.join(directory, kind);
+    await mkdir(root);
+    const output = path.join(root, "nginx.conf");
+    const previous = path.join(root, "previous.conf");
+    const target = path.join(root, "unrelated.conf");
+    await writeFile(target, "preserve unrelated bytes");
+    if (kind !== "newly-created") await writeFile(output, "previous bytes");
+    let staged;
+    let handle;
+
+    await withFileOperations(
+      context,
+      {
+        open: async (filename, flags, ...options) => {
+          handle = await originalOpen(filename, flags, ...options);
+          staged = filename;
+          if (kind !== "newly-created") await rename(output, previous);
+          if (kind === "linked") {
+            // A hard link covers the same target-write risk without Windows symlink privileges.
+            if (process.platform === "win32") await link(target, output);
+            else await symlink(target, output, "file");
+          } else await writeFile(output, "preserve replacement bytes");
+          return handle;
+        },
+      },
+      () =>
+        assert.rejects(
+          writeRenderedConfiguration(output, "new configuration", true),
+          /replaced|unlinked regular file/,
+        ),
+    );
+
+    assert.equal(handle.fd, -1);
+    await assert.rejects(readFile(staged), { code: "ENOENT" });
+    assert.equal(await readFile(target, "utf8"), "preserve unrelated bytes");
+    assert.equal(
+      await readFile(output, "utf8"),
+      kind === "linked"
+        ? "preserve unrelated bytes"
+        : "preserve replacement bytes",
+    );
+    if (kind !== "newly-created")
+      assert.equal(await readFile(previous, "utf8"), "previous bytes");
+  }
+});
+
+test("a last-moment destination link cannot redirect the staged write into its target", async (context) => {
+  const directory = await temporaryFixture(context);
+  const output = path.join(directory, "nginx.conf");
+  const target = path.join(directory, "unrelated.conf");
+  await writeFile(output, "previous bytes");
+  await writeFile(target, "preserve unrelated bytes");
+  const originalRename = filesystem.rename;
+  let swapped = false;
+
+  await withFileOperations(
+    context,
+    {
+      rename: async (from, to) => {
+        await rm(output);
+        if (process.platform === "win32") await link(target, output);
+        else await symlink(target, output, "file");
+        swapped = true;
+        return originalRename(from, to);
+      },
+    },
+    () => writeRenderedConfiguration(output, "new configuration", true),
+  );
+
+  assert.equal(swapped, true);
+  assert.equal(await readFile(target, "utf8"), "preserve unrelated bytes");
+  assert.equal(await readFile(output, "utf8"), "new configuration");
+  assert.deepEqual(await readdir(directory), ["nginx.conf", "unrelated.conf"]);
+});
+
+test("failed staged writes and publication close the handle and preserve existing output", async (context) => {
+  const directory = await temporaryFixture(context);
+  const output = path.join(directory, "nginx.conf");
+  await writeFile(output, "previous bytes");
+  const originalOpen = filesystem.open;
+  for (const operation of ["write", "rename"]) {
+    const failure = new Error(`Synthetic renderer ${operation} failure`);
+    let handle;
+    await withFileOperations(
+      context,
+      {
+        open: async (...args) => {
+          handle = await originalOpen(...args);
+          if (operation === "write")
+            context.mock.method(handle, "writeFile", async () => {
+              throw failure;
+            });
+          return handle;
+        },
+        rename: async () => {
+          throw failure;
+        },
+      },
+      () =>
+        assert.rejects(
+          writeRenderedConfiguration(output, "new configuration", true),
+          (error) => error === failure,
+        ),
+    );
+
+    assert.equal(handle.fd, -1);
+    assert.equal(await readFile(output, "utf8"), "previous bytes");
+    assert.deepEqual(await readdir(directory), ["nginx.conf"]);
   }
 });
 
@@ -367,7 +526,14 @@ test("native public Nginx example renders with the documented hostname", async (
     ),
     "utf8",
   );
-  assert.ok(
-    renderDeploymentTemplate(template, hosts).includes("www.example.com"),
-  );
+  const serverNames = renderDeploymentTemplate(template, hosts)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("server_name "));
+  assert.deepEqual(serverNames, [
+    "server_name _;",
+    "server_name www.example.com;",
+    "server_name _;",
+    "server_name www.example.com;",
+  ]);
 });

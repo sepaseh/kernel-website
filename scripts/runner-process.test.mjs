@@ -284,11 +284,19 @@ test("CLI import and false main markers perform no configuration work or install
   const root = await fixture(t);
   const filename = path.join(root, "imported.txt");
   const moduleUrl = new URL("./runner-process.mjs", import.meta.url).href;
+  const source = `
+    import assert from 'node:assert/strict';
+    import {writeFile} from 'node:fs/promises';
+    const [moduleUrl, filename] = process.argv.slice(1);
+    const before = ['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s));
+    await import(moduleUrl);
+    assert.deepEqual(['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s)), before);
+    await writeFile(filename, 'imported');
+  `;
   const owned = startOwnedProcess(
-    options(
-      root,
-      `import assert from 'node:assert/strict'; import {writeFile} from 'node:fs/promises'; const before=['SIGINT','SIGTERM'].map(s=>process.listenerCount(s)); await import(${JSON.stringify(moduleUrl)}); assert.deepEqual(['SIGINT','SIGTERM'].map(s=>process.listenerCount(s)),before); await writeFile(${JSON.stringify(filename)},'imported');`,
-    ),
+    options(root, source, {
+      args: ["--input-type=module", "-e", source, moduleUrl, filename],
+    }),
   );
   await owned.completion;
   assert.equal(await readFile(filename, "utf8"), "imported");
@@ -368,9 +376,43 @@ test("ready CLI executes real owned work and removes listeners on success and ac
 test("CLI interrupt and terminate aborts are failures and remove listeners in the isolated caller", async (t) => {
   const root = await fixture(t);
   const moduleUrl = new URL("./runner-process.mjs", import.meta.url).href;
+  const source = `
+    import assert from 'node:assert/strict';
+    import {once} from 'node:events';
+    const [moduleUrl, root, requestedSignal] = process.argv.slice(1);
+    const {runVerificationCli, startOwnedProcess} = await import(moduleUrl);
+    const before = ['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s));
+    await runVerificationCli(true, root, async ({signal: abortSignal}) => {
+      const owned = startOwnedProcess({
+        args: ['-e', "process.on('message', () => {}); process.send('ready');"],
+        cwd: root,
+        env: {},
+        signal: abortSignal,
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      });
+      const ready = new AbortController();
+      try {
+        await Promise.race([
+          once(owned.child, 'message', {signal: ready.signal}),
+          owned.completion.then(() => {
+            throw new Error('Owned child completed before readiness.');
+          }),
+        ]);
+      } finally {
+        ready.abort();
+      }
+      process.emit(requestedSignal);
+      await owned.completion;
+    });
+    assert.deepEqual(['SIGINT', 'SIGTERM'].map(s => process.listenerCount(s)), before);
+    console.log('listeners removed');
+  `;
   for (const signal of ["SIGINT", "SIGTERM"]) {
-    const source = `import assert from 'node:assert/strict'; import {once} from 'node:events'; import {runVerificationCli,startOwnedProcess} from ${JSON.stringify(moduleUrl)}; const before=['SIGINT','SIGTERM'].map(s=>process.listenerCount(s)); await runVerificationCli(true,${JSON.stringify(root)},async({signal:abortSignal})=>{const owned=startOwnedProcess({args:['-e',"process.on('message',()=>{});process.send('ready');"],cwd:${JSON.stringify(root)},env:{},signal:abortSignal,stdio:['ignore','ignore','ignore','ipc']});const ready=new AbortController();try{await Promise.race([once(owned.child,'message',{signal:ready.signal}),owned.completion.then(()=>{throw new Error('Owned child completed before readiness.');})]);}finally{ready.abort();}process.emit(${JSON.stringify(signal)});await owned.completion;});assert.deepEqual(['SIGINT','SIGTERM'].map(s=>process.listenerCount(s)),before);console.log('listeners removed');`;
-    const owned = startOwnedProcess(options(root, source));
+    const owned = startOwnedProcess(
+      options(root, source, {
+        args: ["--input-type=module", "-e", source, moduleUrl, root, signal],
+      }),
+    );
     const stdout = collect(owned.child.stdout);
     const stderr = collect(owned.child.stderr);
     await assert.rejects(owned.completion, /exited with code 1/);

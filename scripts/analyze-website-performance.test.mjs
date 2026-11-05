@@ -98,7 +98,7 @@ ${scenario === "broken-readiness" ? "fs.renameSync('.lighthouseci/website/graph.
 }
 
 async function assertRemovedAndClosed(filename) {
-  await assert.rejects(stat(filename), { code: "ENOENT" });
+  // Exclusive creation verifies absence while acquiring the replacement handle.
   const replacement = await open(filename, "wx");
   await replacement.close();
   await rm(filename);

@@ -1,4 +1,5 @@
-import { lstat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { lstat, open, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
@@ -86,6 +87,55 @@ function validateLocalPath(value) {
     );
 }
 
+async function outputEntry(filename) {
+  try {
+    const entry = await lstat(filename);
+    if (entry.isSymbolicLink() || !entry.isFile())
+      throw new Error("Rendered output must be an unlinked regular file.");
+    return entry;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return undefined;
+  }
+}
+
+/** Publish through an owned handle; forced replacement never opens the target for writing. */
+export async function writeRenderedConfiguration(output, rendered, force) {
+  await ensureArtifactDirectory(path.dirname(output));
+  if (!force) {
+    const handle = await open(output, "wx");
+    try {
+      await handle.writeFile(rendered);
+    } finally {
+      await handle.close();
+    }
+    return;
+  }
+
+  const existing = await outputEntry(output);
+  const staged = path.join(
+    path.dirname(output),
+    `.kernel-render-${randomUUID()}.partial`,
+  );
+  const handle = await open(staged, "wx");
+  let published = false;
+  try {
+    try {
+      await handle.writeFile(rendered);
+      if (existing) await handle.chmod(existing.mode & 0o7777);
+    } finally {
+      await handle.close();
+    }
+    const current = await outputEntry(output);
+    if (current?.dev !== existing?.dev || current?.ino !== existing?.ino)
+      throw new Error("Rendered output was replaced before publication.");
+    await rename(staged, output);
+    published = true;
+  } finally {
+    if (!published) await rm(staged, { force: true });
+  }
+}
+
 await runDeliveryCommand(import.meta.main, repository, async () => {
   const { values } = parseArgs({
     options: {
@@ -143,14 +193,6 @@ await runDeliveryCommand(import.meta.main, repository, async () => {
     template.toString("utf8"),
     parseEnv(publicValues.toString("utf8")),
   );
-  await ensureArtifactDirectory(path.dirname(output));
-  try {
-    const entry = await lstat(output);
-    if (entry.isSymbolicLink() || !entry.isFile())
-      throw new Error("Rendered output must be an unlinked regular file.");
-  } catch (error_) {
-    if (error_.code !== "ENOENT") throw error_;
-  }
-  await writeFile(output, rendered, { flag: values.force ? "w" : "wx" });
+  await writeRenderedConfiguration(output, rendered, values.force);
   console.info("Deployment configuration rendered.");
 });

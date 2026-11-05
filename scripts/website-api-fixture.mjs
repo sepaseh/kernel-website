@@ -100,11 +100,12 @@ function mobile(body) {
 
 function email(body) {
   const value = text(body, "email", 254);
-  const [local, domain, extra] = value.split("@");
+  const parts = value.split("@");
+  const [local, domain] = parts;
   if (
+    parts.length !== 2 ||
     !local ||
     !domain ||
-    extra !== undefined ||
     /\s/.test(value) ||
     !domain.slice(1, -1).includes(".")
   )

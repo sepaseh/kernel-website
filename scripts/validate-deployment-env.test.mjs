@@ -157,7 +157,9 @@ test("public website examples satisfy validation without operator environment", 
       new URL("../deploy/native/website.env.example", import.meta.url),
     ].map(async (filename) => {
       const values = parseEnv(await readFile(filename, "utf8"));
-      validateDeploymentEnv("website", { NODE_ENV: "production", ...values });
+      assert.doesNotThrow(() =>
+        validateDeploymentEnv("website", { NODE_ENV: "production", ...values }),
+      );
     }),
   );
 });

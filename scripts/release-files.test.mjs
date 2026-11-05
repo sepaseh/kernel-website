@@ -255,10 +255,16 @@ test("overwrite copying replaces a destination link swapped after validation wit
 
   assert.equal(swapped, true, "the owned destination swap was exercised");
   assert.equal(await readFile(outside, "utf8"), "preserve outside bytes");
+  const copied = await filesystem.open(destination, "r");
+  try {
+    const identity = await copied.stat();
+    assert.notEqual(identity.ino, (await lstat(outside)).ino);
+    assert.equal(await copied.readFile("utf8"), content);
+    assert.equal(identity.mode & 0o777, sourceMode);
+  } finally {
+    await copied.close();
+  }
   assert.equal((await lstat(destination)).isSymbolicLink(), false);
-  assert.notEqual((await lstat(destination)).ino, (await lstat(outside)).ino);
-  assert.equal(await readFile(destination, "utf8"), content);
-  assert.equal((await lstat(destination)).mode & 0o777, sourceMode);
   if (process.platform !== "win32") assert.equal(sourceMode, 0o751);
   assert.deepEqual(await readdir(path.dirname(destination)), ["entry.txt"]);
 });
