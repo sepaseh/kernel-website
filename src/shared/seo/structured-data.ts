@@ -6,6 +6,10 @@ type WebsiteDescription = {
   language: string;
 };
 
+/**
+ * Describe the configured WebSite entity without inventing an origin or additional
+ * schema facts. Omit the entity entirely when no website origin is configured.
+ */
 export function createWebsiteJsonLd(
   { name, description, language }: WebsiteDescription,
   config: WebsiteSeoConfig = readSeoConfig(),
@@ -23,6 +27,10 @@ export function createWebsiteJsonLd(
   };
 }
 
+/**
+ * Serialize JSON-LD for an HTML script body, escaping every less-than character so
+ * data cannot terminate the script. Reject values with no JSON representation.
+ */
 export function serializeJsonLd(value: unknown): string {
   const serialized = JSON.stringify(value);
   if (serialized === undefined)

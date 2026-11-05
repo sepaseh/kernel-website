@@ -18,6 +18,7 @@ const router = vi.hoisted(() => ({ replace: vi.fn() }));
 // Router transitions need the later Next.js application; HTTP and session stay real.
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
+/** Exposes real session ownership so form tests can await the provider's read. */
 function SessionProbe() {
   const session = useSession();
   return (

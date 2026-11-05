@@ -1,8 +1,9 @@
 # Kernel Website assistant instructions
 
-The publication phase is **features** and `applicationReady` is **false**.
+The publication phase is **runners-foundation** and `applicationReady` is **false**.
 This package publishes shared website contracts, catalogs, fonts, authentication
-and account forms, client controls, session ownership and website policy helpers.
+and account forms, client controls, session ownership, website policy helpers,
+guarded Node runners, a synthetic HTTP fixture and deployment templates.
 It does not deliver a runnable website or establish deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
@@ -58,3 +59,12 @@ and pure CSP policy. Web Vitals has no default transport; optional consumers mus
 not corrupt delivery. See [SEO](docs/seo.md), [CSP](docs/website-csp.md) and
 [performance](docs/website-performance.md). Optional hooks and comprehension
 evaluation prompts require actual host integration and execution evidence.
+
+Runner and delivery imports stay inert. Preserve readiness checks before
+operation inputs, installed-tool resolution, output writes or child startup.
+Only owned synthetic test roots may declare readiness for isolated guard tests;
+never toggle the source marker to enter operations. Keep child environments
+explicit, website/API ports separate and cleanup limited to owned resources.
+The HTTP fixture holds disposable test accounts in memory; it is not a real
+backend. See [runners](docs/runner-foundation.md), [the fixture](docs/api-fixture.md)
+and [deployment references](docs/deployment.md) for contracts and evidence limits.

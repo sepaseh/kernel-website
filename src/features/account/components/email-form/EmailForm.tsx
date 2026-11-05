@@ -15,6 +15,7 @@ import { Feedback } from "@/shared/ui/Feedback";
 import { FormField } from "@/shared/ui/FormField";
 
 type EmailFormProps = { account: Account };
+/** Reset the email draft and verification state when their session owner changes. */
 export const EmailForm = ({ account }: EmailFormProps) => {
   const locale = useLocale();
   const { generation } = useSession();
@@ -25,6 +26,10 @@ export const EmailForm = ({ account }: EmailFormProps) => {
     />
   );
 };
+/**
+ * Bind verification to the requested normalized email. Editing the draft
+ * invalidates its code request, while failures retain input within this owner.
+ */
 const EmailFields = ({ account }: EmailFormProps) => {
   const t = useTranslations();
 
@@ -40,6 +45,10 @@ const EmailFields = ({ account }: EmailFormProps) => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<unknown>();
   const [notice, setNotice] = useState<string>();
+  /**
+   * Accept a code response only for the current mount and unchanged email revision.
+   * An obsolete success cannot install a verification target or start its cooldown.
+   */
   async function sendCode() {
     if (sending || busy || cooldown.remaining) return;
     const input = form.current?.elements.namedItem("email");
@@ -62,6 +71,10 @@ const EmailFields = ({ account }: EmailFormProps) => {
       if (isCurrent()) setSending(false);
     }
   }
+  /**
+   * Verify the requested address, then consume its code before reloading account data.
+   * A reload failure requires a new code; stale completions cannot update this owner.
+   */
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (

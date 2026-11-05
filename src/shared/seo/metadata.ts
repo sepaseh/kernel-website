@@ -13,6 +13,10 @@ type PageMetadata = {
   index?: boolean;
 };
 
+/**
+ * Validate each decoded segment against traversal and separators, then retain the
+ * original encoding for URL construction and remove only a non-root trailing slash.
+ */
 function normalizedPath(value: string) {
   const invalid = () =>
     new Error(
@@ -43,6 +47,11 @@ function normalizedPath(value: string) {
   return value.length > 1 && value.endsWith("/") ? value.slice(0, -1) : value;
 }
 
+/**
+ * Build page-owned canonical and social metadata from a validated explicit origin.
+ * A page can disable indexing but cannot override a disabled site policy; missing
+ * origins produce no invented canonical URL or social-image destination.
+ */
 export function createPageMetadata(
   { title, description, path, index }: PageMetadata,
   config: WebsiteSeoConfig = readSeoConfig(),

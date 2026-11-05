@@ -81,7 +81,7 @@ test("publication accepts only the reviewed phase inventory and matching readine
     ...[
       "runtime-unreviewed/page.tsx",
       ".env.local",
-      "deploy/native/website.env.example",
+      "playwright.website.config.ts",
       "scripts/unreviewed.mjs",
       "../outside.md",
       "docs/*.md",

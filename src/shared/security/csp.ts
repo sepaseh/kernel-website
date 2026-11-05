@@ -1,5 +1,6 @@
 export type WebsiteCspMode = "report-only" | "enforce";
 
+/** Classifies pathname-only input, excluding known API, asset and metadata routes. */
 export function isCspDocumentPath(pathname: string): boolean {
   return !(
     /^\/(?:api|fonts|_next\/static|_next\/image)(?:\/|$)/.test(pathname) ||
@@ -10,18 +11,24 @@ export function isCspDocumentPath(pathname: string): boolean {
   );
 }
 
+/** Defaults an absent rollout setting to report-only and rejects invalid values. */
 export function readWebsiteCspMode(value: string | undefined): WebsiteCspMode {
   if (value === undefined || value === "report-only") return "report-only";
   if (value === "enforce") return "enforce";
   throw new Error("WEBSITE_CSP_MODE must be report-only or enforce.");
 }
 
+/** Checks nonce syntax only; the caller must supply an unpredictable per-document value. */
 export function isCspNonce(value: string | null): value is string {
   return (
     value !== null && value.length === 24 && /^[A-Za-z0-9+/]{24}$/.test(value)
   );
 }
 
+/**
+ * Builds a pure policy with explicit development exceptions for eval and WebSockets.
+ * The caller owns nonce generation and matching header/document application.
+ */
 export function createWebsiteCsp(nonce: string, development = false): string {
   if (!isCspNonce(nonce)) throw new Error("Invalid website CSP nonce.");
   return [

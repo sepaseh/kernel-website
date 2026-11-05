@@ -3,6 +3,7 @@ export type WebsiteSeoConfig = {
   indexable: boolean;
 };
 
+/** Detect ASCII controls and optionally space before accepting document URL text. */
 export function containsAsciiControl(value: string, includeSpace = false) {
   const maximum = includeSpace ? 32 : 31;
   return [...value].some((character) => {
@@ -11,6 +12,7 @@ export function containsAsciiControl(value: string, includeSpace = false) {
   });
 }
 
+/** Classify URL-normalized localhost, IPv4 and IPv4-mapped IPv6 preview hosts. */
 function isLoopback(hostname: string) {
   const host = hostname.toLowerCase().replace(/\.$/, "");
   return (
@@ -22,6 +24,11 @@ function isLoopback(hostname: string) {
   );
 }
 
+/**
+ * Validate an explicitly configured website origin without deriving one from a
+ * request or API host. Indexing requires a production opt-in and non-loopback HTTPS;
+ * an unconfigured origin stays absent and loopback HTTP is preview-only.
+ */
 export function readSeoConfig(
   environment: Record<string, string | undefined> = process.env,
 ): WebsiteSeoConfig {

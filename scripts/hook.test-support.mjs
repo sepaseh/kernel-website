@@ -5,6 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * Keep only process-launch and temporary-directory variables for isolated tests,
+ * excluding inherited shell startup hooks and unrelated operator configuration.
+ */
 export const runtimeEnvironment = (inherited = process.env) => {
   const environment = {};
   for (const name of ["PATH", "SystemRoot", "TEMP", "TMP"])
@@ -17,6 +21,7 @@ export const hooks = fileURLToPath(
 );
 export const hook = path.join(hooks, "block-dangerous.mjs");
 export const shellHook = path.join(hooks, "block-dangerous.sh");
+/** Feed the Node entrypoint through stdin, preserving malformed string fixtures. */
 export const run = (payload) =>
   spawnSync(process.execPath, [hook], {
     input: typeof payload === "string" ? payload : JSON.stringify(payload),
@@ -35,6 +40,11 @@ export const bash = [
       windowsHide: true,
     }).status === 0,
 );
+/**
+ * Exercise the Bash entrypoint with literal positional paths and stdin payloads.
+ * The mode flags simulate absent Node or a misleading shell function without
+ * interpolating host paths into the executable shell program.
+ */
 export const runShell = (
   payload,
   script = shellHook,

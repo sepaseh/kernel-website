@@ -1,6 +1,6 @@
 # Understand this publication
 
-The current publication phase is **features** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **runners-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
 The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
 
@@ -12,6 +12,20 @@ The [source policy](../.github/bootstrap-policy.json) is the exact admitted inve
 - SEO, CSP and optional Web Vitals delivery helpers.
 - Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
 - Licensed font source and real font verification.
+- Guarded Node runners and their lifecycle/input owner tests.
+- A local synthetic HTTP fixture with disposable in-memory accounts and sessions.
+- Standalone preparation, release-file, rendering and health-check helpers, plus
+  Docker, Compose, Nginx and systemd reference templates.
+
+The [runners](runner-foundation.md), [fixture](api-fixture.md) and
+[deployment references](deployment.md) define only the admitted foundation.
+The delivery and application-runner CLIs check readiness before their operations;
+the false marker prevents application startup, build, packaging, rendering and
+health requests through those CLIs. Owner tests use explicitly synthetic roots,
+local HTTP responders and disposable child programs. This phase includes no
+framework composition, browser suites or Docker smoke runner and establishes no
+successful Next build, browser execution, container deployment or live backend
+compatibility.
 
 The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.
 

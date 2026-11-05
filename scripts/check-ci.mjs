@@ -82,8 +82,13 @@ export function workflowDocument(content) {
   return workflow;
 }
 
+/**
+ * Assert that the declared phase runs every required check exactly once and that
+ * hosted profiles partition the same gate. This validates configuration agreement,
+ * not execution or provider success.
+ */
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "features");
+  assert.equal(manifest.phase, "runners-foundation");
   assert.equal(manifest.applicationReady, false);
   assert.deepEqual(
     manifest.profiles?.full,
@@ -532,6 +537,6 @@ export async function inspectCi(root = repository) {
 if (import.meta.main) {
   await inspectCi();
   console.log(
-    "Features CI, native security and real Sonar coverage order passed.",
+    "Runner foundation CI, native security and real Sonar coverage order passed.",
   );
 }

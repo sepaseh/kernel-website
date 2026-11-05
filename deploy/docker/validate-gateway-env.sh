@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+fail() {
+  printf '%s\n' "Invalid gateway configuration: $1" >&2
+  exit 1
+}
+
+valid_host() {
+  validated_host=$1
+  case "$validated_host" in
+    ''|*[!a-z0-9.-]*) return 1 ;;
+    *) : ;;
+  esac
+  [ "${#validated_host}" -le 253 ] &&
+    printf '%s\n' "$validated_host" | LC_ALL=C grep -Eq '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$'
+}
+
+valid_host "${WEBSITE_HOST:-}" ||
+  fail "WEBSITE_HOST must be a lowercase bare DNS hostname."
+case "${RELEASE_ID:-}" in
+  ''|*[!A-Za-z0-9_.-]*|*..*) fail "RELEASE_ID contains unsafe characters." ;;
+  *) : ;;
+esac
+printf '%s\n' "$RELEASE_ID" |
+  LC_ALL=C grep -Eq '^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$' ||
+  fail "RELEASE_ID must contain 1 to 128 safe release identifier characters."
+
+case "${HTTPS_PORT:-}" in
+  ''|*[!0-9]*|0*) fail "HTTPS_PORT must be a TCP port without leading zeros." ;;
+  *) : ;;
+esac
+[ "${#HTTPS_PORT}" -le 5 ] || fail "HTTPS_PORT must be between 1 and 65535."
+[ "$HTTPS_PORT" -ge 1 ] && [ "$HTTPS_PORT" -le 65535 ] ||
+  fail "HTTPS_PORT must be between 1 and 65535."
+
+[ -r /etc/kernel/tls/fullchain.pem ] || fail "Missing mounted fullchain.pem."
+[ -r /etc/kernel/tls/privkey.pem ] || fail "Missing mounted privkey.pem."
+key_mode=$(stat -c '%a' /etc/kernel/tls/privkey.pem)
+case "$key_mode" in
+  400|440|600|640) ;;
+  *) fail "privkey.pem must deny group writes and all other-user access." ;;
+esac
