@@ -163,14 +163,15 @@ test("forced rendering creates missing output and preserves existing file permis
   const output = path.join(directory, "nginx.conf");
   await writeRenderedConfiguration(output, "first configuration", true);
   await chmod(output, 0o640);
-  const original = await filesystem.open(output, "r");
-  const mode = (await original.stat()).mode & 0o777;
-  await original.close();
 
   await writeRenderedConfiguration(output, "replacement configuration", true);
   const replacement = await filesystem.open(output, "r");
   try {
-    assert.equal((await replacement.stat()).mode & 0o777, mode);
+    const permissionMask = process.platform === "win32" ? 0o200 : 0o777;
+    assert.equal(
+      (await replacement.stat()).mode & permissionMask,
+      0o640 & permissionMask,
+    );
     assert.equal(
       await replacement.readFile("utf8"),
       "replacement configuration",
