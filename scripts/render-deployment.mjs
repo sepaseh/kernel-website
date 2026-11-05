@@ -99,44 +99,42 @@ async function outputEntry(filename) {
   }
 }
 
-/** Publish through an owned handle; forced replacement never opens the target for writing. */
-export async function writeRenderedConfiguration(output, rendered, force) {
-  await ensureArtifactDirectory(path.dirname(output));
-  if (!force) {
-    const handle = await open(output, "wx");
-    const failures = [];
-    let owned;
-    try {
-      owned = await handle.stat();
-      await handle.writeFile(rendered);
-    } catch (error) {
-      failures.push(error);
-    }
-    try {
-      await handle.close();
-    } catch (error) {
-      failures.push(error);
-    }
-    if (!failures.length) return;
-
-    try {
-      const current = await lstat(output);
-      if (
-        current.isFile() &&
-        !current.isSymbolicLink() &&
-        current.dev === owned?.dev &&
-        current.ino === owned?.ino
-      )
-        await rm(output);
-    } catch (error) {
-      if (error.code !== "ENOENT") failures.push(error);
-    }
-    if (failures.length === 1) throw failures[0];
-    throw new AggregateError(failures, "Rendered output creation failed.", {
-      cause: failures[0],
-    });
+async function createRenderedConfiguration(output, rendered) {
+  const handle = await open(output, "wx");
+  const failures = [];
+  let owned;
+  try {
+    owned = await handle.stat();
+    await handle.writeFile(rendered);
+  } catch (error) {
+    failures.push(error);
   }
+  try {
+    await handle.close();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (!failures.length) return;
 
+  try {
+    const current = await lstat(output);
+    if (
+      current.isFile() &&
+      !current.isSymbolicLink() &&
+      current.dev === owned?.dev &&
+      current.ino === owned?.ino
+    )
+      await rm(output);
+  } catch (error) {
+    if (error.code !== "ENOENT") failures.push(error);
+  }
+  if (failures.length === 1) throw failures[0];
+  throw new AggregateError(failures, "Rendered output creation failed.", {
+    cause: failures[0],
+  });
+}
+
+async function replaceRenderedConfiguration(output, rendered) {
   const existing = await outputEntry(output);
   const staged = path.join(
     path.dirname(output),
@@ -159,6 +157,13 @@ export async function writeRenderedConfiguration(output, rendered, force) {
   } finally {
     if (!published) await rm(staged, { force: true });
   }
+}
+
+/** Publish through an owned handle; forced replacement never opens the target for writing. */
+export async function writeRenderedConfiguration(output, rendered, force) {
+  await ensureArtifactDirectory(path.dirname(output));
+  if (force) await replaceRenderedConfiguration(output, rendered);
+  else await createRenderedConfiguration(output, rendered);
 }
 
 await runDeliveryCommand(import.meta.main, repository, async () => {

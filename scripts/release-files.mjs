@@ -183,35 +183,26 @@ async function physicalOutputPath(value, directory = false) {
   return realpath(filename);
 }
 
-async function copyDirectoryEntry(
-  source,
-  destination,
-  sourceRoot,
-  ancestors,
-  skip,
-  overwrite,
-  destinationRoot,
-  budget,
-) {
+async function copyDirectoryEntry(source, destination, ancestors, context) {
   if (ancestors.has(source))
     throw new Error("Cannot package a circular directory link.");
-  assertCopySeparation(source, await physicalOutputPath(destinationRoot));
+  assertCopySeparation(
+    source,
+    await physicalOutputPath(context.destinationRoot),
+  );
   const nested = new Set(ancestors).add(source);
   await ensureArtifactDirectory(destination);
   for (const name of await readdir(source))
     await copyEntry(
       path.join(source, name),
       path.join(destination, name),
-      sourceRoot,
       nested,
-      skip,
-      overwrite,
-      destinationRoot,
-      budget,
+      context,
     );
 }
 
-async function copyFileEntry(source, destination, overwrite, destinationRoot) {
+async function copyFileEntry(source, destination, context) {
+  const { overwrite, destinationRoot } = context;
   assertCopySeparation(source, destinationRoot);
   await ensureArtifactDirectory(path.dirname(destination));
   try {
@@ -253,16 +244,8 @@ async function replaceArtifactFile(source, destination) {
   }
 }
 
-async function copyEntry(
-  source,
-  destination,
-  sourceRoot,
-  ancestors,
-  skip,
-  overwrite,
-  destinationRoot,
-  budget,
-) {
+async function copyEntry(source, destination, ancestors, context) {
+  const { sourceRoot, skip, budget } = context;
   const relative = path.relative(sourceRoot, source).split(path.sep).join("/");
   if (!insideArtifactRoot(sourceRoot, source))
     throw new Error("Artifact source must stay inside its declared tree.");
@@ -275,21 +258,12 @@ async function copyEntry(
   if (excludedArtifactPath(path.relative(sourceRoot, resolved))) return;
   const entry = await lstat(resolved);
   if (entry.isDirectory()) {
-    await copyDirectoryEntry(
-      resolved,
-      destination,
-      sourceRoot,
-      ancestors,
-      skip,
-      overwrite,
-      destinationRoot,
-      budget,
-    );
+    await copyDirectoryEntry(resolved, destination, ancestors, context);
   } else if (entry.isFile()) {
     budget.bytes += entry.size;
     if (budget.bytes > budget.maxBytes)
       throw new Error("Artifact copy exceeds its total byte budget.");
-    await copyFileEntry(resolved, destination, overwrite, destinationRoot);
+    await copyFileEntry(resolved, destination, context);
   } else throw new Error("Unsupported release file.");
 }
 export async function copyArtifactTree({
@@ -329,11 +303,12 @@ export async function copyArtifactTree({
   if (excludedArtifactPath(path.relative(root, resolved))) return;
   const target = await physicalOutputPath(destination);
   assertCopySeparation(resolved, target);
-  await copyEntry(from, target, root, new Set(), skip, overwrite, target, {
-    entries: 0,
-    bytes: 0,
-    maxEntries,
-    maxBytes,
+  await copyEntry(from, target, new Set(), {
+    sourceRoot: root,
+    skip,
+    overwrite,
+    destinationRoot: target,
+    budget: { entries: 0, bytes: 0, maxEntries, maxBytes },
   });
 }
 

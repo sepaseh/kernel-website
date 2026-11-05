@@ -28,7 +28,8 @@ export function assertCleanWebsiteEnvironment(websiteDirectory) {
     if (parent === cursor) break;
     cursor = parent;
   }
-  for (const ancestor of ancestors.reverse()) assertUnlinkedDirectory(ancestor);
+  for (const ancestor of ancestors.toReversed())
+    assertUnlinkedDirectory(ancestor);
 
   const standalone = path.join(directory, ".next/standalone");
   const directories = [directory];
