@@ -120,12 +120,16 @@ test("staging validates both explicit hosts without making requests", () => {
   ])
     assert.throws(
       () => validateStagingTargets({ ...staging, [field]: value }),
-      new RegExp(`${field} host is not explicitly allowed`),
+      { message: `${field} host is not explicitly allowed` },
     );
   for (const field of Object.keys(staging)) {
     const incomplete = { ...staging };
     delete incomplete[field];
-    assert.throws(() => validateStagingTargets(incomplete), new RegExp(field));
+    assert.throws(
+      () => validateStagingTargets(incomplete),
+      (error) =>
+        error instanceof Error && error.message.startsWith(`${field} `),
+    );
   }
 });
 
@@ -161,7 +165,8 @@ test("smoke targets require matching deployment IDs and report smoke field names
   ])
     assert.throws(
       () => validateSmokeTargets({ ...smoke, [field]: value }),
-      new RegExp(field),
+      (error) =>
+        error instanceof Error && error.message.startsWith(`${field} `),
     );
 });
 
