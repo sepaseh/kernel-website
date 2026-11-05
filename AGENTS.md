@@ -1,9 +1,10 @@
 # Kernel Website assistant instructions
 
-The publication phase is **runners-foundation** and `applicationReady` is **false**.
+The publication phase is **browser-foundation** and `applicationReady` is **false**.
 This package publishes shared website contracts, catalogs, fonts, authentication
 and account forms, client controls, session ownership, website policy helpers,
-guarded Node runners, a synthetic HTTP fixture and deployment templates.
+guarded Node/browser tooling, authored typed browser and visual suites, retained
+baseline images, a synthetic HTTP fixture and deployment templates.
 It does not deliver a runnable website or establish deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
@@ -60,11 +61,21 @@ not corrupt delivery. See [SEO](docs/seo.md), [CSP](docs/website-csp.md) and
 [performance](docs/website-performance.md). Optional hooks and comprehension
 evaluation prompts require actual host integration and execution evidence.
 
-Runner and delivery imports stay inert. Preserve readiness checks before
+Runner, browser and delivery imports stay inert. Preserve readiness checks before
 operation inputs, installed-tool resolution, output writes or child startup.
 Only owned synthetic test roots may declare readiness for isolated guard tests;
 never toggle the source marker to enter operations. Keep child environments
 explicit, website/API ports separate and cleanup limited to owned resources.
 The HTTP fixture holds disposable test accounts in memory; it is not a real
-backend. See [runners](docs/runner-foundation.md), [the fixture](docs/api-fixture.md)
-and [deployment references](docs/deployment.md) for contracts and evidence limits.
+backend. See [runners](docs/runner-foundation.md), [browser tooling](docs/browser-foundation.md),
+[the fixture](docs/api-fixture.md) and [deployment references](docs/deployment.md)
+for contracts and evidence limits.
+
+Browser tooling requires the reviewed installed SDK and an explicitly filtered
+parent environment. Preserve bounded names-only diagnostics, the literal `1`
+Playwright worker marker and launcher parent/child port ownership. Typed authored
+suites, Node owner tests and retained screenshots do not establish browser,
+visual or external backend compatibility. Runnable acceptance requires delivered
+application composition, this repository's HTTP fixture and a verified browser.
+Keep baseline bytes and review dates until an explicitly authorized update has
+actual visual review; updates are forbidden in CI. See [visual regression](docs/visual-regression.md).

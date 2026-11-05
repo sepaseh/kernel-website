@@ -11,6 +11,10 @@ import {
 } from "./validate-deployment-env.mjs";
 import { assertCleanWebsiteEnvironment } from "./website-performance-environment.mjs";
 
+/**
+ * Gate runner work on declared readiness and reject runtime dotenv presence
+ * before callers read operation settings, resolve tools, write files or spawn.
+ */
 export async function readyRunnerRoot(root) {
   const directory = await requireApplicationReady(root);
   assertCleanWebsiteEnvironment(directory);
@@ -24,6 +28,10 @@ const requiredString = (environment, key) => {
   return value;
 };
 
+/**
+ * Copy only validated process-location settings needed to launch local tools,
+ * leaving unrelated operator settings and launch hooks unread.
+ */
 function runtimeEnvironment(inherited) {
   const environment = {};
   for (const key of ["PATH", "SystemRoot", "TEMP", "TMP"]) {
@@ -34,6 +42,10 @@ function runtimeEnvironment(inherited) {
   return environment;
 }
 
+/**
+ * Build a new child environment from runtime essentials and validated public
+ * website settings, with explicit host/port values and telemetry disabled.
+ */
 function publicWebsiteEnvironment(inherited) {
   const environment = runtimeEnvironment(inherited);
   for (const key of ["NODE_ENV", "API_BASE_URL", "HOSTNAME", "PORT"])
@@ -64,11 +76,19 @@ function publicWebsiteEnvironment(inherited) {
   return environment;
 }
 
+/**
+ * Validate the selected root before reading inherited public settings and
+ * return a separate allowlisted environment without changing the input.
+ */
 export async function websiteRunnerEnvironment(root, inherited = process.env) {
   await readyRunnerRoot(root);
   return publicWebsiteEnvironment(inherited);
 }
 
+/**
+ * Require a bare HTTP IPv4 loopback origin with a retained explicit port for
+ * isolated synthetic services.
+ */
 function isolatedOrigin(value) {
   const url = validateOrigin(value, false);
   if (url.protocol !== "http:" || url.hostname !== "127.0.0.1" || !url.port)
@@ -78,6 +98,11 @@ function isolatedOrigin(value) {
   return url;
 }
 
+/**
+ * After readiness, require synthetic opt-in, disabled indexing and separate
+ * loopback website/API ports. Return independent child environments with each
+ * service's own PORT and the validated public website origin.
+ */
 export async function syntheticRunnerInputs(root, inherited = process.env) {
   await readyRunnerRoot(root);
   if (inherited?.KERNEL_SYNTHETIC_ENV !== "1")
@@ -109,6 +134,10 @@ export async function syntheticRunnerInputs(root, inherited = process.env) {
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
 
+/**
+ * After readiness, resolve an unlinked CLI inside the selected website only
+ * when its manifest, lockfile and installed Next package agree exactly.
+ */
 export async function resolveNextCli(root) {
   const directory = await readyRunnerRoot(root);
   const manifest = await readJson(path.join(directory, "package.json"));
@@ -134,6 +163,10 @@ export async function resolveNextCli(root) {
   return artifactFile(path.join(directory, "node_modules/next/dist/bin/next"));
 }
 
+/**
+ * After readiness and explicit synthetic opt-in, select the website-owned local
+ * HTTP fixture entry without consulting external source trees or Git state.
+ */
 export async function resolveApiFixture(root, inherited = process.env) {
   const directory = await readyRunnerRoot(root);
   if (inherited?.KERNEL_SYNTHETIC_ENV !== "1")

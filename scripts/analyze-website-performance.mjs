@@ -22,6 +22,10 @@ import {
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const maximumExportBytes = 64 * 1024 * 1024;
 
+/**
+ * Stream a nonempty graph within the byte limit, stopping the owned exporter on
+ * read or write failure while preserving any distinct stop failure.
+ */
 async function writeGraph(owned, output, limit) {
   let bytes = 0;
   try {
@@ -46,6 +50,10 @@ async function writeGraph(owned, output, limit) {
   }
 }
 
+/**
+ * Reject a changed identity before accepting output or attempting cleanup of
+ * the exclusively claimed file.
+ */
 async function requireClaimedOutput(filename, identity) {
   const current = await lstat(await artifactFile(filename));
   if (
@@ -59,6 +67,11 @@ async function requireClaimedOutput(filename, identity) {
     );
 }
 
+/**
+ * Exclusively claim the fixed graph output and await exporter/writer settlement.
+ * Close the handle on every path and stop failed work; cleanup removes output
+ * only after verifying its identity and retains operation and cleanup errors.
+ */
 async function exportGraph(directory, next, environment, signal, limit) {
   const parent = path.join(directory, ".lighthouseci/website");
   await ensureArtifactDirectory(parent);
@@ -118,6 +131,11 @@ async function exportGraph(directory, next, environment, signal, limit) {
   return filename;
 }
 
+/**
+ * Run installed Next analysis after readiness and isolated input validation.
+ * Export mode owns bounded exclusive output and propagates child, writer and
+ * cleanup failures before returning its saved filename.
+ */
 export async function analyzeWebsitePerformance(
   root = repository,
   options = {},

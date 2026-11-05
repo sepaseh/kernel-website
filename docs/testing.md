@@ -22,17 +22,29 @@ resources owned by the test. Verify observable failures, original errors,
 cancellation, coverage artifact identity and cleanup.
 Follow [test reliability](test-reliability.md).
 
-Runner and delivery owner tests exercise direct-child lifecycle, cancellation,
+Runner, browser and delivery owner tests exercise direct-child lifecycle, cancellation,
 drain, explicit environments, artifact paths and failure cleanup. Only owned
 synthetic roots may declare readiness to test these contracts. Separate cases
 verify that the actual false-readiness boundary prevents operation input reads
-and side effects. Imports must remain inert. See [runner contracts](runner-foundation.md)
-and [deployment references](deployment.md).
+and side effects. Imports must remain inert. See [runner contracts](runner-foundation.md),
+[browser tooling](browser-foundation.md) and [deployment references](deployment.md).
 
 The [HTTP fixture](api-fixture.md) tests use disposable in-memory accounts and
 local requests. Stub Next executables and synthetic standalone outputs verify
 runner ownership and sequencing, not compatibility with a real framework build.
-No browser, Docker smoke or installed-service acceptance is delivered here.
+Authored browser and visual suites are published with a required tooling
+TypeScript project. Compilation checks compatibility with installed SDK types;
+it does not execute the suites. Node browser-owner cases use synthetic SDK files
+and disposable programs, not a real browser. No runnable application, completed
+browser/visual comparison, Docker smoke or installed-service acceptance is
+delivered here. Retained baseline images describe historical captures.
+
+Future application acceptance must exercise the delivered website with this
+repository's HTTP fixture and a verified browser. Build, browser/CSP and visual
+operations share outputs and must run sequentially. The current false marker
+rejects those operations before configuration, dependencies or child startup;
+it does not turn authored scenarios into passing or skipped browser results.
+See [visual regression](visual-regression.md) for baseline review and update rules.
 
 The [boundary check](../scripts/check-boundaries.mjs) traces literal imports,
 local bindings, literal container selections and explicit function return/yield

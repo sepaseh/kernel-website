@@ -22,6 +22,10 @@ const publicNames = new Set([
   "HTTPS_PORT",
 ]);
 
+/**
+ * Validates and substitutes only approved public ${FIELDS} that occur in the template.
+ * Nginx variables remain intact; certificate paths are syntax-checked without reading files.
+ */
 export function renderDeploymentTemplate(template, environment) {
   const values = { HTTPS_PORT: "443", ...environment };
   return template.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (_, name) => {
@@ -63,6 +67,7 @@ export function renderDeploymentTemplate(template, environment) {
   });
 }
 
+/** Rejects unsafe path syntax before the CLI resolves and checks repository containment. */
 function validateLocalPath(value) {
   const root = path.parse(value).root;
   const hasControlCharacter = Array.from(value).some((character) => {
@@ -87,6 +92,7 @@ function validateLocalPath(value) {
     );
 }
 
+/** Returns an unlinked regular entry or absence; directory ancestry is checked by the caller. */
 async function outputEntry(filename) {
   try {
     const entry = await lstat(filename);
@@ -99,6 +105,11 @@ async function outputEntry(filename) {
   }
 }
 
+/**
+ * Claims unused output and retains write, close and cleanup failures in that order.
+ * Cleanup checks the claimed handle's identity before removal; this is best effort
+ * under single-writer ownership, not an atomic check-and-unlink guarantee.
+ */
 async function createRenderedConfiguration(output, rendered) {
   const handle = await open(output, "wx");
   const failures = [];
@@ -134,6 +145,11 @@ async function createRenderedConfiguration(output, rendered) {
   });
 }
 
+/**
+ * Writes and closes a claimed sibling stage before publishing it by rename, keeping
+ * existing permissions and rechecking output identity. Failed publication attempts
+ * stage removal; identity checks still require stable paths and trusted ancestors.
+ */
 async function replaceRenderedConfiguration(output, rendered) {
   const existing = await outputEntry(output);
   const staged = path.join(
@@ -159,7 +175,10 @@ async function replaceRenderedConfiguration(output, rendered) {
   }
 }
 
-/** Publish through an owned handle; forced replacement never opens the target for writing. */
+/**
+ * Validates or creates the output ancestry, then creates exclusively or replaces
+ * through a stage. Forced replacement never opens the target for writing.
+ */
 export async function writeRenderedConfiguration(output, rendered, force) {
   await ensureArtifactDirectory(path.dirname(output));
   if (force) await replaceRenderedConfiguration(output, rendered);

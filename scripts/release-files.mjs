@@ -35,6 +35,7 @@ const excludedDirectories = new Set([
   "test-results",
   "tests",
 ]);
+/** Tests lexical containment, including the root itself; it does not resolve links. */
 export const insideArtifactRoot = (root, filename) => {
   const relative = path.relative(root, filename);
   return (
@@ -43,6 +44,7 @@ export const insideArtifactRoot = (root, filename) => {
     !path.isAbsolute(relative)
   );
 };
+/** Requires an explicit absolute local path before normalizing its segments. */
 const absolutePath = (value) => {
   if (
     typeof value !== "string" ||
@@ -55,6 +57,7 @@ const absolutePath = (value) => {
   return path.resolve(value);
 };
 
+/** Checks ancestors before descending or creating children; existing links always fail. */
 async function directoryPath(value, create) {
   const directory = absolutePath(value);
   const parent = path.dirname(directory);
@@ -77,9 +80,12 @@ async function directoryPath(value, create) {
     );
   return directory;
 }
+/** Requires an existing directory with an entirely unlinked directory ancestry. */
 export const artifactDirectory = (directory) => directoryPath(directory, false);
+/** Creates missing directories in parent-to-child order while validating each entry. */
 export const ensureArtifactDirectory = (directory) =>
   directoryPath(directory, true);
+/** Validates the parent chain and rejects linked or non-regular input files. */
 export async function artifactFile(value) {
   const filename = absolutePath(value);
   await artifactDirectory(path.dirname(filename));
@@ -88,9 +94,14 @@ export async function artifactFile(value) {
     throw new Error("Artifact input must be an unlinked regular file.");
   return filename;
 }
+/** Reads validated input bytes; the caller must keep the path stable between check and read. */
 export async function readArtifactFile(filename) {
   return readFile(await artifactFile(filename));
 }
+/**
+ * Requires the schema-one readiness marker before delivery operations access inputs.
+ * A true marker grants this boundary only; it does not verify a build or deployment.
+ */
 export async function requireApplicationReady(root) {
   const directory = await artifactDirectory(root);
   const marker = JSON.parse(
@@ -107,6 +118,7 @@ export async function requireApplicationReady(root) {
   return directory;
 }
 
+/** Filters known private, state and development file classes by path, without inspecting content. */
 export function excludedArtifactPath(filename) {
   const segments = filename.replaceAll("\\", "/").split("/");
   const lower = segments.map((part) => part.toLowerCase());
@@ -131,6 +143,10 @@ export function excludedArtifactPath(filename) {
   );
 }
 
+/**
+ * Waits for every started owner before reporting failures. A single failure is
+ * rethrown unchanged; multiple failures retain input order and the first as cause.
+ */
 export async function completeArtifactWork(operations) {
   const results = await Promise.allSettled(operations);
   const failures = results
@@ -150,6 +166,7 @@ export async function completeArtifactWork(operations) {
   return results.map((result) => result.value);
 }
 
+/** Rejects overlap in either direction between the caller's resolved input and output. */
 const assertCopySeparation = (source, destination) => {
   if (
     insideArtifactRoot(source, destination) ||
@@ -160,6 +177,10 @@ const assertCopySeparation = (source, destination) => {
     );
 };
 
+/**
+ * Resolves existing output segments without creating them, rejecting links and
+ * non-directory ancestors. Missing segments remain available for later creation.
+ */
 async function physicalOutputPath(value, directory = false) {
   const absolute = absolutePath(value);
   const parent = path.dirname(absolute);
@@ -183,6 +204,10 @@ async function physicalOutputPath(value, directory = false) {
   return realpath(filename);
 }
 
+/**
+ * Tracks ancestors per branch so sibling aliases remain valid. Sequential copies
+ * share one budget and stop scheduling descendants as soon as any copy fails.
+ */
 async function copyDirectoryEntry(source, destination, ancestors, context) {
   if (ancestors.has(source))
     throw new Error("Cannot package a circular directory link.");
@@ -201,6 +226,7 @@ async function copyDirectoryEntry(source, destination, ancestors, context) {
     );
 }
 
+/** Rejects unsafe destinations, then claims exclusively or replaces through a closed stage. */
 async function copyFileEntry(source, destination, context) {
   const { overwrite, destinationRoot } = context;
   assertCopySeparation(source, destinationRoot);
@@ -216,6 +242,11 @@ async function copyFileEntry(source, destination, context) {
   else await copyFile(source, destination, constants.COPYFILE_EXCL);
 }
 
+/**
+ * Streams into an exclusively claimed sibling stage, preserves source permissions
+ * and closes both handles before rename. Failure attempts to remove that stage;
+ * its pathname and ancestors must remain under trusted single-writer ownership.
+ */
 async function replaceArtifactFile(source, destination) {
   const staged = path.join(
     path.dirname(destination),
@@ -244,6 +275,7 @@ async function replaceArtifactFile(source, destination) {
   }
 }
 
+/** Checks logical and resolved paths, charging shared entry visits and copied source-file sizes. */
 async function copyEntry(source, destination, ancestors, context) {
   const { sourceRoot, skip, budget } = context;
   const relative = path.relative(sourceRoot, source).split(path.sep).join("/");
@@ -266,6 +298,12 @@ async function copyEntry(source, destination, ancestors, context) {
     await copyFileEntry(resolved, destination, context);
   } else throw new Error("Unsupported release file.");
 }
+/**
+ * Copies a disjoint owned tree, materializing internal links and rejecting escapes
+ * and cycles. Shared limits default to 100,000 entry visits and 1 GiB of source-file
+ * sizes, counting repeated aliases. Failures may leave partial output for its owner.
+ * Paths must remain stable: validation and filesystem operations are not atomic.
+ */
 export async function copyArtifactTree({
   source,
   destination,
@@ -312,6 +350,10 @@ export async function copyArtifactTree({
   });
 }
 
+/**
+ * Keeps supported-runtime imports inert and gates main-entry callbacks on readiness.
+ * Unsupported runtimes and CLI failures set exitCode instead of escaping as errors.
+ */
 export async function runDeliveryCommand(main, root, action) {
   if (typeof main !== "boolean") {
     console.error(

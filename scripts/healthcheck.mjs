@@ -5,6 +5,10 @@ import { runDeliveryCommand } from "./release-files.mjs";
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const maximumResponseBytes = 1024 * 1024;
 
+/**
+ * Rejects as soon as received chunks exceed 1 MiB, without trusting Content-Length.
+ * Exiting body iteration cancels unread data; accepted bytes are decoded together.
+ */
 async function readHealthResponse(response) {
   const chunks = [];
   let bytes = 0;
@@ -17,6 +21,12 @@ async function readHealthResponse(response) {
   return new TextDecoder().decode(Buffer.concat(chunks, bytes));
 }
 
+/**
+ * Probes one explicit HTTP(S) URL without userinfo, with no redirects and a
+ * five-second request/body timeout. Requires status 200 plus API JSON status "ok"
+ * or website text/html with an HTML marker, within the body cap. The CLI wrapper
+ * supplies the readiness gate; direct callers own target authorization.
+ */
 export async function checkHealth(mode, target) {
   if (mode !== "api" && mode !== "website")
     throw new Error("Health mode must be api or website.");

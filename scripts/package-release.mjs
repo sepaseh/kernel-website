@@ -20,6 +20,7 @@ const runtimeScripts = [
   "scripts/release-files.mjs",
   "scripts/validate-deployment-env.mjs",
 ];
+/** Keeps release identifiers to one bounded path component without any '..' sequence. */
 export function validateReleaseId(value) {
   if (
     typeof value !== "string" ||
@@ -31,6 +32,7 @@ export function validateReleaseId(value) {
     );
   return value;
 }
+/** Accepts exactly one --release=ID or --release ID argument, rejecting unknown or duplicate flags. */
 export function parseReleaseArguments(args) {
   let releaseId;
   for (let index = 0; index < args.length; index++) {
@@ -48,6 +50,13 @@ export function parseReleaseArguments(args) {
   return releaseId;
 }
 
+/**
+ * Checks readiness and required inputs before claiming a new release directory.
+ * Copies the traced runtime with current public/static assets, runtime helpers and
+ * identity metadata; it neither builds nor verifies runtime compatibility.
+ * Existing or partially written releases are never reused, and failures leave the
+ * claimed directory for inspection rather than recursively cleaning its contents.
+ */
 export async function packageRelease({
   repositoryRoot = defaultRepository,
   releaseId,

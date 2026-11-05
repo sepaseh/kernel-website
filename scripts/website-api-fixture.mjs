@@ -25,6 +25,7 @@ class FixtureError extends Error {
   }
 }
 
+/** Admit only explicit synthetic inputs; container mode changes both binding and the allowed origin. */
 function configuration(environment) {
   if (
     environment.NODE_ENV !== "test" ||
@@ -67,6 +68,7 @@ function configuration(environment) {
   return { host, port: Number(environment.PORT), website: website.origin };
 }
 
+/** Normalize fixture text fields while preserving field-keyed validation failures for form tests. */
 function text(body, field, maximum = 1000) {
   const value = body[field];
   if (
@@ -80,6 +82,7 @@ function text(body, field, maximum = 1000) {
   return value.trim();
 }
 
+/** Validate length without trimming: credential tests depend on exact whitespace preservation. */
 function password(body, field = "password") {
   const value = body[field];
   if (typeof value !== "string" || value.length < 8 || value.length > 128)
@@ -89,6 +92,7 @@ function password(body, field = "password") {
   return value;
 }
 
+/** Keep synthetic account keys in the same canonical mobile form used by login and OTP lookup. */
 function mobile(body) {
   const value = text(body, "mobile", 11);
   if (!/^09\d{9}$/.test(value))
@@ -98,6 +102,7 @@ function mobile(body) {
   return value;
 }
 
+/** Model the fixture's deliberately limited email shape, not full mailbox deliverability validation. */
 function email(body) {
   const value = text(body, "email", 254);
   const parts = value.split("@");
@@ -115,6 +120,7 @@ function email(body) {
   return value;
 }
 
+/** Drain the request while retaining at most 32 KiB, then reject oversized or non-object JSON. */
 async function readJson(request) {
   if (
     request.headers["content-type"]?.split(";", 1)[0].trim().toLowerCase() !==
@@ -140,6 +146,7 @@ async function readJson(request) {
   return value;
 }
 
+/** Expose only the account projection needed by the website, leaving fixture passwords private. */
 function publicAccount(account) {
   return {
     email: account.email,
@@ -171,6 +178,7 @@ export function createWebsiteApiFixture(environment = process.env) {
   };
   accounts.set(administrator.mobile, administrator);
 
+  /** Derive locale metadata from this responder's state so separate fixture instances stay isolated. */
   const settings = () => ({
     dark_theme: {},
     language: {
@@ -182,8 +190,10 @@ export function createWebsiteApiFixture(environment = process.env) {
     },
     light_theme: {},
   });
+  /** Mirror browser cookie attributes for the declared origin; expiry removes only this fixture cookie. */
   const cookie = (value, expired = false) =>
     `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Lax${config.website.startsWith("https:") ? "; Secure" : ""}${expired ? "; Max-Age=0" : ""}`;
+  /** An explicit Authorization header takes precedence, even when invalid; never fall back to a cookie. */
   const tokenFor = (request) => {
     const authorization = request.headers.authorization;
     if (authorization !== undefined)
@@ -194,6 +204,7 @@ export function createWebsiteApiFixture(environment = process.env) {
       .find((part) => part.startsWith(`${cookieName}=`))
       ?.slice(cookieName.length + 1);
   };
+  /** Resolve sessions only within this responder, preserving the protected-route 401 contract. */
   const accountFor = (request) => {
     const account = sessions.get(tokenFor(request));
     if (!account)
@@ -203,10 +214,12 @@ export function createWebsiteApiFixture(environment = process.env) {
       );
     return account;
   };
+  /** Password changes revoke every session owned by this exact in-memory account object. */
   const invalidate = (account) => {
     for (const [token, owner] of sessions)
       if (owner === account) sessions.delete(token);
   };
+  /** Mark synthetic JSON responses explicitly and disable storage of account/session responses. */
   const send = (response, status, value, headers = {}) => {
     response.writeHead(status, {
       "Cache-Control": "private, no-store",
@@ -216,6 +229,7 @@ export function createWebsiteApiFixture(environment = process.env) {
     });
     response.end(JSON.stringify(value));
   };
+  /** Issue an instance-owned session plus deliberate token fields for proxy-redaction tests. */
   const authenticate = (response, account, status = 200) => {
     const token = randomUUID();
     sessions.set(token, account);
@@ -231,10 +245,12 @@ export function createWebsiteApiFixture(environment = process.env) {
       { "Set-Cookie": cookie(token) },
     );
   };
+  /** Replace the current expiry for a purpose/account/destination key; no real delivery occurs. */
   const requestCode = (key) => {
     codes.set(key, Date.now() + 300_000);
     return { expires_in: 300, remaining_seconds: 60 };
   };
+  /** Consume a destination-bound code only after a successful match against its unexpired request. */
   const verifyCode = (key, value) => {
     const expires = codes.get(key);
     if (
@@ -483,6 +499,7 @@ export function createWebsiteApiFixture(environment = process.env) {
     ],
   ]);
 
+  /** Dispatch only owned routes/methods and require the exact configured website origin for mutations. */
   const handle = async (request, response) => {
     const pathname = new URL(request.url, "http://127.0.0.1").pathname;
     const methods = handlers.get(pathname);
@@ -538,6 +555,7 @@ if (import.meta.main) {
   try {
     const server = await startWebsiteApiFixture();
     let closing = false;
+    /** Close this listener once; the fixture owns no external services or persistent account state. */
     const stop = () => {
       if (closing) return;
       closing = true;

@@ -13,6 +13,7 @@ import {
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
+/** Allows absent asset copies while rejecting linked entries and unsafe ancestors before cleanup. */
 async function existingAssetDirectory(directory) {
   try {
     return await artifactDirectory(directory);
@@ -22,6 +23,12 @@ async function existingAssetDirectory(directory) {
   }
 }
 
+/**
+ * Requires readiness and completed build inputs without building or running them.
+ * Validates both asset destinations before replacing their previous copies, so
+ * deleted source assets disappear while server and dependency siblings remain.
+ * The caller owns these copy roots and must keep their paths stable during cleanup.
+ */
 export async function prepareStandalone(root = repository) {
   const directory = await requireApplicationReady(root);
   const destination = path.join(directory, ".next/standalone");
