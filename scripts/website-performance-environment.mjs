@@ -1,6 +1,10 @@
 import { lstatSync, readdirSync } from "node:fs";
 import path from "node:path";
 
+/**
+ * Validate one path component before descent; optional components may be absent,
+ * while links, nondirectories and other filesystem failures remain errors.
+ */
 function assertUnlinkedDirectory(directory, optional = false) {
   let info;
   try {
@@ -18,6 +22,11 @@ function assertUnlinkedDirectory(directory, optional = false) {
   return true;
 }
 
+/**
+ * Check physical directory ancestry before inspecting root and optional standalone
+ * entry names. Reject runtime dotenv presence without opening or changing files,
+ * allowing only the exact .env.example name in either inspected directory.
+ */
 export function assertCleanWebsiteEnvironment(websiteDirectory) {
   const directory = path.resolve(websiteDirectory);
   const ancestors = [];
@@ -49,6 +58,10 @@ export function assertCleanWebsiteEnvironment(websiteDirectory) {
       );
 }
 
+/**
+ * Require an explicit HTTP IPv4 loopback API port and build fixed synthetic
+ * production settings, inheriting only process-location essentials for children.
+ */
 export function websitePerformanceEnvironment(
   apiOrigin,
   inherited = process.env,

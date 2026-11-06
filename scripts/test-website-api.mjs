@@ -4,6 +4,11 @@ import { requireApplicationReady } from "./release-files.mjs";
 import { resolveApiFixture, syntheticRunnerInputs } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 const repository = fileURLToPath(new URL("../", import.meta.url));
+/**
+ * Gate readiness before settings access and launch only the website-owned
+ * synthetic HTTP fixture with test mode, its separate API port and website origin.
+ * Await direct-child completion and propagate cancellation through its owner.
+ */
 export async function runWebsiteApi(options = {}) {
   const root = await requireApplicationReady(options.root ?? repository);
   const signal = options.signal;

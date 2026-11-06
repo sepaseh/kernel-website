@@ -12,6 +12,11 @@ const requireValue = (environment, name) => {
   return value;
 };
 
+/**
+ * Accept an exact HTTP(S) origin without credentials or URL suffixes, normalizing
+ * only explicit default ports. Public origins require HTTPS except on loopback;
+ * internal API validation may explicitly allow HTTP on other hosts.
+ */
 export const validateOrigin = (value, publicOrigin = true) => {
   if (/[\\\s;"'{}<>`]/.test(value))
     throw new Error("Origin contains invalid characters.");
@@ -36,6 +41,10 @@ export const validateOrigin = (value, publicOrigin = true) => {
   return url;
 };
 
+/**
+ * Keep indexing opt-in and require a public HTTPS website origin when enabled.
+ * Unindexed previews may omit the origin or use HTTP on recognized loopback hosts.
+ */
 const validateWebsiteSeo = (environment) => {
   const flag = environment.WEBSITE_INDEXING_ENABLED ?? "false";
   if (flag !== "true" && flag !== "false")
@@ -80,6 +89,11 @@ const validateWebsiteSeo = (environment) => {
     throw new Error("Website indexing requires a public HTTPS WEBSITE_URL.");
 };
 
+/**
+ * Validate public production website settings without reading files or contacting
+ * services. This pure check validates configuration; its CLI separately gates
+ * readiness before accessing runtime settings.
+ */
 export function validateDeploymentEnv(mode, environment = process.env) {
   if (environment.NODE_ENV !== "production") {
     throw new Error("NODE_ENV must be production for deployment.");

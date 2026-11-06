@@ -8,6 +8,10 @@ import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
+/**
+ * Gate readiness and cancellation before reading public settings or preparing
+ * standalone assets, then await the owned server with a filtered environment.
+ */
 export async function startWebsite(options = {}) {
   const root = await requireApplicationReady(options.root ?? repository);
   const signal = options.signal;

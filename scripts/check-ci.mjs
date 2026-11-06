@@ -88,7 +88,7 @@ export function workflowDocument(content) {
  * not execution or provider success.
  */
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "runners-foundation");
+  assert.equal(manifest.phase, "browser-foundation");
   assert.equal(manifest.applicationReady, false);
   assert.deepEqual(
     manifest.profiles?.full,
@@ -537,6 +537,6 @@ export async function inspectCi(root = repository) {
 if (import.meta.main) {
   await inspectCi();
   console.log(
-    "Runner foundation CI, native security and real Sonar coverage order passed.",
+    "Browser foundation CI, native security and real Sonar coverage order passed.",
   );
 }

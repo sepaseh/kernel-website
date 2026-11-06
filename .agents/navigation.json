@@ -244,6 +244,71 @@
       "rules": []
     },
     {
+      "id": "browser-tooling",
+      "when": "Change guarded browser configuration, installed SDK identity, synthetic origins, visual capture ownership or typed authored scenarios. This false-readiness phase supplies no executed browser or visual acceptance.",
+      "owners": [
+        "scripts/application-checks.mjs",
+        "scripts/browser-inputs.mjs",
+        "scripts/playwright-config.mjs",
+        "scripts/run-visual.mjs",
+        "scripts/test-csp-report-only.mjs",
+        "scripts/validate-workflow-targets.mjs",
+        "playwright.website.config.ts",
+        "playwright.visual.config.ts",
+        "playwright.smoke.config.ts",
+        "playwright.staging.config.ts"
+      ],
+      "contracts": [
+        "docs/browser-foundation.md",
+        "docs/visual-regression.md",
+        "docs/api-fixture.md",
+        "tsconfig.tooling.json"
+      ],
+      "tests": [
+        "scripts/application-checks.test.mjs",
+        "scripts/browser-inputs.test.mjs",
+        "scripts/playwright-config.test.mjs",
+        "scripts/run-visual.test.mjs",
+        "scripts/test-csp-report-only.test.mjs",
+        "scripts/validate-workflow-targets.test.mjs"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "governance-coverage"],
+      "rules": [".agents/rules/testing.md"]
+    },
+    {
+      "id": "integration-tooling",
+      "when": "Change deterministic bundle measurements, the same-repository synthetic HTTP responder, performance environment isolation, visual metadata or owned lock/port helpers. Real website/browser execution against synthetic responses belongs to application acceptance and requires current evidence.",
+      "owners": [
+        "scripts/check-bundle-website.mjs",
+        "scripts/visual-environment.mjs",
+        "scripts/website-api-fixture.mjs",
+        "scripts/website-performance-environment.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/testing.md",
+        "docs/testing.md",
+        "docs/validation.md",
+        "docs/visual-regression.md",
+        "docs/website-performance.md",
+        "performance-budget.json"
+      ],
+      "tests": [
+        "scripts/check-bundle-website.test.mjs",
+        "scripts/visual-environment.test.mjs",
+        "scripts/website-api-fixture.test.mjs",
+        "scripts/website-performance-environment.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "governance-coverage"
+      ],
+      "rules": []
+    },
+    {
       "id": "git-workflow",
       "when": "Plan an issue/branch, prepare an authorized commit or PR, or inspect review/publication policy while preserving session authorization.",
       "owners": [

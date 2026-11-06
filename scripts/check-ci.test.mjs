@@ -20,14 +20,14 @@ const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
 const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 
-test("CI executes all twelve runner foundation checks once through separate visible jobs and real coverage producers", async () => {
+test("CI executes all twelve browser foundation checks once through separate visible jobs and real coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
 });
 
 test("CI profiles form an exact partition and cannot drop, duplicate or soften a required check", () => {
   for (const change of [
-    ...["features", "browser-foundation", "application"].map(
+    ...["features", "runners-foundation", "application"].map(
       (phase) => (value) => {
         value.phase = phase;
         value.checks.forEach((check) => {
@@ -135,7 +135,7 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
     assert.throws(() => workflowDocument(value));
 });
 
-test("runner foundation typechecking and measured font integrity cannot be omitted or moved outside their producer", () => {
+test("browser foundation typechecking and measured font integrity cannot be omitted or moved outside their producer", () => {
   for (const id of ["typecheck", "font-integrity"]) {
     for (const change of [
       (value) => {

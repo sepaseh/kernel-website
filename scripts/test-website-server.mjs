@@ -13,6 +13,10 @@ import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
+/**
+ * Snapshot the explicit boolean override once; otherwise require the inherited
+ * skip-build switch to use its exact 0/1 representation.
+ */
 function skipBuildOption(options, inherited) {
   const requested = options.skipBuild;
   if (requested !== undefined) {
@@ -26,6 +30,10 @@ function skipBuildOption(options, inherited) {
   return value === "1";
 }
 
+/**
+ * Allow skip-build mode only when an unlinked, bounded BUILD_ID contains a
+ * nonempty public value before assets are prepared or a server is started.
+ */
 async function requireCompletedBuild(root) {
   const filename = await artifactFile(path.join(root, ".next/BUILD_ID"));
   const entry = await stat(filename);
@@ -36,6 +44,11 @@ async function requireCompletedBuild(root) {
     throw new Error("Skipping a build requires a nonempty public BUILD_ID.");
 }
 
+/**
+ * Validate readiness and isolated inputs before resolving tools or starting work.
+ * Await a successful build or validate an existing build marker, then prepare
+ * assets and await the owned server with explicit synthetic settings.
+ */
 export async function runTestWebsiteServer(root = repository, options = {}) {
   const directory = await readyRunnerRoot(root);
   const signal = options.signal;

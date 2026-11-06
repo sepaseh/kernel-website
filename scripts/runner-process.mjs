@@ -9,6 +9,10 @@ const localAbsolutePath = (value) =>
   !/^[\\/]{2}/.test(value) &&
   !/[\0\r\n]/.test(value);
 
+/**
+ * Reject implicit launch inputs and snapshot the environment's own entries once
+ * so inherited properties or changing getters cannot alter validated settings.
+ */
 function validateProcessOptions({
   command,
   args,
@@ -52,6 +56,11 @@ function validateProcessOptions({
 
 const abortedProcess = () => new Error("Owned process was aborted.");
 
+/**
+ * Start one direct child after caller-owned readiness checks. The caller consumes
+ * its pipes; successful completion follows close. Cancellation stops this handle
+ * with bounded escalation and reports failure if cleanup cannot observe close.
+ */
 export function startOwnedProcess({
   command = process.execPath,
   args,
@@ -141,6 +150,10 @@ export function startOwnedProcess({
     resolveStop?.();
   });
 
+  /**
+   * Stop this direct child once, escalating from TERM to KILL and awaiting close;
+   * reject the shared stop promise if the bounded cleanup deadline expires.
+   */
   function stop() {
     if (stopPromise) return stopPromise;
     if (didClose) return closed;
@@ -184,12 +197,21 @@ export function startOwnedProcess({
   return { child, completion, stop };
 }
 
+/**
+ * Discard every exposed output pipe while awaiting owned completion, allowing
+ * completion-only callers to finish even when child writes exceed pipe capacity.
+ */
 export async function runOwnedProcess(options) {
   const owned = startOwnedProcess(options);
   for (const stream of owned.child.stdio.slice(1)) stream?.resume?.();
   return owned.completion;
 }
 
+/**
+ * Keep imports inert and gate the CLI action on readiness before signal setup.
+ * Supply owned cancellation, remove listeners after settlement and report action
+ * or cancellation failures through the CLI exit code.
+ */
 export async function runVerificationCli(main, root, action) {
   if (main === false) return;
   let controller;

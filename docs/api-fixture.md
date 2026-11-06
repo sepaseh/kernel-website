@@ -5,9 +5,10 @@ Read the current [source scope](bootstrap.md) before using this reference. Publi
 [`scripts/website-api-fixture.mjs`](../scripts/website-api-fixture.mjs) is a
 test-only Node HTTP responder maintained in this repository. It supplies
 deterministic settings and auth/account responses with fresh in-memory state.
-Its owner tests exercise local HTTP requests; no browser suite or runnable
-website is delivered in this phase. It is not a production authentication
-service or evidence of external backend compatibility.
+Its owner tests exercise local HTTP requests. Authored browser suites consume
+this fixture contract, but the current phase delivers no runnable website or
+completed browser acceptance. It is not a production authentication service or
+evidence of external backend compatibility.
 
 ## Understand the launcher boundary
 

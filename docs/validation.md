@@ -30,8 +30,10 @@ The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
 Unit and governance jobs each record and upload their measured coverage once;
 Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. The features phase runs no application build,
-E2E, visual or performance job.
+own hosted security workflow. The browser-foundation phase runs no application
+build, E2E, visual or performance job. Required typechecking includes the authored
+browser suites and configurations through the [tooling project](../tsconfig.tooling.json);
+that compilation supplies no browser execution evidence.
 
 ## Prepare an owned export
 
@@ -68,6 +70,13 @@ npm configuration, alter the lockfile or skip checks to obtain a pass.
 The [wheel lock](../font-source/requirements.txt) covers x64 Windows and x64
 and Arm64 on glibc Linux and macOS. This phase runs no application build or
 browser checks.
+
+Application and browser acceptance remain separate from this foundation gate.
+Once runnable composition and readiness are delivered, use the same-repository
+HTTP fixture and verified browser, with build, browser/CSP and visual operations
+run sequentially under one writer for shared outputs. The guarded commands reject
+this publication's false marker; do not change it to enter those operations or
+count the rejection as completed browser acceptance.
 
 ## Record the result and clean up
 
