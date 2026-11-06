@@ -134,7 +134,7 @@ async function fingerprintSources(root) {
   return fingerprint.digest("hex");
 }
 
-async function runCapture(
+async function runCapture({
   root,
   installation,
   environment,
@@ -143,7 +143,7 @@ async function runCapture(
   metadata,
   reportPath,
   trackChild,
-) {
+}) {
   let failure;
   try {
     const owned = startOwnedProcess({
@@ -298,8 +298,8 @@ export async function runVisual(root = repository, options = {}) {
       directory,
       "test-results/visual/environment.json",
     );
-    await runCapture(
-      directory,
+    await runCapture({
+      root: directory,
       installation,
       environment,
       signal,
@@ -307,7 +307,7 @@ export async function runVisual(root = repository, options = {}) {
       metadata,
       reportPath,
       trackChild,
-    );
+    });
     return { mode: update ? "update" : "compare", metadataPath, reportPath };
   });
 }
