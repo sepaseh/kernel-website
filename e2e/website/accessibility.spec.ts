@@ -148,7 +148,7 @@ for (const language of ["en", "fa"] as const) {
         );
         const boundaryName = "😀".repeat(profileNameMaxLength / 2);
         const paddedName = `  ${boundaryName}  `;
-        expect(boundaryName.length).toBe(profileNameMaxLength);
+        expect(boundaryName).toHaveLength(profileNameMaxLength);
         for (const name of names) {
           await expect(name).not.toHaveAttribute("maxlength");
           await name.fill(paddedName);
