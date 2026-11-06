@@ -8,6 +8,7 @@ import { test } from "node:test";
 import {
   aggregateCommand,
   ciProfiles,
+  dastPreflightCommand,
   inspectCi,
   installCommand,
   validateAdditionalWorkflow,
@@ -175,7 +176,10 @@ test("operational publication cannot silently dispatch targets or extend write p
     const steps = Object.values(value.jobs)[0].steps;
     const index = steps.findIndex(
       (step) =>
-        step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
+        step.run ===
+        (name === "dast"
+          ? dastPreflightCommand
+          : `node scripts/validate-workflow-targets.mjs ${mode}`),
     );
     for (const field of ["if", "continue-on-error"]) {
       const changed = structuredClone(value);
@@ -185,9 +189,39 @@ test("operational publication cannot silently dispatch targets or extend write p
         validateAdditionalWorkflow(name, JSON.stringify(changed)),
       );
     }
+    const reordered = structuredClone(value);
+    const reorderedSteps = Object.values(reordered.jobs)[0].steps;
+    reorderedSteps.splice(index, 0, reorderedSteps.splice(index + 1, 1)[0]);
+    assert.throws(() =>
+      validateAdditionalWorkflow(name, JSON.stringify(reordered)),
+    );
     steps.splice(index, 1);
     assert.throws(() =>
       validateAdditionalWorkflow(name, JSON.stringify(value)),
+    );
+  }
+});
+
+test("DAST cannot validate a different target or omit the exact-origin context", async () => {
+  const original = workflowDocument(await read(".github/workflows/dast.yml"));
+  for (const change of [
+    (job) => {
+      job.steps[2].env = { DAST_TARGET: "https://other.example.com" };
+    },
+    (job) => {
+      job.steps[3].env = { DAST_TARGET: "https://other.example.com" };
+    },
+    (job) => {
+      job.steps[3].with.target = "https://other.example.com";
+    },
+    (job) => {
+      job.steps[3].with.cmd_options = "-a";
+    },
+  ]) {
+    const value = structuredClone(original);
+    change(value.jobs.zap);
+    assert.throws(() =>
+      validateAdditionalWorkflow("dast", JSON.stringify(value)),
     );
   }
 });

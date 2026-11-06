@@ -132,5 +132,11 @@ a completed hosted run.
 [DAST](../.github/workflows/dast.yml) is a separate authorized scan. Its pure
 preflight is `node scripts/validate-workflow-targets.mjs dast`, using `DAST_TARGET`,
 `DAST_ALLOWED_HOST` and `DAST_PRODUCTION_HOST`. The allowed and denied hostnames
-must be independently reviewed before the pinned scanner is dispatched. See
+must be independently reviewed before the pinned scanner is dispatched. The workflow
+then runs `node scripts/operations-checks.mjs dast-context` to write an exclusive
+context under `test-results/dast/authorized.context`. Its anchored, escaped
+origin pattern restricts the spider to the selected scheme, hostname and port;
+similarly named hosts are outside that context. The pinned scanner imports it
+through `-n`; the original target and all technology families remain selected.
+This scope is not a DNS, redirect or network-egress boundary. See
 [operations](release-operations.md) and [security review](reviews.md).

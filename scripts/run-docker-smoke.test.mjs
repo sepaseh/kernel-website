@@ -205,6 +205,89 @@ test("fixture trust requires readiness and only a bounded public certificate", a
   );
 });
 
+test("fixture requests enforce a total deadline despite incoming chunks and preserve caller cancellation", async (context) => {
+  const root = await fixture(context);
+  const timers = new Map();
+  context.mock.method(globalThis, "setTimeout", (callback, milliseconds) => {
+    assert.equal(milliseconds, 15_000);
+    const timer = {};
+    timers.set(timer, callback);
+    return timer;
+  });
+  context.mock.method(globalThis, "clearTimeout", (timer) =>
+    timers.delete(timer),
+  );
+  const requests = [];
+  context.mock.method(https, "request", (_url, options, respond) => {
+    const outgoing = new EventEmitter();
+    const response = new EventEmitter();
+    response.statusCode = 200;
+    response.headers = {};
+    outgoing.end = () => {
+      respond(response);
+      response.emit("data", Buffer.from("first chunk"));
+    };
+    outgoing.destroy = (error) => {
+      outgoing.emit("error", error);
+      response.emit("error", error);
+    };
+    options.signal.addEventListener(
+      "abort",
+      () =>
+        outgoing.destroy(
+          new Error("request aborted", { cause: options.signal.reason }),
+        ),
+      { once: true },
+    );
+    requests.push({ options, response, outgoing });
+    return outgoing;
+  });
+  const request = await createDockerFixtureRequest(
+    root,
+    Buffer.from("owned public CA"),
+  );
+  const caller = new AbortController();
+  const first = request("https://www.kernel.test:9443/login", {
+    signal: caller.signal,
+  });
+  requests[0].response.emit("data", Buffer.from("later chunk"));
+  assert.equal(timers.size, 1);
+  timers.values().next().value();
+  await assert.rejects(first, (error) =>
+    /total deadline/.test(error.cause.message),
+  );
+  assert.equal(timers.size, 0);
+  assert.equal(caller.signal.aborted, false);
+  assert.equal(requests[0].options.signal.aborted, true);
+
+  const second = request("https://www.kernel.test:9443/login", {
+    signal: caller.signal,
+  });
+  const cancelled = new Error("controlled caller cancellation");
+  caller.abort(cancelled);
+  await assert.rejects(second, (error) => error.cause === cancelled);
+  assert.equal(timers.size, 0);
+
+  const third = request("https://www.kernel.test:9443/login");
+  assert.equal(timers.size, 1);
+  requests[2].response.emit("end");
+  assert.equal((await third).text, "first chunk");
+  assert.equal(timers.size, 0);
+
+  const fourth = request("https://www.kernel.test:9443/login");
+  assert.equal(timers.size, 1);
+  const failure = new Error("controlled request failure");
+  requests[3].outgoing.emit("error", failure);
+  await assert.rejects(fourth, (error) => error === failure);
+  assert.equal(timers.size, 0);
+
+  await assert.rejects(
+    request("https://www.kernel.test:9443/login", { signal: {} }),
+    { code: "ERR_INVALID_ARG_TYPE" },
+  );
+  assert.equal(timers.size, 0);
+});
+
 test("CSP transitions remain sequential while independent assets drain together", async (context) => {
   const { root, options, state } = await syntheticSmoke(context);
   const original = options.request;
@@ -295,6 +378,8 @@ async function syntheticSmoke(context, controls = {}) {
     builder: false,
     images: new Set(),
     volumes: new Set(),
+    containers: new Set(),
+    networks: new Set(),
     cleanup: [],
   };
   const options = {
@@ -311,14 +396,23 @@ async function syntheticSmoke(context, controls = {}) {
     docker: async (configuration) => {
       const { args, signal, env } = configuration;
       state.fixture ??= env.TEMP;
+      state.configurationRoot ??= path.dirname(env.DOCKER_CONFIG);
       assert.equal(env.DOCKER_HOST, undefined);
       assert.equal(env.PRIVATE_KEY, undefined);
       assert.equal(env.HOME, undefined);
       assert.equal(env.USERPROFILE, undefined);
       assert.equal(
         env.DOCKER_CONFIG,
-        path.join(state.fixture, "docker-config"),
+        path.join(state.configurationRoot, "docker-config"),
       );
+      assert.notEqual(state.configurationRoot, state.fixture);
+      assert.ok(
+        path
+          .basename(state.configurationRoot)
+          .startsWith("kernel-website-docker-config-"),
+      );
+      if (env.TEMP !== state.fixture)
+        assert.equal(env.TEMP, state.configurationRoot);
       assert.match(args[1], /^(?:npipe:|unix:)/);
       assert.equal(env.DOCKER_HOST, undefined);
       const operation = args.slice(2);
@@ -352,20 +446,44 @@ async function syntheticSmoke(context, controls = {}) {
         state.images.delete(operation.at(-1));
         state.cleanup.push("image");
       }
-      if (operation[0] === "container" && operation[1] === "ls")
+      if (operation[0] === "container" && operation[1] === "ls") {
+        if (operation.at(-1).startsWith("label="))
+          return [...state.containers].join("\n");
         return state.certificate &&
           operation.at(-1) === `name=^/${state.certificate}$`
           ? "owned-certificate"
           : "";
+      }
       if (operation[0] === "container" && operation[1] === "rm") {
-        assert.deepEqual(operation, [
-          "container",
-          "rm",
-          "--force",
-          state.certificate,
-        ]);
-        state.certificate = undefined;
-        state.cleanup.push("certificate");
+        if (operation.at(-1) === state.certificate) {
+          assert.deepEqual(operation, [
+            "container",
+            "rm",
+            "--force",
+            state.certificate,
+          ]);
+          state.certificate = undefined;
+          state.cleanup.push("certificate");
+        } else {
+          for (const id of operation.slice(3)) {
+            assert.ok(state.containers.has(id));
+            state.containers.delete(id);
+          }
+        }
+      }
+      if (operation[0] === "network" && operation[1] === "ls")
+        return [...state.networks].join("\n");
+      if (operation[0] === "network" && operation[1] === "rm") {
+        for (const id of operation.slice(2)) state.networks.delete(id);
+      }
+      if (
+        operation[0] === "volume" &&
+        operation[1] === "ls" &&
+        operation.at(-1).startsWith("label=")
+      )
+        return [...state.volumes].join("\n");
+      if (operation[0] === "volume" && operation[1] === "rm") {
+        for (const name of operation.slice(2)) state.volumes.delete(name);
       }
       if (
         operation[0] === "volume" &&
@@ -385,6 +503,7 @@ async function syntheticSmoke(context, controls = {}) {
         const values = await readFile(envFile, "utf8");
         state.mode = values.match(/^WEBSITE_CSP_MODE=(.+)$/m)[1];
         state.release = values.match(/^RELEASE_ID=(.+)$/m)[1];
+        state.deploymentOrigin = values.match(/^WEBSITE_URL=(.+)$/m)[1];
         state.project = operation[operation.indexOf("--project-name") + 1];
         const overridePath = operation[operation.lastIndexOf("-f") + 1];
         state.override = JSON.parse(await readFile(overridePath, "utf8"));
@@ -428,6 +547,10 @@ async function syntheticSmoke(context, controls = {}) {
           state.images.add(`${state.project}/gateway:${state.release}`);
           assert.equal(env.BUILDX_BUILDER, state.builderName);
         }
+        if (operation.includes("up")) {
+          state.containers.add("a".repeat(12));
+          state.networks.add("b".repeat(12));
+        }
         if (operation.includes("down")) {
           assert.equal(
             state.certificate,
@@ -435,6 +558,8 @@ async function syntheticSmoke(context, controls = {}) {
             "The interrupted certificate container still holds its TLS volume.",
           );
           state.volumes.clear();
+          state.containers.clear();
+          state.networks.clear();
           state.cleanup.push("compose");
           assert.equal(signal, undefined);
         }
@@ -447,7 +572,11 @@ async function syntheticSmoke(context, controls = {}) {
       if (url.protocol === "https:") state.origin ??= url.origin;
       if (controls.controller) controls.controller.abort();
       if (controls.requestFailure) throw new Error("Owned response failed");
-      if (url.protocol === "http:") return { status: 308 };
+      if (url.protocol === "http:")
+        return {
+          status: 308,
+          headers: { location: `${state.deploymentOrigin}/login` },
+        };
       if (url.pathname === "/login")
         return {
           status: 200,
@@ -458,7 +587,12 @@ async function syntheticSmoke(context, controls = {}) {
               "script-src 'nonce-owned'",
             "x-robots-tag": "noindex",
           },
-          text: '<script src="/_next/a.js"></script><link href="/font.woff2"><link href="/_next/a.js"><link href="https://invalid.test/ignore.css">',
+          text: '<script src="/_next/a.js"></script><link href="/font.woff2"><link href="/styles/site.css"><link href="/_next/a.js"><link href="https://invalid.test/ignore.css">',
+        };
+      if (url.pathname === "/styles/site.css")
+        return {
+          status: 200,
+          text: '@font-face{src:url("../fonts/css-only.woff2")}',
         };
       if (url.pathname === "/api/auth/login")
         return {
@@ -482,6 +616,10 @@ async function syntheticSmoke(context, controls = {}) {
     },
     ...controls.options,
   };
+  context.after(async () => {
+    if (state.configurationRoot)
+      await assert.rejects(access(state.configurationRoot), { code: "ENOENT" });
+  });
   return { root, options, state };
 }
 
@@ -531,6 +669,62 @@ test("Docker smoke rejects invalid cancellation and requires a synthetic marker 
     runDockerSmoke(root, { inherited: { KERNEL_SYNTHETIC_ENV: "1" } }),
     { code: "ENOENT" },
   );
+});
+
+test("Docker smoke accepts an explicitly validated CLI without ambient engine or context settings", async (context) => {
+  for (const publicSetting of [false, true]) {
+    const { root, options, state } = await syntheticSmoke(context);
+    const cli = path.join(root, "installed", "docker");
+    await mkdir(path.dirname(cli));
+    await writeFile(
+      cli,
+      "// Owned fake CLI; the injected Docker callback never executes it.",
+    );
+    delete options.dockerFile;
+    if (publicSetting) options.inherited.WEBSITE_DOCKER_CLI = cli;
+    else {
+      options.dockerCli = cli;
+      options.inherited.WEBSITE_DOCKER_CLI = "ignored-relative-cli";
+    }
+    const execute = options.docker;
+    options.docker = async (configuration) => {
+      assert.equal(configuration.command, cli);
+      return execute(configuration);
+    };
+    await runDockerSmoke(root, options);
+    assert.equal(state.builder, false);
+  }
+});
+
+test("Docker CLI selection rejects relative, remote, missing and linked paths before engine use", async (context) => {
+  for (const dockerCli of [
+    "docker",
+    "../docker",
+    "//remote/share/docker",
+    42,
+    "bad\0path",
+  ])
+    await assert.rejects(
+      runDockerSmoke(await fixture(context), {
+        dockerCli,
+        inherited: { KERNEL_SYNTHETIC_ENV: "1" },
+        dockerFile() {
+          throw Error("Unexpected installed-tool inspection");
+        },
+      }),
+      /explicit absolute local file path/,
+    );
+  const { root, options } = await syntheticSmoke(context);
+  const directory = path.join(root, "installed");
+  await mkdir(directory);
+  await writeFile(path.join(directory, "docker"), "// Owned fake CLI");
+  const linked = path.join(root, "linked-cli");
+  await symlink(directory, linked, "junction");
+  delete options.dockerFile;
+  options.dockerCli = path.join(linked, "docker");
+  await assert.rejects(runDockerSmoke(root, options), /links/);
+  options.dockerCli = path.join(root, "missing-docker");
+  await assert.rejects(runDockerSmoke(root, options), { code: "ENOENT" });
 });
 
 test("owned tool transport captures output, exit details and optional diagnostics", async (context) => {
@@ -637,6 +831,137 @@ test("Docker smoke verifies both CSP modes, cookie/API/assets and owned image cl
     true,
   );
   await assert.rejects(access(state.fixture), { code: "ENOENT" });
+});
+
+test("Docker smoke rejects the opposite CSP header in either mode and cleans owned state", async (context) => {
+  for (const mode of ["report-only", "enforce"]) {
+    const { root, options, state } = await syntheticSmoke(context);
+    const request = options.request;
+    options.request = async (address, requestOptions) => {
+      const response = await request(address, requestOptions);
+      if (
+        new URL(address).pathname === "/login" &&
+        response.status === 200 &&
+        state.mode === mode
+      )
+        response.headers[
+          mode === "enforce"
+            ? "content-security-policy-report-only"
+            : "content-security-policy"
+        ] = "script-src 'nonce-unexpected'";
+      return response;
+    };
+    await assert.rejects(runDockerSmoke(root, options), {
+      code: "ERR_ASSERTION",
+    });
+    assert.equal(state.images.size, 0);
+    assert.equal(state.builder, false);
+  }
+});
+
+test("Docker smoke fetches CSS-only fonts through the stylesheet's owned origin and rejects missing or external fonts", async (context) => {
+  for (const failure of [undefined, "missing", "external"]) {
+    const { root, options, state } = await syntheticSmoke(context);
+    const request = options.request;
+    const fonts = [];
+    options.request = async (address, requestOptions) => {
+      const url = new URL(address);
+      assert.equal(url.hostname, "www.kernel.test");
+      if (url.pathname === "/fonts/css-only.woff2") {
+        fonts.push(url.href);
+        if (failure === "missing") return { status: 404 };
+      }
+      if (url.pathname === "/styles/site.css" && failure === "external")
+        return {
+          status: 200,
+          text: '@font-face{src:url("https://unowned.test/font.woff2")}',
+        };
+      return request(address, requestOptions);
+    };
+    if (failure)
+      await assert.rejects(runDockerSmoke(root, options), {
+        code: "ERR_ASSERTION",
+      });
+    else {
+      await runDockerSmoke(root, options);
+      assert.equal(fonts.length, 2);
+      assert.ok(
+        fonts.every((font) => font === `${state.origin}/fonts/css-only.woff2`),
+      );
+    }
+    assert.equal(state.images.size, 0);
+    assert.equal(state.builder, false);
+  }
+});
+
+test("Docker smoke requires the exact HTTPS redirect destination", async (context) => {
+  for (const destination of [
+    undefined,
+    "http://www.kernel.test/login",
+    "https://unowned.test/login",
+    "/login",
+  ]) {
+    const { root, options, state } = await syntheticSmoke(context);
+    const request = options.request;
+    options.request = async (address, requestOptions) =>
+      new URL(address).protocol === "http:"
+        ? { status: 308, headers: { location: destination } }
+        : request(address, requestOptions);
+    await assert.rejects(runDockerSmoke(root, options), {
+      code: "ERR_ASSERTION",
+    });
+    assert.equal(state.images.size, 0);
+    assert.equal(state.builder, false);
+  }
+});
+
+test("a replaced deployment fixture cannot redirect Docker configuration or prevent owned engine cleanup", async (context) => {
+  const { root, options, state } = await syntheticSmoke(context);
+  const target = await mkdtemp(
+    path.join(os.tmpdir(), "website-unowned-fixture-"),
+  );
+  const marker = path.join(target, "preserved.txt");
+  await writeFile(marker, "preserve unrelated target");
+  let saved;
+  context.after(async () => {
+    assert.equal(path.dirname(target), path.resolve(os.tmpdir()));
+    await rm(target, { recursive: true, force: true });
+    if (saved) {
+      assert.equal(path.dirname(saved), path.resolve(os.tmpdir()));
+      assert.ok(path.basename(saved).startsWith("kernel-website-docker-"));
+      await rm(saved, { recursive: true, force: true });
+      await rm(state.fixture, { recursive: true, force: true });
+    }
+  });
+  const request = options.request;
+  options.request = async (address, requestOptions) => {
+    if (
+      new URL(address).protocol === "https:" &&
+      new URL(address).pathname === "/login"
+    ) {
+      saved = state.fixture + "-saved";
+      await rename(state.fixture, saved);
+      await symlink(target, state.fixture, "junction");
+      throw Error("deployment fixture replaced");
+    }
+    return request(address, requestOptions);
+  };
+  await assert.rejects(runDockerSmoke(root, options), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.match(error.errors[0].message, /fixture replaced/);
+    assert.match(
+      error.errors[1].errors[0].cause.message,
+      /unlinked temporary directory/,
+    );
+    return true;
+  });
+  assert.equal(state.images.size, 0);
+  assert.equal(state.builder, false);
+  assert.equal(state.volumes.size, 0);
+  assert.equal(state.containers.size, 0);
+  assert.equal(state.networks.size, 0);
+  assert.equal(state.cleanup.includes("compose"), false);
+  assert.equal(await readFile(marker, "utf8"), "preserve unrelated target");
 });
 
 test("Docker smoke cleans fresh state after early engine or partial builder failure", async (context) => {

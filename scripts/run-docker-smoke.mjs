@@ -144,48 +144,64 @@ async function fixtureRequest(address, certificate, options = {}) {
   const url = new URL(address);
   assert.equal(url.hostname, "www.kernel.test");
   assert.ok(["http:", "https:"].includes(url.protocol));
-  return new Promise((resolve, reject) => {
-    const outgoing = (url.protocol === "https:" ? https : http).request(
-      url,
-      {
-        method,
-        headers,
-        agent: false,
-        ...(url.protocol === "https:"
-          ? { ca: certificate, rejectUnauthorized: true }
-          : {}),
-        signal,
-        timeout: 15_000,
-        lookup: (_host, flags, callback) =>
-          flags.all
-            ? callback(null, [{ address: "127.0.0.1", family: 4 }])
-            : callback(null, "127.0.0.1", 4),
-      },
-      (response) => {
-        const chunks = [];
-        let bytes = 0;
-        response.on("data", (chunk) => {
-          bytes += chunk.length;
-          if (bytes > 8 * outputLimit)
-            response.destroy(new Error("Synthetic response is too large."));
-          else chunks.push(chunk);
-        });
-        response.once("error", reject);
-        response.once("end", () =>
-          resolve({
-            status: response.statusCode,
-            headers: response.headers,
-            text: Buffer.concat(chunks).toString("utf8"),
-          }),
-        );
-      },
-    );
-    outgoing.once("error", reject);
-    outgoing.once("timeout", () =>
-      outgoing.destroy(new Error("Loopback fixture request timed out.")),
-    );
-    outgoing.end(body);
-  });
+  const deadline = new AbortController();
+  const totalTimer = setTimeout(
+    () =>
+      deadline.abort(
+        new Error("Loopback fixture request exceeded its total deadline."),
+      ),
+    15_000,
+  );
+  totalTimer.unref?.();
+  try {
+    const requestSignal = signal
+      ? AbortSignal.any([signal, deadline.signal])
+      : deadline.signal;
+    return await new Promise((resolve, reject) => {
+      const outgoing = (url.protocol === "https:" ? https : http).request(
+        url,
+        {
+          method,
+          headers,
+          agent: false,
+          ...(url.protocol === "https:"
+            ? { ca: certificate, rejectUnauthorized: true }
+            : {}),
+          signal: requestSignal,
+          timeout: 15_000,
+          lookup: (_host, flags, callback) =>
+            flags.all
+              ? callback(null, [{ address: "127.0.0.1", family: 4 }])
+              : callback(null, "127.0.0.1", 4),
+        },
+        (response) => {
+          const chunks = [];
+          let bytes = 0;
+          response.on("data", (chunk) => {
+            bytes += chunk.length;
+            if (bytes > 8 * outputLimit)
+              response.destroy(new Error("Synthetic response is too large."));
+            else chunks.push(chunk);
+          });
+          response.once("error", reject);
+          response.once("end", () =>
+            resolve({
+              status: response.statusCode,
+              headers: response.headers,
+              text: Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+        },
+      );
+      outgoing.once("error", reject);
+      outgoing.once("timeout", () =>
+        outgoing.destroy(new Error("Loopback fixture request timed out.")),
+      );
+      outgoing.end(body);
+    });
+  } finally {
+    clearTimeout(totalTimer);
+  }
 }
 
 /** Trust only the generated fixture certificate and retain normal TLS hostname checks. */
@@ -331,6 +347,11 @@ async function verifyCspMode(request, compose, values, envFile, origin, mode) {
       ? "content-security-policy"
       : "content-security-policy-report-only";
   assert.match(page.headers[header], /nonce-/);
+  const oppositeHeader =
+    mode === "enforce"
+      ? "content-security-policy-report-only"
+      : "content-security-policy";
+  assert.equal(page.headers[oppositeHeader], undefined);
   assert.match(page.headers["x-robots-tag"], /noindex/);
   const assets = [
     ...page.text.matchAll(
@@ -341,9 +362,23 @@ async function verifyCspMode(request, compose, values, envFile, origin, mode) {
     .filter((value) => value.startsWith("/"));
   assert.ok(assets.length > 0);
   await completeArtifactWork(
-    [...new Set(assets)].map(async (asset) =>
-      assert.equal((await request(new URL(asset, origin))).status, 200),
-    ),
+    [...new Set(assets)].map(async (asset) => {
+      const assetUrl = new URL(asset, origin);
+      assert.equal(assetUrl.origin, origin);
+      const response = await request(assetUrl);
+      assert.equal(response.status, 200);
+      if (assetUrl.pathname.endsWith(".css"))
+        await completeArtifactWork(
+          [...response.text.matchAll(/url\(\s*["']?([^\s"')]+)["']?\s*\)/g)]
+            .map((match) => match[1])
+            .filter((value) => /\.woff2?(?:[?#]|$)/i.test(value))
+            .map(async (font) => {
+              const fontUrl = new URL(font, assetUrl);
+              assert.equal(fontUrl.origin, origin);
+              assert.equal((await request(fontUrl)).status, 200);
+            }),
+        );
+    }),
   );
 }
 
@@ -432,6 +467,16 @@ export async function runDockerSmoke(root = repository, options = {}) {
   const inherited = options.inherited ?? process.env;
   if (inherited?.KERNEL_SYNTHETIC_ENV !== "1")
     throw new Error("Docker smoke requires KERNEL_SYNTHETIC_ENV=1.");
+  const selectedDocker =
+    options.dockerCli ?? inherited.WEBSITE_DOCKER_CLI ?? systemDocker;
+  if (
+    typeof selectedDocker !== "string" ||
+    !path.isAbsolute(selectedDocker) ||
+    /^[\\/]{2}/.test(selectedDocker) ||
+    /[\0\r\n]/.test(selectedDocker)
+  )
+    throw new Error("Docker CLI must be an explicit absolute local file path.");
+  const dockerCli = await (options.dockerFile ?? artifactFile)(selectedDocker);
   const api = await (options.resolveApi ?? resolveApiFixture)(
     directory,
     inherited,
@@ -445,7 +490,8 @@ export async function runDockerSmoke(root = repository, options = {}) {
   const images = ["api", "website", "gateway"].map(
     (name) => `${project}/${name}:${release}`,
   );
-  const environment = dockerEnvironment(fixture);
+  let environment;
+  let configurationRoot;
   let builderAttempted = false;
   let composeOwned = false;
   let compose;
@@ -455,7 +501,7 @@ export async function runDockerSmoke(root = repository, options = {}) {
   const docker = async (args, operation = {}) => {
     if (!cleaning) signal?.throwIfAborted();
     return (options.docker ?? runDockerProcess)({
-      command: await (options.dockerFile ?? artifactFile)(systemDocker),
+      command: dockerCli,
       args: ["--host", localHost, ...args],
       cwd: directory,
       env: operation.build
@@ -466,6 +512,13 @@ export async function runDockerSmoke(root = repository, options = {}) {
     });
   };
   try {
+    configurationRoot = await mkdtemp(
+      path.join(parent, "kernel-website-docker-config-"),
+    );
+    environment = {
+      ...dockerEnvironment(fixture),
+      DOCKER_CONFIG: path.join(configurationRoot, "docker-config"),
+    };
     await mkdir(environment.DOCKER_CONFIG);
     const apiContext = await (options.prepareFixture ?? prepareFixtureContext)(
       directory,
@@ -563,10 +616,9 @@ export async function runDockerSmoke(root = repository, options = {}) {
         ...requestOptions,
         signal,
       });
-    assert.equal(
-      (await request(`http://www.kernel.test:${httpPort}/login`)).status,
-      308,
-    );
+    const redirect = await request(`http://www.kernel.test:${httpPort}/login`);
+    assert.equal(redirect.status, 308);
+    assert.equal(redirect.headers.location, `${origin}/login`);
     await verifyDeployment(request, compose, values, envFile, origin);
     const marker = await request(`${origin}/_kernel/release`);
     assert.equal(JSON.parse(marker.text).release, release);
@@ -598,6 +650,12 @@ export async function runDockerSmoke(root = repository, options = {}) {
     failure = error;
   } finally {
     cleaning = true;
+    if (environment)
+      environment = {
+        ...environment,
+        TEMP: configurationRoot,
+        TMP: configurationRoot,
+      };
     try {
       await (options.cleanup ?? cleanupWebsiteDocker)({
         project,
@@ -616,6 +674,23 @@ export async function runDockerSmoke(root = repository, options = {}) {
           )
         : error;
     }
+    if (configurationRoot)
+      try {
+        await cleanupWebsiteDocker({
+          project,
+          images: [],
+          builderAttempted: false,
+          fixture: configurationRoot,
+          parent,
+        });
+      } catch (error) {
+        failure = failure
+          ? new AggregateError(
+              [failure, error],
+              "Website Docker smoke and isolated configuration cleanup failed.",
+            )
+          : error;
+      }
   }
   if (failure) throw failure;
   return result;

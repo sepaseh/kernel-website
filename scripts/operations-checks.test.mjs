@@ -1,15 +1,105 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import {
   operationsBrowserEnvironment,
+  prepareDastContext,
   runOperationsCheck,
 } from "./operations-checks.mjs";
 import { assertPlaywrightParentEnvironment } from "./playwright-config.mjs";
+
+test("DAST context confines spider scope to the validated origin without changing its target", async (t) => {
+  const { root } = await fixture(t);
+  const environment = {
+    DAST_TARGET: "https://staging.example.com:444/login?x=1",
+    DAST_ALLOWED_HOST: "staging.example.com",
+    DAST_PRODUCTION_HOST: "example.com",
+  };
+  const filename = await runOperationsCheck(root, "dast-context", {
+    environment,
+  });
+  assert.equal(
+    filename,
+    path.join(root, "test-results/dast/authorized.context"),
+  );
+  const context = await readFile(filename, "utf8");
+  if (process.platform !== "win32")
+    assert.equal((await stat(filename)).mode & 0o777, 0o644);
+  const pattern = context.match(/<incregexes>\(\?i\)(.*?)<\/incregexes>/)[1];
+  assert.deepEqual(
+    [...context.matchAll(/<include>(.*?)<\/include>/g)].map(
+      (match) => match[1],
+    ),
+    ["Db", "Language", "OS", "SCM", "WS"],
+  );
+  const scope = new RegExp(pattern, "i");
+  for (const value of [
+    "https://staging.example.com:444/",
+    environment.DAST_TARGET,
+  ])
+    assert.equal(scope.test(value), true);
+  for (const value of [
+    "https://staging-example.com:444/",
+    "https://staging.example.com.attacker.test:444/",
+    "https://example.com:444/",
+    "http://staging.example.com:444/",
+    "https://staging.example.com:445/",
+  ])
+    assert.equal(scope.test(value), false);
+  assert.equal(
+    environment.DAST_TARGET,
+    "https://staging.example.com:444/login?x=1",
+  );
+  await assert.rejects(prepareDastContext(root, environment), {
+    code: "EEXIST",
+  });
+  assert.equal(await readFile(filename, "utf8"), context);
+});
+
+test("DAST context preparation checks readiness and authorization before writing", async (t) => {
+  const { root } = await fixture(t, false);
+  const unread = new Proxy(
+    {},
+    {
+      get() {
+        throw new Error("unexpected target read");
+      },
+    },
+  );
+  await assert.rejects(prepareDastContext(root, unread), /non-runnable/);
+  await assert.rejects(access(path.join(root, "test-results")), {
+    code: "ENOENT",
+  });
+  const ready = await fixture(t);
+  await assert.rejects(
+    prepareDastContext(ready.root, {
+      DAST_TARGET: "https://other.test",
+      DAST_ALLOWED_HOST: "staging.example.com",
+      DAST_PRODUCTION_HOST: "example.com",
+    }),
+    /not explicitly allowed/,
+  );
+  await assert.rejects(access(path.join(ready.root, "test-results")), {
+    code: "ENOENT",
+  });
+  await assert.rejects(
+    runOperationsCheck(ready.root, "dast-context", { arguments: ["extra"] }),
+    /no extra arguments/,
+  );
+});
 
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());

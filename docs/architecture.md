@@ -70,7 +70,13 @@ The sample frontend expects authentication, settings and account operations over
 
 [SessionProvider](../src/features/auth/session/SessionProvider.tsx) keys reads by locale/generation. Refresh or locale replacement invalidates the previous snapshot; stale reads and accepted mutations cannot replace the current account. Forms reset by generation, locale/account identity. Mount-operation ownership prevents late feedback/navigation, but cannot undo a completed server mutation. Read [session](session.md) and [forms](forms.md).
 
-HTTP preserves original transport/cancellation failures. Public authentication401 stays with its form; protected mutation401 still announces expiry. Forwarding validates route/method, mutation origin and bounded JSON, preserves native cookies, removes successful credential fields and returns private/no-store responses. See [server boundary](server-boundary.md).
+The browser HTTP client preserves its own fetch and response-stream failures,
+including cancellation. Server forwarding returns a generic 503 for caught
+upstream timeouts and transport failures. Public authentication 401 errors stay
+with their form; protected mutation 401 errors still announce expiry. Forwarding
+validates route/method, mutation origin and bounded JSON, preserves native
+cookies, removes successful credential fields and returns private/no-store
+responses. See [server boundary](server-boundary.md).
 
 Uncached public API settings alone select a supported catalog and exact ltr/rtl direction without visitor cookies or negotiation. Each code-named catalog is a flat string object with shared bare keys, explicit feature prefixes and no aliases/nested namespaces. Theme is independent. [Localization](localization.md) defines adapter obligations.
 

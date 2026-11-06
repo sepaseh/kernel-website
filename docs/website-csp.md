@@ -4,8 +4,9 @@ The [published application](bootstrap.md) includes pure policy helpers and a req
 proxy that generates trusted nonces and applies enforcing or report-only headers.
 
 The server-only [nonce adapter](../src/shared/security/nonce.ts) awaits trusted
-request headers; the root layout passes the value to theme and escaped JSON-LD
-output. See the
+request headers. The [root layout](../src/app/layout.tsx) passes its nonce through
+the application providers to the theme provider. The [home page](../src/app/page.tsx)
+separately reads the same request nonce for escaped JSON-LD output. See the
 [document-security trace](server-boundary.md#document-security) for that boundary.
 
 ## Pure policy contract

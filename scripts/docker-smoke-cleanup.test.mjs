@@ -256,7 +256,7 @@ test("invalid image and fixture ownership fails before any Docker callback", asy
   await access(options.fixture);
 });
 
-test("cleanup refuses a linked fixture without deleting its target or calling Docker", async (context) => {
+test("cleanup preserves a linked fixture while still draining owned Docker resources", async (context) => {
   const { state, options } = await fixture(context);
   const target = await mkdtemp(
     path.join(os.tmpdir(), "kernel-website-docker-target-"),
@@ -269,12 +269,60 @@ test("cleanup refuses a linked fixture without deleting its target or calling Do
   await writeFile(marker, "preserve target");
   await rm(options.fixture, { recursive: true });
   await symlink(target, options.fixture, "junction");
-  await assert.rejects(
-    cleanupWebsiteDocker(options),
-    /unlinked temporary directory/,
+  await assert.rejects(cleanupWebsiteDocker(options), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.match(error.errors[0].cause.message, /unlinked temporary directory/);
+    return true;
+  });
+  assert.equal(state.images.size, 0);
+  assert.equal(state.builders.size, 0);
+  assert.equal(state.certificate, false);
+  assert.equal(
+    state.calls.some((args) => args[0] === "compose"),
+    false,
   );
-  assert.equal(state.calls.length, 0);
+  assert.ok(
+    state.calls.some(
+      (args) =>
+        args[0] === "container" &&
+        args.at(-1) === `label=com.docker.compose.project=${project}`,
+    ),
+  );
   assert.equal(await readFile(marker, "utf8"), "preserve target");
+});
+
+test("fixture inspection errors remain visible after independent Docker cleanup", async (context) => {
+  const { state, options } = await fixture(context);
+  const failure = Object.assign(Error("fixture inspection denied"), {
+    code: "EACCES",
+  });
+  const original = fsPromises.lstat;
+  const inspected = context.mock.method(
+    fsPromises,
+    "lstat",
+    (filename, settings) =>
+      filename === options.fixture
+        ? Promise.reject(failure)
+        : original(filename, settings),
+  );
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(cleanupWebsiteDocker(options), (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors[0].cause, failure);
+      return true;
+    });
+  } finally {
+    inspected.mock.restore();
+    syncBuiltinESMExports();
+  }
+  assert.equal(state.builders.size, 0);
+  assert.equal(state.images.size, 0);
+  assert.equal(
+    state.calls.some((args) => args[0] === "compose"),
+    false,
+  );
+  await access(options.fixture);
 });
 
 test("fixture replacement during resource cleanup is preserved and reported", async (context) => {
@@ -308,12 +356,18 @@ test("fixture replacement during resource cleanup is preserved and reported", as
 test("an absent fixture cannot be claimed if another directory appears during cleanup", async (context) => {
   const { options } = await fixture(context);
   await rm(options.fixture, { recursive: true });
-  options.compose = async () => {
-    await mkdir(options.fixture);
-    await writeFile(
-      path.join(options.fixture, "replacement.txt"),
-      "new directory",
-    );
+  const docker = options.docker;
+  let appeared = false;
+  options.docker = async (...args) => {
+    if (!appeared) {
+      appeared = true;
+      await mkdir(options.fixture);
+      await writeFile(
+        path.join(options.fixture, "replacement.txt"),
+        "new directory",
+      );
+    }
+    return docker(...args);
   };
   await assert.rejects(cleanupWebsiteDocker(options), (error) => {
     assert.match(error.errors[0].cause.message, /cannot be claimed later/);

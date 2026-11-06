@@ -32,12 +32,17 @@ one already accepted by the API. Preserve exact password whitespace from form
 values through the HTTP operations. Local tests do not establish live backend
 authentication, browser navigation or deployed cookie behavior.
 
-Application and deployment acceptance must exercise the actual trusted Host/protocol and gateway
-forwarding boundary, browser cookie attributes/isolation, the supported auth/account
-journeys, errors and unavailable settings using this repository's synthetic HTTP
-responder under the [local fixture contract](api-fixture.md). Verify real CSP headers/cache behavior and credential-safe output;
-the [pure CSP helper](website-csp.md) does not wire them. These checks do not
-establish external backend authentication or persistence. Remote or production
-access needs separate authorization. Record the exact source, API fixture,
-platform, failures and limits through [testing](testing.md), and follow
-[private reporting](../SECURITY.md).
+Local application acceptance exercises auth/account journeys, errors, unavailable
+settings, browser cookie isolation, actual CSP headers, cache behavior and
+credential-safe output against this repository's
+[synthetic HTTP fixture](api-fixture.md). The [pure CSP helper](website-csp.md)
+does not wire those responses. Disposable Docker smoke can additionally exercise
+its owned gateway with the fixture; neither result establishes an external
+backend's authentication or persistence.
+
+Deployment acceptance separately verifies the selected authorized target and HTTP
+backend, including trusted Host/protocol and gateway forwarding, browser cookie
+attributes/isolation, CSP/cache behavior and supported auth/account flows. Remote
+or production access needs separate authorization. Record the exact source,
+fixture or target, platform, failures and limits through [testing](testing.md),
+and follow [private reporting](../SECURITY.md).

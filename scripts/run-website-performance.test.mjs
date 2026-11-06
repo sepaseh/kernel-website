@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import {
+  chmod,
   mkdir,
   mkdtemp,
   readdir,
@@ -19,6 +21,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
+  launchLighthouseBrowser,
   resolveLighthouseInstallation,
   runLighthouseSample,
   runWebsitePerformance,
@@ -33,6 +36,10 @@ const metricIds = [
   "speed-index",
 ];
 const origin = "http://127.0.0.1:43222";
+const browserConnection = {
+  port: 43223,
+  endpoint: "ws://127.0.0.1:43224/owned-browser",
+};
 function result(score = 0.8, route = "/") {
   return {
     report: [
@@ -158,6 +165,30 @@ async function fixture(t, ready = true) {
       "// Owned fake SDK.\n",
     );
   await put("node_modules/playwright-core/browsers.json", browsers);
+  const executableLayout = {
+    darwin: [
+      `chrome-mac-${process.arch}`,
+      "Google Chrome for Testing.app",
+      "Contents",
+      "MacOS",
+      "Google Chrome for Testing",
+    ],
+    linux: [
+      process.arch === "arm64" ? "chrome-linux-arm64" : "chrome-linux64",
+      "chrome",
+    ],
+    win32: ["chrome-win64", "chrome.exe"],
+  }[process.platform];
+  const executableRelative = path.join(
+    "node_modules/playwright-core/.local-browsers/chromium-1248",
+    ...executableLayout,
+  );
+  await put(
+    executableRelative,
+    "Owned inert executable fixture; never launch this file.\n",
+  );
+  const executable = path.join(root, executableRelative);
+  await chmod(executable, 0o700);
   await put("performance-budget.json", {
     version: 1,
     totalJavaScriptBytes: 100,
@@ -183,7 +214,17 @@ async function fixture(t, ready = true) {
     HTTPS_PROXY: "synthetic-private-marker",
     ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
   };
-  return { root, put, environment, manifest, lock, installed, core, browsers };
+  return {
+    root,
+    put,
+    environment,
+    manifest,
+    lock,
+    installed,
+    core,
+    browsers,
+    executable,
+  };
 }
 
 function orchestration(f, tweaks = {}) {
@@ -194,6 +235,8 @@ function orchestration(f, tweaks = {}) {
     builds: 0,
     activeSamples: 0,
     maximumConcurrentSamples: 0,
+    browserStarts: 0,
+    browserStops: 0,
   };
   const service =
     (name) =>
@@ -224,6 +267,15 @@ function orchestration(f, tweaks = {}) {
     ready: async (_url, owned) => {
       owned.assertAlive();
     },
+    launchBrowser: async () => {
+      trace.browserStarts++;
+      return {
+        ...browserConnection,
+        stop: async () => {
+          trace.browserStops++;
+        },
+      };
+    },
     start: (options_) => {
       trace.samples.push(options_);
       assert.equal(options_.env.NODE_OPTIONS, undefined);
@@ -235,6 +287,16 @@ function orchestration(f, tweaks = {}) {
         [0.91, 0.57, 0.8][(trace.samples.length - 1) % 3],
         options_.args.at(-1),
       );
+      const metricValues = [
+        [100, 800, 0.04, 60, 500],
+        [900, 200, 0.01, 10, 900],
+        [300, 500, 0.07, 30, 700],
+      ][(trace.samples.length - 1) % 3];
+      const group = Math.floor((trace.samples.length - 1) / 3);
+      metricIds.forEach((id, index) => {
+        value.lhr.audits[id].numericValue =
+          metricValues[index] + group * (index === 2 ? 0.1 : 1000);
+      });
       const owned = startOwnedProcess({
         ...options_,
         args: [
@@ -274,6 +336,7 @@ test("Lighthouse import is inert and false readiness precedes options/dependenci
     /non-runnable/,
   );
   await assert.rejects(resolveLighthouseInstallation(f.root), /non-runnable/);
+  await assert.rejects(launchLighthouseBrowser(f.root, poison), /non-runnable/);
   const imported = spawnSync(
     process.execPath,
     [
@@ -297,7 +360,7 @@ test("Lighthouse import is inert and false readiness precedes options/dependenci
   assert.equal(imported.status, 0);
   assert.equal(imported.stdout, "");
   assert.equal(imported.stderr, "");
-  await assert.rejects(stat(path.join(f.root, ".lighthouseci")), {
+  await assert.rejects(stat(path.join(f.root, "test-results")), {
     code: "ENOENT",
   });
 });
@@ -418,6 +481,8 @@ test("twelve owned samples produce exact advisory medians and clean services in 
   assert.equal(run.trace.samples.length, 12);
   assert.equal(run.trace.maximumConcurrentSamples, 1);
   assert.equal(run.trace.activeSamples, 0);
+  assert.equal(run.trace.browserStarts, 12);
+  assert.equal(run.trace.browserStops, 12);
   const summary = JSON.parse(
     await readFile(path.join(accepted.output, "summary.json"), "utf8"),
   );
@@ -444,7 +509,24 @@ test("twelve owned samples produce exact advisory medians and clean services in 
     ],
   );
   assert.equal(summary.summaries.length, 4);
-  assert.ok(summary.summaries.every((item) => item.score === 80));
+  assert.deepEqual(
+    summary.summaries,
+    [
+      ["mobile", "/"],
+      ["mobile", "/login"],
+      ["desktop", "/"],
+      ["desktop", "/login"],
+    ].map(([profile, route], group) => ({
+      profile,
+      route,
+      score: 80,
+      fcpMs: 300 + group * 1000,
+      lcpMs: 500 + group * 1000,
+      cls: 0.04 + group * 0.1,
+      tbtMs: 30 + group * 1000,
+      speedIndexMs: 700 + group * 1000,
+    })),
+  );
   assert.equal(summary.samplesPerProfileAndRoute, 3);
   assert.match(summary.mode, /advisory.*no deployment or field INP/);
   assert.equal((await readdir(accepted.output)).length, 26);
@@ -483,9 +565,15 @@ test("cancellation between samples skips every later task and preserves complete
   assert.equal(run.trace.samples.length, 2);
   assert.equal(run.trace.maximumConcurrentSamples, 1);
   assert.deepEqual([...run.trace.stops].sort(), ["api", "website"]);
-  const [folder] = await readdir(path.join(f.root, ".lighthouseci/website"));
+  const [folder] = await readdir(
+    path.join(f.root, "test-results/website-performance"),
+  );
   assert.deepEqual(
-    (await readdir(path.join(f.root, ".lighthouseci/website", folder))).sort(),
+    (
+      await readdir(
+        path.join(f.root, "test-results/website-performance", folder),
+      )
+    ).sort(),
     [
       "home-mobile-1.html",
       "home-mobile-1.json",
@@ -558,9 +646,13 @@ test("sample failure drains services sequentially in reverse order and retains e
   assert.deepEqual(stopped, ["website", "api"]);
   assert.equal(maximumConcurrentStops, 1);
   assert.equal(activeStops, 0);
-  const [folder] = await readdir(path.join(f.root, ".lighthouseci/website"));
+  const [folder] = await readdir(
+    path.join(f.root, "test-results/website-performance"),
+  );
   assert.deepEqual(
-    await readdir(path.join(f.root, ".lighthouseci/website", folder)),
+    await readdir(
+      path.join(f.root, "test-results/website-performance", folder),
+    ),
     ["pending.json"],
   );
 });
@@ -606,10 +698,10 @@ test("invalid selections, unavailable ports, bundle overflow and linked outputs 
   assert.deepEqual(overflow.trace.starts, []);
   const target = path.join(f.root, "owned-output-target");
   await f.put("owned-output-target/keep.txt", "unrelated owned fixture");
-  await mkdir(path.join(f.root, ".lighthouseci"));
+  await mkdir(path.join(f.root, "test-results"));
   await symlink(
     target,
-    path.join(f.root, ".lighthouseci/website"),
+    path.join(f.root, "test-results/website-performance"),
     process.platform === "win32" ? "junction" : "dir",
   );
   const linked = orchestration(f);
@@ -619,6 +711,273 @@ test("invalid selections, unavailable ports, bundle overflow and linked outputs 
     await readFile(path.join(target, "keep.txt"), "utf8"),
     "unrelated owned fixture",
   );
+});
+
+test("an alternate default worker root is refused before build, inputs or services", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    runWebsitePerformance(f.root, {
+      get environment() {
+        throw new Error("Inputs must remain unread.");
+      },
+      get build() {
+        throw new Error("A different root must never be built.");
+      },
+    }),
+    /actual owner repository before preparation/,
+  );
+  await assert.rejects(stat(path.join(f.root, "test-results")), {
+    code: "ENOENT",
+  });
+});
+
+test("parent browser launch retains one process handle with a filtered loopback-only environment", async (t) => {
+  const f = await fixture(t);
+  let launches = 0;
+  let kills = 0;
+  const modules = async () => ({
+    chromium: {
+      executablePath: () => f.executable,
+      launchServer: async (options) => {
+        launches++;
+        assert.equal(options.host, "127.0.0.1");
+        assert.equal(options.channel, "chromium");
+        assert.equal(options.executablePath, f.executable);
+        assert.equal(options.env.NODE_OPTIONS, undefined);
+        assert.equal(options.env.TOKEN, undefined);
+        assert.equal(options.env.PLAYWRIGHT_BROWSERS_PATH, "0");
+        assert.ok(options.args.includes("--remote-debugging-port=43223"));
+        return {
+          process: () => ({ pid: 123 }),
+          wsEndpoint: () => browserConnection.endpoint,
+          kill: async () => {
+            kills++;
+          },
+        };
+      },
+    },
+  });
+  const browser = await launchLighthouseBrowser(f.root, {
+    environment: f.environment,
+    modules,
+    port: async () => 43223,
+  });
+  assert.equal(launches, 1);
+  assert.equal(kills, 0);
+  await Promise.all([browser.stop(), browser.stop()]);
+  assert.equal(kills, 1);
+  await assert.rejects(
+    launchLighthouseBrowser(f.root, {
+      environment: f.environment,
+      modules,
+      port: async () => 0,
+    }),
+    /explicit loopback CDP port/,
+  );
+  assert.equal(launches, 1);
+});
+
+test("parent refuses cached global, custom and linked Chromium executables before any launch", async (t) => {
+  const f = await fixture(t);
+  let launches = 0;
+  const attempt = (selected) =>
+    launchLighthouseBrowser(f.root, {
+      environment: { ...f.environment, PLAYWRIGHT_BROWSERS_PATH: "0" },
+      modules: async () => ({
+        chromium: {
+          executablePath: () => selected,
+          launchServer: async () => {
+            launches++;
+            throw new Error("No unreviewed browser may start.");
+          },
+        },
+      }),
+      port: async () => 43223,
+    });
+  for (const relative of [
+    "synthetic-global-cache/chromium-1248/chrome.exe",
+    "custom-browser/chrome.exe",
+  ]) {
+    await f.put(relative, "Owned inert foreign executable fixture.\n");
+    await assert.rejects(
+      attempt(path.join(f.root, relative)),
+      /reviewed root-local Chromium/,
+    );
+  }
+  const browserDirectory = path.join(
+    f.root,
+    "node_modules/playwright-core/.local-browsers/chromium-1248",
+  );
+  assert.ok(browserDirectory.startsWith(f.root + path.sep));
+  await f.put(
+    "owned-browser-link-target/keep.txt",
+    "Owned target must remain untouched.",
+  );
+  await rm(browserDirectory, { recursive: true });
+  await symlink(
+    path.join(f.root, "owned-browser-link-target"),
+    browserDirectory,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(attempt(f.executable), /must not contain links/);
+  assert.equal(
+    await readFile(
+      path.join(f.root, "owned-browser-link-target/keep.txt"),
+      "utf8",
+    ),
+    "Owned target must remain untouched.",
+  );
+  assert.equal(launches, 0);
+});
+
+test("parent teardown survives worker termination, cancellation and a controlled execution deadline", async (t) => {
+  await Promise.all(
+    ["terminated", "cancelled", "deadline"].map((mode) =>
+      t.test(mode, async (t_) => {
+        const f = await fixture(t_);
+        const controller = new AbortController();
+        const children = [];
+        const closes = [];
+        const owned = (name, args, signal) => {
+          const child = startOwnedProcess({
+            args,
+            cwd: f.root,
+            env: process.env.SystemRoot
+              ? { SystemRoot: process.env.SystemRoot }
+              : {},
+            signal,
+            stdio: ["ignore", "pipe", "inherit", "ipc"],
+          });
+          children.push(child);
+          child.child.once("close", () => closes.push(name));
+          return child;
+        };
+        t_.after(async () => {
+          await Promise.all(children.map((child) => child.stop()));
+        });
+        if (mode === "deadline")
+          t_.mock.timers.enable({ apis: ["setTimeout"] });
+        const program =
+          "import{createServer}from'node:net';createServer().listen(0,'127.0.0.1',()=>process.send('ready'));";
+        let kills = 0;
+        const run = orchestration(f, {
+          signal: controller.signal,
+          launchBrowser: () =>
+            launchLighthouseBrowser(f.root, {
+              environment: f.environment,
+              port: async () => 43223,
+              modules: async () => ({
+                chromium: {
+                  executablePath: () => f.executable,
+                  launchServer: async () => {
+                    const child = owned("browser", [
+                      "--input-type=module",
+                      "-e",
+                      program,
+                    ]);
+                    await Promise.race([
+                      once(child.child, "message"),
+                      child.completion.then(() => {
+                        throw new Error("Browser exited before readiness.");
+                      }),
+                    ]);
+                    return {
+                      process: () => child.child,
+                      wsEndpoint: () => browserConnection.endpoint,
+                      close: () => {
+                        throw new Error(
+                          "A hung browser protocol must not control cleanup.",
+                        );
+                      },
+                      kill: async () => {
+                        kills++;
+                        await child.stop();
+                      },
+                    };
+                  },
+                },
+              }),
+            }),
+          start: (options) => {
+            const child = owned(
+              "worker",
+              ["--input-type=module", "-e", program],
+              options.signal,
+            );
+            child.child.once("message", () => {
+              if (mode === "terminated") child.child.kill("SIGKILL");
+              else if (mode === "cancelled")
+                controller.abort(new Error("cancelled at worker readiness"));
+              else t_.mock.timers.tick(180_000);
+            });
+            return child;
+          },
+        });
+        await assert.rejects(
+          runWebsitePerformance(f.root, run.options),
+          /signal|aborted|execution deadline/,
+        );
+        assert.equal(kills, 1);
+        assert.deepEqual(closes.sort(), ["browser", "worker"]);
+        assert.ok(
+          children.every(
+            (child) =>
+              child.child.exitCode !== null || child.child.signalCode !== null,
+          ),
+        );
+        assert.deepEqual([...run.trace.stops].sort(), ["api", "website"]);
+      }),
+    ),
+  );
+});
+
+test("browser ownership failures still attempt cleanup and retain its independent failure", async (t) => {
+  const f = await fixture(t);
+  const cleanup = new Error("Owned browser kill failed.");
+  await assert.rejects(
+    launchLighthouseBrowser(f.root, {
+      environment: f.environment,
+      port: async () => 43223,
+      modules: async () => ({
+        chromium: {
+          executablePath: () => f.executable,
+          launchServer: async () => ({
+            process: () => ({ pid: undefined }),
+            kill: async () => {
+              throw cleanup;
+            },
+          }),
+        },
+      }),
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.match(
+        error.errors[0].message,
+        /independently owned browser process/,
+      );
+      assert.equal(error.errors[1], cleanup);
+      return true;
+    },
+  );
+  const first = new Error("Worker failed before returning a handle.");
+  const run = orchestration(f, {
+    launchBrowser: async () => ({
+      ...browserConnection,
+      stop: async () => {
+        throw cleanup;
+      },
+    }),
+    start: () => {
+      throw first;
+    },
+  });
+  await assert.rejects(runWebsitePerformance(f.root, run.options), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(error.errors, [first, cleanup]);
+    return true;
+  });
+  assert.deepEqual(run.trace.stops, ["website", "api"]);
 });
 
 test("invalid reports fail and retain only pending evidence while draining all owned services", async (t) => {
@@ -676,10 +1035,14 @@ test("invalid reports fail and retain only pending evidence while draining all o
     );
     assert.deepEqual(run.trace.stops, ["website", "api"]);
   }
-  const folders = await readdir(path.join(f.root, ".lighthouseci/website"));
+  const folders = await readdir(
+    path.join(f.root, "test-results/website-performance"),
+  );
   for (const folder of folders)
     assert.deepEqual(
-      await readdir(path.join(f.root, ".lighthouseci/website", folder)),
+      await readdir(
+        path.join(f.root, "test-results/website-performance", folder),
+      ),
       ["pending.json"],
     );
 });
@@ -784,7 +1147,7 @@ test("service readiness and cleanup failures cannot masquerade as successful sam
 });
 
 function browserModules(payload = result(), errors = {}) {
-  const calls = { closed: 0, pageClosed: 0, lighthouse: [], launch: [] };
+  const calls = { closed: 0, pageClosed: 0, lighthouse: [], connect: [] };
   const browser = {
     version: () => errors.version ?? "156.0.8078.4",
     newPage: async () => ({
@@ -805,8 +1168,8 @@ function browserModules(payload = result(), errors = {}) {
   const modules = async () => ({
     desktop: { settings: { formFactor: "desktop" } },
     chromium: {
-      launch: async (options) => {
-        calls.launch.push(options);
+      connect: async (endpoint) => {
+        calls.connect.push(endpoint);
         return browser;
       },
     },
@@ -839,12 +1202,13 @@ test("default sample imports cannot select another ready repository's dependenci
   );
 });
 
-test("sample worker binds CDP to its own bundled browser and closes it after mobile/desktop runs", async (t) => {
+test("sample worker verifies the parent-owned browser and disconnects after mobile/desktop runs", async (t) => {
   const f = await fixture(t);
   for (const profile of ["mobile", "desktop"]) {
     const fake = browserModules();
     const actual = await runLighthouseSample(f.root, profile, "/", {
       environment: f.environment,
+      browser: browserConnection,
       modules: fake.modules,
       fetch: async (_url, options) => {
         assert.equal(options.redirect, "error");
@@ -854,14 +1218,44 @@ test("sample worker binds CDP to its own bundled browser and closes it after mob
     assert.equal(actual.lhr.lighthouseVersion, "13.6.0");
     assert.equal(fake.calls.closed, 1);
     assert.equal(fake.calls.pageClosed, 1);
-    assert.equal(fake.calls.launch[0].channel, "chromium");
-    assert.equal(fake.calls.launch[0].env.NODE_OPTIONS, undefined);
+    assert.deepEqual(fake.calls.connect, [browserConnection.endpoint]);
     assert.equal(fake.calls.lighthouse[0][1].hostname, "127.0.0.1");
     assert.deepEqual(fake.calls.lighthouse[0][1].output, ["html", "json"]);
     assert.equal(
       fake.calls.lighthouse[0][2]?.settings.formFactor,
       profile === "desktop" ? "desktop" : undefined,
     );
+  }
+});
+
+test("sample workers reject non-loopback, noncanonical and out-of-range parent connections before SDK access", async (t) => {
+  const f = await fixture(t);
+  for (const browser of [
+    undefined,
+    { ...browserConnection, port: 0 },
+    { ...browserConnection, port: 65536 },
+    { ...browserConnection, endpoint: "ws://foreign.test:43224/owned-browser" },
+    {
+      ...browserConnection,
+      endpoint: "ws://127.0.0.1:43224/owned-browser?target=other",
+    },
+    { ...browserConnection, endpoint: "ws://127.1:43224/owned-browser" },
+    {
+      ...browserConnection,
+      endpoint: "ws://127.0.0.1:43224/" + "x".repeat(513),
+    },
+    { ...browserConnection, endpoint: new URL(browserConnection.endpoint) },
+  ]) {
+    const fake = browserModules();
+    await assert.rejects(
+      runLighthouseSample(f.root, "mobile", "/", {
+        environment: f.environment,
+        browser,
+        modules: fake.modules,
+      }),
+      /owned loopback browser/,
+    );
+    assert.deepEqual(fake.calls.connect, []);
   }
 });
 
@@ -879,6 +1273,7 @@ test("sample worker serializes only reports without reading raw Lighthouse artif
   const fake = browserModules(payload);
   const actual = await runLighthouseSample(f.root, "mobile", "/", {
     environment: f.environment,
+    browser: browserConnection,
     modules: fake.modules,
     fetch: async () => ({
       ok: true,
@@ -924,6 +1319,7 @@ test("worker rejects unowned browser/CDP, invalid report and cleanup failures", 
     await assert.rejects(
       runLighthouseSample(f.root, "mobile", "/", {
         environment: f.environment,
+        browser: browserConnection,
         modules: fake.modules,
         fetch:
           fetch_ ??

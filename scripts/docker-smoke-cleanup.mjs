@@ -21,13 +21,18 @@ const ownedImages = (project, images) => {
   return [...new Set(images)];
 };
 
-const inspectFixture = async (fixture, parent) => {
+const fixturePath = (fixture, parent) => {
   assert.equal(typeof fixture, "string");
   assert.equal(typeof parent, "string");
   const directory = path.resolve(fixture);
   assert.equal(path.resolve(parent), path.resolve(tmpdir()));
   assert.equal(path.dirname(directory), path.resolve(parent));
   assert.ok(path.basename(directory).startsWith("kernel-website-docker-"));
+  return directory;
+};
+
+const inspectFixture = async (fixture, parent) => {
+  const directory = fixturePath(fixture, parent);
   let stat;
   try {
     // Windows file identifiers can exceed Number's integer precision.
@@ -130,6 +135,44 @@ export async function assertWebsiteResourcesAvailable(docker, project, images) {
   );
 }
 
+/** Remove labelled engine resources without reading a rejected Compose fixture. */
+async function removeProjectResources(docker, project, attempt) {
+  for (const kind of ["container", "network", "volume"]) {
+    await attempt(`the test ${kind} resources`, async () => {
+      const output = await docker(
+        [
+          kind,
+          "ls",
+          ...(kind === "container" ? ["--all"] : []),
+          "--quiet",
+          "--filter",
+          `label=com.docker.compose.project=${project}`,
+        ],
+        { capture: true },
+      );
+      const resources = output.trim().split(/\r?\n/).filter(Boolean);
+      for (const resource of resources)
+        assert.ok(
+          kind === "volume"
+            ? resource === `${project}_fixture-tls`
+            : /^[a-f0-9]{12,64}$/.test(resource),
+          "Docker cleanup rejected an unexpected project resource identity.",
+        );
+      if (resources.length)
+        await docker([
+          kind,
+          "rm",
+          ...(kind === "container" ? ["--force"] : []),
+          ...resources,
+        ]);
+    });
+  }
+}
+
+/**
+ * Drain owned engine cleanup even when fixture inspection fails. The Docker
+ * callback must use isolated configuration independent of the deployment fixture.
+ */
 export async function cleanupWebsiteDocker({
   project,
   images,
@@ -141,8 +184,8 @@ export async function cleanupWebsiteDocker({
 }) {
   const builder = websiteSmokeBuilder(project);
   const imageNames = ownedImages(project, images);
-  const originalFixture =
-    fixture === undefined ? undefined : await inspectFixture(fixture, parent);
+  if (fixture !== undefined) fixturePath(fixture, parent);
+  let originalFixture;
   const errors = [];
   const attempt = async (label, operation) => {
     try {
@@ -151,6 +194,10 @@ export async function cleanupWebsiteDocker({
       errors.push(new Error(`Could not remove ${label}.`, { cause }));
     }
   };
+  if (fixture !== undefined)
+    await attempt("inspection of the temporary test files", async () => {
+      originalFixture = await inspectFixture(fixture, parent);
+    });
   // The one-off certificate helper may survive an interrupted attached
   // Docker CLI even though its normal run uses --rm.
   const certificate = `${project}-certificate`;
@@ -170,10 +217,13 @@ export async function cleanupWebsiteDocker({
       if (found.trim())
         await docker(["container", "rm", "--force", certificate]);
     });
-  if (compose)
-    await attempt("the test Compose resources", () =>
-      compose(["down", "--volumes", "--remove-orphans"]),
-    );
+  if (compose) {
+    if (fixture === undefined || originalFixture?.stat)
+      await attempt("the test Compose resources", () =>
+        compose(["down", "--volumes", "--remove-orphans"]),
+      );
+    else await removeProjectResources(docker, project, attempt);
+  }
   if (builderAttempted)
     await attempt("the test builder and its build cache", async () => {
       if (await builderExists(docker, builder))

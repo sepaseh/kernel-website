@@ -8,8 +8,9 @@ authorized local engine or operator target. Source inspection and injected tests
 record no successful container build, TLS deployment or cleanup.
 
 The operations phase retains the delivered website composition with
-`applicationReady: true`. Image build and startup still reject false or invalid
-markers. Complete exact-tree application acceptance before the separately
+`applicationReady: true`. The website image build and startup reject false or
+invalid markers; the independent gateway image build does not check them.
+Complete exact-tree application acceptance before the separately
 authorized container procedure below; a source marker does not prove an image
 built or a stack passed. Never change the marker to bypass a prerequisite.
 
@@ -102,9 +103,19 @@ work, enable the synthetic test marker:
 KERNEL_SYNTHETIC_ENV=1 npm run test:docker
 ```
 
-The runner uses the fixed ordinary Docker executable and only the local engine
-socket, an empty owned Docker configuration and unique project/image/builder
-names. Its HTTP fixture build context contains only
+The default Docker executable is `/usr/bin/docker` on non-Windows hosts or
+`C:\Program Files\Docker\Docker\resources\bin\docker.exe` on Windows. For another
+installation, set the public `WEBSITE_DOCKER_CLI` input to its absolute, unlinked
+executable path. For example, with an ordinary installation at that path:
+
+```sh
+WEBSITE_DOCKER_CLI=/usr/local/bin/docker KERNEL_SYNTHETIC_ENV=1 npm run test:docker
+```
+
+Selecting the executable does not select an ambient Docker context or
+configuration. The runner retains its fixed local engine socket, empty owned
+Docker configuration and unique project/image/builder names.
+Its HTTP fixture build context contains only
 [`website-api-fixture.mjs`](../../scripts/website-api-fixture.mjs) and a generated
 Node image recipe. It copies no dependency manifests, source tree, migrations,
 database, operator state or authentication secrets. The responder keeps synthetic

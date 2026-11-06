@@ -1,4 +1,5 @@
-import { lstat, mkdtemp, open } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, lstat, mkdtemp, open } from "node:fs/promises";
 import { findPackageJSON } from "node:module";
 import net from "node:net";
 import path from "node:path";
@@ -215,53 +216,127 @@ async function boundedClose(browser) {
   }
 }
 
-/** Run one owned browser sample and return only the report payload for worker stdout. */
-export async function runLighthouseSample(root, profile, route, options = {}) {
+/** Load only the exact installed entry points owned by this script's repository. */
+async function sampleModules(directory, installation, injectedModules) {
+  if (injectedModules) return injectedModules();
+  if (directory !== path.resolve(repository))
+    throw new Error(
+      "Lighthouse literal imports require their actual owner repository.",
+    );
+  if (
+    import.meta.resolve("lighthouse") !==
+      pathToFileURL(installation.lighthouse).href ||
+    import.meta.resolve("@playwright/test") !==
+      pathToFileURL(installation.playwright).href ||
+    import.meta.resolve("lighthouse/core/config/lr-desktop-config.js") !==
+      pathToFileURL(installation.desktop).href
+  )
+    throw new Error(
+      "Lighthouse literal imports must select their reviewed root-owned entries.",
+    );
+  const [{ default: lighthouse }, { chromium }, { default: desktop }] =
+    await Promise.all([
+      import("lighthouse"),
+      import("@playwright/test"),
+      import("lighthouse/core/config/lr-desktop-config.js"),
+    ]);
+  return { lighthouse, chromium, desktop };
+}
+
+/** Reject non-loopback or unbounded worker connection inputs before any SDK call. */
+function browserConnection(value) {
+  let endpoint;
+  try {
+    endpoint = new URL(value?.endpoint);
+  } catch {
+    throw new Error("Lighthouse requires its parent's owned loopback browser.");
+  }
+  if (
+    typeof value.endpoint !== "string" ||
+    !Number.isInteger(value.port) ||
+    value.port < 1 ||
+    value.port > 65535 ||
+    value.endpoint.length > 512 ||
+    endpoint.href !== value.endpoint ||
+    endpoint.protocol !== "ws:" ||
+    endpoint.hostname !== "127.0.0.1" ||
+    !endpoint.port ||
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.search ||
+    endpoint.hash ||
+    !/^\/[A-Za-z0-9-]+$/.test(endpoint.pathname)
+  )
+    throw new Error("Lighthouse requires its parent's owned loopback browser.");
+  return { port: value.port, endpoint: endpoint.href };
+}
+
+/** Verify the SDK's actual cached selection before allowing an executable launch. */
+async function reviewedChromiumExecutable(directory, chromium) {
+  const layouts = {
+    darwin: [
+      `chrome-mac-${process.arch}`,
+      "Google Chrome for Testing.app",
+      "Contents",
+      "MacOS",
+      "Google Chrome for Testing",
+    ],
+    linux: [
+      process.arch === "arm64" ? "chrome-linux-arm64" : "chrome-linux64",
+      "chrome",
+    ],
+    win32: ["chrome-win64", "chrome.exe"],
+  };
+  const layout = layouts[process.platform];
+  const expected =
+    layout &&
+    path.join(
+      directory,
+      "node_modules/playwright-core/.local-browsers/chromium-1248",
+      ...layout,
+    );
+  if (!expected || chromium.executablePath() !== expected)
+    throw new Error(
+      "Lighthouse requires reviewed root-local Chromium; start with PLAYWRIGHT_BROWSERS_PATH=0 before loading the SDK.",
+    );
+  const executable = await artifactFile(expected);
+  await access(executable, constants.X_OK);
+  return executable;
+}
+
+/**
+ * Launch one reviewed Chromium in the supervisor and retain its process-owning
+ * BrowserServer. Killing this handle awaits Chromium independently of any worker
+ * or browser protocol response; it never searches for unrelated processes.
+ */
+export async function launchLighthouseBrowser(root, options = {}) {
   const directory = await readyRunnerRoot(root);
-  selectedSample(profile, route);
+  const signal = options.signal;
+  if (signal !== undefined && !(signal instanceof AbortSignal))
+    throw new TypeError("Lighthouse cancellation requires an AbortSignal.");
+  signal?.throwIfAborted();
   const inputs = await (options.inputs ?? syntheticBrowserInputs)(
     directory,
     options.environment ?? process.env,
   );
-  const injectedModules = options.modules;
-  const installation = await (
-    injectedModules === undefined
-      ? resolveLighthouseInstallation
-      : (options.installation ?? resolveLighthouseInstallation)
-  )(directory);
-  const modules =
-    injectedModules ??
-    (async () => {
-      if (directory !== path.resolve(repository))
-        throw new Error(
-          "Lighthouse literal imports require their actual owner repository.",
-        );
-      if (
-        import.meta.resolve("lighthouse") !==
-          pathToFileURL(installation.lighthouse).href ||
-        import.meta.resolve("@playwright/test") !==
-          pathToFileURL(installation.playwright).href ||
-        import.meta.resolve("lighthouse/core/config/lr-desktop-config.js") !==
-          pathToFileURL(installation.desktop).href
-      )
-        throw new Error(
-          "Lighthouse literal imports must select their reviewed root-owned entries.",
-        );
-      const [{ default: lighthouse }, { chromium }, { default: desktop }] =
-        await Promise.all([
-          import("lighthouse"),
-          import("@playwright/test"),
-          import("lighthouse/core/config/lr-desktop-config.js"),
-        ]);
-      return { lighthouse, chromium, desktop };
-    });
-  const { lighthouse, chromium, desktop } = await modules();
+  const installation = await resolveLighthouseInstallation(directory);
+  const { chromium } = await sampleModules(
+    directory,
+    installation,
+    options.modules,
+  );
+  const executablePath = await reviewedChromiumExecutable(directory, chromium);
   const port = await (options.port ?? availablePort)();
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error("Lighthouse requires an explicit loopback CDP port.");
+  signal?.throwIfAborted();
   const environment = {
     ...inputs.websiteEnvironment,
     PLAYWRIGHT_BROWSERS_PATH: "0",
   };
-  const browser = await chromium.launch({
+  const server = await chromium.launchServer({
+    executablePath,
+    host: "127.0.0.1",
     channel: "chromium",
     headless: true,
     env: environment,
@@ -276,6 +351,54 @@ export async function runLighthouseSample(root, profile, route, options = {}) {
       "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
     ],
   });
+  let stop;
+  const owned = { stop: () => (stop ??= server.kill()) };
+  try {
+    signal?.throwIfAborted();
+    const child = server.process();
+    if (!Number.isInteger(child?.pid) || child.pid < 1)
+      throw new Error(
+        "Lighthouse requires its independently owned browser process.",
+      );
+    return {
+      ...browserConnection({ port, endpoint: server.wsEndpoint() }),
+      ...owned,
+    };
+  } catch (error) {
+    try {
+      await owned.stop();
+    } catch (cleanup) {
+      throw new AggregateError(
+        [error, cleanup],
+        "Lighthouse browser ownership and cleanup failed.",
+        { cause: cleanup },
+      );
+    }
+    throw error;
+  }
+}
+
+/** Evaluate one parent-owned browser and return only bounded report payloads. */
+export async function runLighthouseSample(root, profile, route, options = {}) {
+  const directory = await readyRunnerRoot(root);
+  selectedSample(profile, route);
+  const inputs = await (options.inputs ?? syntheticBrowserInputs)(
+    directory,
+    options.environment ?? process.env,
+  );
+  const injectedModules = options.modules;
+  const installation = await (
+    injectedModules === undefined
+      ? resolveLighthouseInstallation
+      : (options.installation ?? resolveLighthouseInstallation)
+  )(directory);
+  const { lighthouse, chromium, desktop } = await sampleModules(
+    directory,
+    installation,
+    injectedModules,
+  );
+  const { port, endpoint } = browserConnection(options.browser);
+  const browser = await chromium.connect(endpoint);
   let result;
   let failure;
   try {
@@ -420,21 +543,23 @@ async function writeReport(directory, filename, value) {
   }
 }
 
-async function captureSample(
-  start,
-  directory,
-  environment,
-  profile,
-  route,
-  signal,
-  limit,
-) {
-  const owned = start({
-    args: [script, "--sample", profile, route],
+async function captureSample(context, sample, browser) {
+  const { directory, environment, options } = context;
+  const { profile, route } = sample;
+  const { signal, maximumOutputBytes: limit } = options;
+  const owned = (options.start ?? startOwnedProcess)({
+    args: [
+      script,
+      "--sample",
+      String(browser.port),
+      browser.endpoint,
+      profile,
+      route,
+    ],
     cwd: directory,
     env: environment,
     signal,
-    stdio: ["ignore", "pipe", "inherit"],
+    stdio: ["ignore", "pipe", "inherit", "ipc"],
   });
   const chunks = [];
   const capture = async () => {
@@ -487,20 +612,37 @@ const samplePlan = ["mobile", "desktop"].flatMap((profile) =>
 );
 
 async function captureAndPersistSample(context, sample) {
-  const { directory, inputs, installation, services, options, environment } =
-    context;
+  const { directory, inputs, installation, services, options } = context;
   const { profile, route, run } = sample;
   options.signal?.throwIfAborted();
   services.forEach((service) => service.assertAlive());
-  const result = await captureSample(
-    options.start ?? startOwnedProcess,
+  const browser = await (options.launchBrowser ?? launchLighthouseBrowser)(
     directory,
-    environment,
-    profile,
-    route,
-    options.signal,
-    options.maximumOutputBytes,
+    {
+      environment: inputs.websiteEnvironment,
+      signal: options.signal,
+    },
   );
+  let result;
+  let failure;
+  try {
+    const connection = browserConnection(browser);
+    options.signal?.throwIfAborted();
+    result = await captureSample(context, sample, connection);
+  } catch (error) {
+    failure = error;
+  }
+  try {
+    await browser.stop();
+  } catch (error) {
+    failure = failure
+      ? new AggregateError(
+          [failure, error],
+          "Lighthouse sample and owned browser cleanup failed.",
+        )
+      : error;
+  }
+  if (failure) throw failure;
   const values = sampleResult(
     result,
     installation.version,
@@ -591,6 +733,14 @@ export async function runWebsitePerformance(root = repository, options = {}) {
   if (signal !== undefined && !(signal instanceof AbortSignal))
     throw new TypeError("Lighthouse cancellation requires an AbortSignal.");
   signal?.throwIfAborted();
+  if (
+    directory !== path.resolve(repository) &&
+    (typeof options.start !== "function" ||
+      typeof options.launchBrowser !== "function")
+  )
+    throw new Error(
+      "Lighthouse workers require their actual owner repository before preparation.",
+    );
   const skipBuild = options.skipBuild ?? false;
   const limit = options.maximumOutputBytes ?? sampleLimit;
   if (typeof skipBuild !== "boolean")
@@ -625,7 +775,7 @@ export async function runWebsitePerformance(root = repository, options = {}) {
   const failures = evaluateWebsiteBudget(bundle, budget);
   if (failures.length) throw new Error(failures.join("\n"));
   const parent = await ensureArtifactDirectory(
-    path.join(directory, ".lighthouseci/website"),
+    path.join(directory, "test-results/website-performance"),
   );
   const output = await mkdtemp(path.join(parent, "lab-"));
   await writeReport(
@@ -711,10 +861,20 @@ export async function runWebsitePerformance(root = repository, options = {}) {
 await runVerificationCli(import.meta.main, repository, async ({ signal }) => {
   const args = process.argv.slice(2);
   if (args[0] === "--sample") {
-    if (args.length !== 3)
+    if (
+      args.length !== 5 ||
+      typeof process.send !== "function" ||
+      !process.connected
+    )
       throw new Error("Specify one declared Lighthouse worker sample.");
-    const result = await runLighthouseSample(repository, args[1], args[2]);
-    process.stdout.write(JSON.stringify(result));
+    try {
+      const result = await runLighthouseSample(repository, args[3], args[4], {
+        browser: { port: Number(args[1]), endpoint: args[2] },
+      });
+      process.stdout.write(JSON.stringify(result));
+    } finally {
+      if (process.connected) process.disconnect();
+    }
     return;
   }
   const { values } = parseArgs({

@@ -1,14 +1,40 @@
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { resolvePlaywrightCli } from "./browser-inputs.mjs";
 import { packageRelease, parseReleaseArguments } from "./package-release.mjs";
+import { ensureArtifactDirectory } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 import { validateWorkflowTargets } from "./validate-workflow-targets.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
-const modes = new Set(["package", "smoke", "staging"]);
+const modes = new Set(["package", "smoke", "staging", "dast-context"]);
+
+/** Prepare an exclusive exact-origin ZAP context after readiness and public target validation. */
+export async function prepareDastContext(root, environment) {
+  const directory = await readyRunnerRoot(root);
+  const inputs = Object.fromEntries(
+    ["DAST_TARGET", "DAST_ALLOWED_HOST", "DAST_PRODUCTION_HOST"].map((name) => [
+      name,
+      environment[name],
+    ]),
+  );
+  validateWorkflowTargets("dast", inputs);
+  const origin = new URL(inputs.DAST_TARGET).origin;
+  const pattern = `(?i)^${origin.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/.*)?$`;
+  const output = await ensureArtifactDirectory(
+    path.join(directory, "test-results/dast"),
+  );
+  const filename = path.join(output, "authorized.context");
+  await writeFile(
+    filename,
+    `<?xml version="1.0" encoding="UTF-8"?>\n<configuration><context><name>authorized-dast</name><inscope>true</inscope><incregexes>${pattern}</incregexes><tech><include>Db</include><include>Language</include><include>OS</include><include>SCM</include><include>WS</include></tech></context></configuration>\n`,
+    { flag: "wx", mode: 0o644 },
+  );
+  return filename;
+}
 
 function runtimeEnvironment(inherited) {
   const environment = {};
@@ -67,6 +93,11 @@ export async function runOperationsCheck(root, mode, options = {}) {
       repositoryRoot: directory,
       releaseId: parseReleaseArguments(args),
     });
+  if (mode === "dast-context") {
+    if (args.length)
+      throw new Error("DAST context preparation accepts no extra arguments.");
+    return prepareDastContext(directory, options.environment ?? process.env);
+  }
   if (args.length)
     throw new Error("Browser operations accept no extra arguments.");
   const environment = await operationsBrowserEnvironment(

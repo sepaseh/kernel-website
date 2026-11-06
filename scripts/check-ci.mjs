@@ -102,6 +102,8 @@ export const scannerAction =
   "SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9";
 export const browserInstallCommand =
   "node node_modules/@playwright/test/cli.js install chromium";
+export const dastPreflightCommand =
+  "node scripts/operations-checks.mjs dast-context";
 export const applicationEnvironment = Object.freeze({
   HOSTNAME: "127.0.0.1",
   PORT: "3010",
@@ -586,6 +588,63 @@ function validateCodeQlWorkflow(workflow) {
   assert.equal(steps[2].with, undefined, "Analyze step must not set inputs.");
 }
 
+function validateDastBinding(job, preflight) {
+  const scanner = job.steps.at(-1);
+  assert.deepEqual(
+    job.steps.map((step) => step.uses ?? step.run),
+    [
+      checkoutAction,
+      nodeAction,
+      dastPreflightCommand,
+      "zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c",
+    ],
+  );
+  assert.deepEqual(job.env, {
+    DAST_ALLOWED_HOST: "${{ vars.STAGING_ALLOWED_APP_HOST }}",
+    DAST_PRODUCTION_HOST: "${{ vars.PRODUCTION_HOST }}",
+    DAST_TARGET: "${{ inputs.target_url }}",
+  });
+  assert.equal(
+    preflight.env,
+    undefined,
+    "DAST preflight must use the same job target as the scanner.",
+  );
+  assert.equal(
+    scanner.env,
+    undefined,
+    "DAST scanner must use the validated job target.",
+  );
+  assert.equal(scanner.with.target, "${{ env.DAST_TARGET }}");
+  assert.equal(
+    scanner.with.cmd_options,
+    "-a -n test-results/dast/authorized.context",
+  );
+  unconditional(scanner);
+}
+
+function validateOperationalPreflight(filename, job) {
+  const mode = filename === "deployment-smoke" ? "smoke" : filename;
+  const command =
+    filename === "dast"
+      ? dastPreflightCommand
+      : `node scripts/validate-workflow-targets.mjs ${mode}`;
+  const index = job.steps.findIndex((step) => step.run === command);
+  assert.ok(
+    index > 0,
+    "External operations must validate explicit authorized targets first.",
+  );
+  unconditional(job.steps[index]);
+  if (filename === "dast") validateDastBinding(job, job.steps[index]);
+  for (const step of job.steps.slice(0, index)) {
+    assert.equal(
+      step.run,
+      undefined,
+      "Target validation must precede installs and execution.",
+    );
+    assert.ok([checkoutAction, nodeAction].includes(step.uses));
+  }
+}
+
 function validateManualWorkflow(filename, workflow) {
   assert.deepEqual(
     Object.keys(workflow.on),
@@ -614,26 +673,8 @@ function validateManualWorkflow(filename, workflow) {
     const checkout = job.steps[0];
     assert.equal(checkout.uses, checkoutAction);
     assert.deepEqual(checkout.with, { "persist-credentials": false });
-    if (["dast", "deployment-smoke", "staging"].includes(filename)) {
-      const mode = filename === "deployment-smoke" ? "smoke" : filename;
-      const index = job.steps.findIndex(
-        (step) =>
-          step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
-      );
-      assert.ok(
-        index > 0,
-        "External operations must validate explicit authorized targets first.",
-      );
-      unconditional(job.steps[index]);
-      for (const step of job.steps.slice(0, index)) {
-        assert.equal(
-          step.run,
-          undefined,
-          "Target validation must precede installs and execution.",
-        );
-        assert.ok([checkoutAction, nodeAction].includes(step.uses));
-      }
-    }
+    if (["dast", "deployment-smoke", "staging"].includes(filename))
+      validateOperationalPreflight(filename, job);
   }
 }
 

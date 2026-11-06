@@ -47,14 +47,20 @@ failure or treat synthetic helper tests as an actual build measurement.
 ## Collect twelve owned Lighthouse samples
 
 The runner checks exact installed Lighthouse `13.6.0`, Playwright `1.64.1` and its
-reviewed Chromium identity before execution. It owns the build and local
-API/website/browser processes:
+reviewed Chromium identity before execution. Set `PLAYWRIGHT_BROWSERS_PATH=0`
+before invoking the runner so the SDK selects its project-local installation.
+The parent validates and forces that exact executable; cached global or custom
+browser selections are rejected before launch. It owns the build and local
+API/website processes. For each sample, the parent runner owns the browser and
+retains shutdown control while a worker runs Lighthouse through its CDP connection.
+The parent stops and drains that browser after the sample, including failure or
+cancellation; cleanup failures remain failures:
 
 ```sh
 npm run perf:website
 ```
 
-Expected success prints the exclusive `.lighthouseci/website/lab-*` directory.
+Expected success prints the exclusive `test-results/website-performance/lab-*` directory.
 It contains twelve HTML/JSON sample pairs: `/` and `/login`, mobile and desktop,
 three runs each; `summary.json` records individual results and median score,
 FCP, LCP, CLS, TBT and Speed Index for each route/profile. `pending.json` records
