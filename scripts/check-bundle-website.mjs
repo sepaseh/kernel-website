@@ -10,12 +10,17 @@ const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const assetList = (value) =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+/** Keep manifest and report ordering independent of the host's locale. */
 const compareStrings = (left, right) => {
   if (left < right) return -1;
   if (left > right) return 1;
   return 0;
 };
 
+/**
+ * Parse the supported generated assignment as JSON, never executable code, and
+ * reject malformed client, JavaScript or CSS graph collections before use.
+ */
 export function parseClientManifest(text) {
   // Generated assignments contain JSON. No build output is evaluated as code.
   const assignment =
@@ -59,6 +64,10 @@ export function parseClientManifest(text) {
   return manifest;
 }
 
+/**
+ * Normalize emitted browser asset prefixes and bracket escapes while rejecting
+ * traversal, empty segments and paths outside the static JavaScript/CSS tree.
+ */
 export function clientAssetPath(value) {
   const normalized =
     typeof value === "string"
@@ -75,6 +84,10 @@ export function clientAssetPath(value) {
   return normalized;
 }
 
+/**
+ * Decode either filename-only chunks or webpack's alternating ID/filename
+ * entries, rejecting incomplete or mixed representations before measurement.
+ */
 function clientChunkAssets(chunks) {
   const filename = (value) =>
     value.startsWith("static/") || value.startsWith("/_next/static/");
@@ -90,6 +103,7 @@ function clientChunkAssets(chunks) {
   return chunks.filter((_, index) => index % 2 === 1);
 }
 
+/** Resolve an existing build directory only if it and its ancestors are unlinked. */
 async function buildRoot(directory) {
   const root = path.resolve(directory);
   for (let cursor = root; ; cursor = path.dirname(cursor)) {
@@ -102,6 +116,10 @@ async function buildRoot(directory) {
   }
 }
 
+/**
+ * Read a validated relative regular file beneath the inspected build root;
+ * absolute paths, traversal and linked ancestors are rejected before the read.
+ */
 async function buildFile(root, relative) {
   if (
     typeof relative !== "string" ||
@@ -115,6 +133,7 @@ async function buildFile(root, relative) {
   return readFile(filename);
 }
 
+/** Inspect ancestors before descendants so a build entry cannot cross a link. */
 async function buildEntry(root, relative) {
   const parent = path.posix.dirname(relative);
   if (parent !== ".") {
@@ -129,6 +148,10 @@ async function buildEntry(root, relative) {
   return { filename, entry };
 }
 
+/**
+ * Enumerate emitted JavaScript/CSS beneath an inspected directory without
+ * following links or counting unrelated file types as browser assets.
+ */
 async function filesUnder(root, relative) {
   const { filename: directory, entry } = await buildEntry(root, relative);
   if (!entry.isDirectory())
@@ -146,6 +169,7 @@ async function filesUnder(root, relative) {
   return groups.flat();
 }
 
+/** Reject unsafe internal page paths and malformed public route-map values. */
 const pageEntry = (entry, route) => {
   if (
     !entry.startsWith("/") ||
@@ -166,6 +190,10 @@ const pageEntry = (entry, route) => {
     throw new Error("Invalid page route in route manifest.");
 };
 
+/**
+ * Separate a page's public route from its parallel-slot signature. Route groups
+ * do not affect either identity, and the implicit children slot is canonicalized.
+ */
 function pageIdentity(entry) {
   const segments = entry
     .split("/")
@@ -177,6 +205,10 @@ function pageIdentity(entry) {
   };
 }
 
+/**
+ * Group validated page entries by route, retaining distinct parallel slots while
+ * rejecting aliases that would silently hide a malformed duplicate page graph.
+ */
 function pageGraphs(routeMap) {
   const pages = Object.entries(routeMap)
     .sort((left, right) => compareStrings(String(left), String(right)))
@@ -206,6 +238,7 @@ function pageGraphs(routeMap) {
   return routeEntries;
 }
 
+/** Collect one page's client chunks, entry scripts and CSS from its JSON graph. */
 async function pageAssets(root, entry) {
   const filename = `server/app/${entry.slice(1)}_client-reference-manifest.js`;
   const manifest = parseClientManifest(
@@ -221,6 +254,10 @@ async function pageAssets(root, entry) {
   return [...chunks, ...entryJavaScript, ...css];
 }
 
+/**
+ * Count each normalized reachable asset once, rejecting missing files instead of
+ * treating an incomplete client graph as a smaller successful measurement.
+ */
 function summarizeAssets(files, assets) {
   const paths = [...new Set(files.map(clientAssetPath))].sort(compareStrings);
   let javaScriptBytes = 0;
@@ -237,6 +274,11 @@ function summarizeAssets(files, assets) {
   return { javaScriptBytes, javaScriptGzipBytes, cssBytes, files: paths };
 }
 
+/**
+ * Measure unique emitted browser assets and each route's reachable client graph
+ * from an existing build. The report includes gzip bytes, not actual network
+ * transfer or browser acceptance; the executable caller separately gates readiness.
+ */
 export async function measureWebsiteBundle(buildDirectory) {
   const root = await buildRoot(buildDirectory);
   await buildFile(root, "BUILD_ID");
@@ -299,6 +341,10 @@ export async function measureWebsiteBundle(buildDirectory) {
   };
 }
 
+/**
+ * Validate nonnegative integer measurements and budget limits, returning every
+ * exceeded global or route limit while throwing for malformed report inputs.
+ */
 export function evaluateWebsiteBudget(report, budget) {
   if (!record(budget) || budget.version !== 1)
     throw new Error("Unsupported website budget version.");
@@ -309,6 +355,7 @@ export function evaluateWebsiteBudget(report, budget) {
   )
     throw new Error("Invalid website bundle report.");
   const failures = [];
+  /** Validate a measurement/limit pair before adding its human-readable failure. */
   const check = (label, value, key) => {
     if (
       !Number.isSafeInteger(budget[key]) ||
@@ -348,6 +395,7 @@ export function evaluateWebsiteBudget(report, budget) {
   return failures;
 }
 
+/** Create or verify report directories one level at a time without following links. */
 async function reportFolder(parent, components) {
   if (!components.length) return parent;
   const [component, ...remaining] = components;
@@ -365,6 +413,7 @@ async function reportFolder(parent, components) {
   return reportFolder(directory, remaining);
 }
 
+/** Return the owned report path only after its parents and any existing file pass checks. */
 async function reportDirectory() {
   const directory = await reportFolder(repository, [
     ".lighthouseci",

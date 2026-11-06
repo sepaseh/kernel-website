@@ -1,6 +1,6 @@
 {
-  "name": "kernel-website-browser-foundation-guidance",
-  "description": "Published browser-foundation scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-application-guidance",
+  "description": "Published application scope, exact-tree validation and protected current-head reviews",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",
@@ -48,7 +48,11 @@
     "npm run format:check",
     "npm run test:unit",
     "npm run test:governance",
-    "npm run check:fonts"
+    "npm run check:fonts",
+    "npm run check:unused",
+    "npm run build",
+    "npm run test:e2e",
+    "npm run test:visual"
   ],
   "recommendedChecksSource": {
     "path": ".agents/validation.json",

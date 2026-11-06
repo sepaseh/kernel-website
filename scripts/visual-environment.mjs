@@ -13,6 +13,10 @@ import path from "node:path";
 const record = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 
+/**
+ * Verify or create each output parent before descending into it, rejecting linked
+ * or non-directory entries even when another creator wins the mkdir race.
+ */
 async function createVisualDirectory(cursor, parts, index = 0) {
   if (index === parts.length) return cursor;
   const next = path.join(cursor, parts[index]);
@@ -34,6 +38,7 @@ async function createVisualDirectory(cursor, parts, index = 0) {
   return createVisualDirectory(next, parts, index + 1);
 }
 
+/** Resolve an explicit output path through the checked, unlinked directory chain. */
 async function visualDirectory(directory) {
   if (typeof directory !== "string" || !directory.trim())
     throw new Error("Visual output directory must be explicit.");
@@ -45,6 +50,11 @@ async function visualDirectory(directory) {
   );
 }
 
+/**
+ * Atomically replace metadata with pending review fields through an exclusive
+ * temporary file. Only that temporary file is cleaned on failure, and write and
+ * cleanup errors remain visible without treating capture as human review.
+ */
 export async function markVisualBaselinePending(metadataPath, metadata) {
   if (!record(metadata)) throw new Error("Visual metadata must be an object.");
   const content = `${JSON.stringify({ ...metadata, review: { status: "pending", reviewer: null, reviewedAt: null } }, null, 2)}\n`;
@@ -80,6 +90,7 @@ export async function markVisualBaselinePending(metadataPath, metadata) {
   }
 }
 
+/** Remove a lock only when its device/inode still matches the acquired descriptor. */
 async function removeOwnedLock(filename, identity) {
   let entry;
   try {
@@ -99,6 +110,11 @@ async function removeOwnedLock(filename, identity) {
   await unlink(filename);
 }
 
+/**
+ * Exclusively acquire visual output ownership and return an idempotent release
+ * callback. Release may close the descriptor while retaining exclusion for an
+ * unclosed child; failed initial identity checks also preserve the unknown lock.
+ */
 export async function acquireVisualLock(resultsDirectory) {
   const directory = await visualDirectory(resultsDirectory);
   const filename = path.join(directory, ".visual-run.lock");
@@ -140,6 +156,7 @@ export async function acquireVisualLock(resultsDirectory) {
     })());
 }
 
+/** Reject implicit mode flags, unsupported baseline platforms and every CI update. */
 export function assertVisualMode(options) {
   if (
     !record(options) ||
@@ -155,6 +172,10 @@ export function assertVisualMode(options) {
     );
 }
 
+/**
+ * Require matching platform/SDK identity and recorded review fields; optionally
+ * check the probed browser version. Metadata validity alone cannot prove review.
+ */
 export function assertReviewedVisualBaseline(metadata, expected) {
   if (
     !record(expected) ||
@@ -186,6 +207,10 @@ export function assertReviewedVisualBaseline(metadata, expected) {
     throw new Error("Installed Chromium does not match reviewed baselines.");
 }
 
+/**
+ * Build an allowlisted synthetic parent environment with telemetry disabled and
+ * rebuilds enabled, leaving private inherited values out of browser children.
+ */
 export function visualEnvironment(inherited = process.env) {
   return {
     PATH: typeof inherited?.PATH === "string" ? inherited.PATH : "",
@@ -204,6 +229,7 @@ export function visualEnvironment(inherited = process.env) {
   };
 }
 
+/** Bind IPv4 loopback to verify availability, closing only this probe's listener. */
 async function probeVisualPort(port) {
   const server = createServer();
   try {
@@ -226,6 +252,10 @@ async function probeVisualPort(port) {
   }
 }
 
+/**
+ * Validate and deduplicate requested TCP ports, then wait for every independent
+ * probe's cleanup before surfacing a failure so no owned listener outlives preflight.
+ */
 export async function assertVisualPortsAvailable(ports = [3100, 3101]) {
   if (
     !Array.isArray(ports) ||

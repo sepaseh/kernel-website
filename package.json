@@ -27,7 +27,7 @@
     "test:guidance": "node --test scripts/check-guidance.test.mjs scripts/block-dangerous-shell.test.mjs scripts/block-dangerous.test.mjs scripts/post-edit-format.test.mjs scripts/quality-gate.test.mjs",
     "test:unit": "vitest run --coverage",
     "test:visual": "node scripts/application-checks.mjs visual",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tooling.json",
+    "typecheck": "node scripts/application-checks.mjs types && tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tooling.json",
     "validate": "node scripts/validate.mjs"
   },
   "devDependencies": {

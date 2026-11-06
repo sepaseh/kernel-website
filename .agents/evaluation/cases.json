@@ -25,13 +25,37 @@
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
     {
+      "id": "language-authority",
+      "prompt": {
+        "en": "Trace API-owned language validation into local catalog selection. Inspect the marker/inventory before describing framework adapters or their execution."
+      },
+      "taskIds": ["active-language"],
+      "evidence": [
+        "src/shared/settings/language.ts",
+        "src/shared/settings/language.test.ts",
+        "src/i18n/catalogs.ts",
+        "docs/localization.md",
+        "src/i18n/request.ts",
+        "src/shared/settings/server.ts",
+        "src/shared/runtime-adapters.test.ts"
+      ],
+      "mustExplain": [
+        "Uncached API settings select one supported language/direction; unavailable or unsupported settings fail explicitly.",
+        "All ten flat catalogs are complete. Request/layout composition must be confirmed in the exact source inventory; visitor negotiation remains forbidden and support tests do not verify SSR."
+      ],
+      "mustNot": [
+        "Add a visitor language selector, silently fall back to English or claim SSR/header redirects were verified without exact-source execution evidence."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
       "id": "local-common-label",
       "prompt": {
         "en": "Locate one shared root key and its consumers; plan a genuine ten-language label with matching ICU variables and client selection."
       },
       "taskIds": ["shared-translation"],
       "evidence": [
-        "src/i18n/catalog-data/locales/en.ts",
+        "src/i18n/catalog-data/locales/en.json",
         "src/i18n/catalog-data/locales.ts",
         "src/i18n/catalog-data/integrity.test.ts",
         "src/i18n/client-messages.ts"
@@ -42,6 +66,54 @@
       ],
       "mustNot": [
         "Introduce nested common/feature objects, dotted aliases, duplicate catalogs or source imports from another checkout."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "proxy-origin-boundary",
+      "prompt": {
+        "en": "Inspect origin, credentials and route/body restrictions in the forwarding helper; establish framework wiring and its evidence from the actual phase."
+      },
+      "taskIds": ["auth-session"],
+      "evidence": [
+        "src/shared/api/proxy.ts",
+        "src/shared/api/proxy.test.ts",
+        "docs/server-boundary.md",
+        "src/app/api/[...path]/route.ts",
+        "src/shared/runtime-adapters.test.ts"
+      ],
+      "mustExplain": [
+        "Unsupported routes/methods, foreign mutation origins and invalid or oversized JSON are rejected.",
+        "Cookie/private responses remain no-store; synthetic Request/Response tests validate the helper, not a deployed gateway or real browser."
+      ],
+      "mustNot": [
+        "Bypass the helper, import API implementation or claim a route/TLS gateway ran without current source and execution evidence."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "seo-publication",
+      "prompt": {
+        "en": "Explain explicit origins, indexing conditions, metadata and escaped JSON-LD in the published helpers, including their current publication limits."
+      },
+      "taskIds": ["public-seo"],
+      "evidence": [
+        "src/shared/seo/config.ts",
+        "src/shared/seo/metadata.ts",
+        "src/shared/seo/structured-data.ts",
+        "src/shared/seo/config.test.ts",
+        "docs/client-document.md",
+        "src/app/robots.ts",
+        "src/app/sitemap.ts",
+        "src/app/social-image/route.tsx",
+        "src/shared/runtime-adapters.test.ts"
+      ],
+      "mustExplain": [
+        "SEO uses an explicitly valid public HTTPS origin and opt-in production indexing rather than upstream or request Host.",
+        "Metadata/data/JSON-LD helper coverage does not itself demonstrate real robots/sitemap/social-image routes, SSR or Search Console verification; inspect actual application composition and results."
+      ],
+      "mustNot": [
+        "Infer real discovery routes, published URLs or field indexing from helper coverage or the existence of ten catalogs."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
     },
@@ -66,6 +138,88 @@
         "Claim enabled RUM, initial transfer size, runnable CSS/header integration or real performance measurements without actual current-scope evidence."
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "nonce-rollout",
+      "prompt": {
+        "en": "Trace pure CSP policy ownership and use the marker/inventory to identify required nonce/framework/gateway composition and actual evidence."
+      },
+      "taskIds": ["website-csp"],
+      "evidence": [
+        "src/shared/security/csp.ts",
+        "src/shared/security/csp.test.ts",
+        "docs/server-boundary.md",
+        "SECURITY.md",
+        "src/proxy.ts",
+        "src/shared/security/nonce.ts",
+        "src/proxy.test.ts"
+      ],
+      "mustExplain": [
+        "Policy helpers parse modes and construct a nonce policy. Header selection belongs to framework wiring and must be confirmed in the source; report-only does not block violations.",
+        "Nonce generation, incoming-header removal, response wiring, HTML caching and gateway rollout require actual adapters and current browser evidence, not helper tests."
+      ],
+      "mustNot": [
+        "Infer fresh per-response nonces or verified browser modes from pure-helper tests; claim a collector or deployed CSP without actual implementation and execution evidence."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"]
+    },
+    {
+      "id": "publication-readiness",
+      "prompt": {
+        "en": "Determine the exact current publication scope and the evidence required before runtime activation, a CodeRabbit request or an authorized merge."
+      },
+      "taskIds": ["guidance", "git-workflow"],
+      "evidence": [
+        ".github/bootstrap-policy.json",
+        ".agents/validation.json",
+        "scripts/validate-bootstrap.mjs",
+        ".agents/rules/pull-requests.md",
+        "docs/bootstrap.md",
+        "docs/application.md",
+        "scripts/website-api-fixture.mjs"
+      ],
+      "mustExplain": [
+        "Read the canonical marker, exact admitted inventory and full manifest. Every required phase check and all published executable source remain measured. Aim for at most 80 initial changed entries; exceeding 100 alone does not fail CI or require recreating a PR, and never infer execution from a source marker.",
+        "Provider requests require successful latest exact-head non-CodeRabbit checks, the native CodeQL result, the actual Sonar scanner and native gate, a matching complete all-severity zero-unresolved report, cooldown and no in-flight duplicate.",
+        "Protected CodeRabbit approval requires the actual current-head approved bot review and completed provider check. Skipped or neutral checks, conversation and local guidance tests do not establish substantive review or runtime acceptance.",
+        "This starter owns its setup, contracts, tests and guidance; no other repository's source, revisions or instructions are prerequisites. Runnable acceptance must use the same-repository synthetic HTTP fixture and verified browser.",
+        "One open PR is the default. An explicitly authorized stack may publish in predecessor order with each base protected and each exact head validated. After an actual authorized merge, reconcile descendants against real main."
+      ],
+      "mustNot": [
+        "Publish an overlapping stack without explicit authorization, leave a predecessor base unprotected, weaken checks, read private state, merge without authorization or treat a closed unmerged PR as a merge."
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ]
+    },
+    {
+      "id": "design-system-handoff",
+      "prompt": {
+        "en": "Plan a sign-in component redesign and optional design-tool handoff using the published source. Identify available primitives, states, language/theme boundaries and missing integration evidence."
+      },
+      "taskIds": ["design-ui"],
+      "evidence": [
+        "DESIGN.md",
+        ".agents/skills/design-ui/SKILL.md",
+        "src/shared/ui/button.tsx",
+        "src/shared/ui/FormField.tsx",
+        "src/features/auth/login/Login.tsx",
+        "src/i18n/client-messages.ts",
+        "docs/application.md"
+      ],
+      "mustExplain": [
+        "Read the design contract/skill, marker and actual primitives before selecting tools. Confirm CSS, root layout and generator ownership against the inventory; missing composition belongs to application acceptance.",
+        "Preserve native submit semantics, pending/error states, API-owned locale/direction, ten flat catalogs, scoped messages, theme and cookie/session ownership.",
+        "A concept/editable design is separate evidence from runnable integration or a hosted preview; instruction loading and external tool actions require actual observed evidence and existing authorization."
+      ],
+      "mustNot": [
+        "Introduce another UI stack, visitor language controls or duplicate tokens; claim universal autoload, visual/browser readiness or upload/publication without authorization."
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage", "guidance"]
     }
   ]
 }

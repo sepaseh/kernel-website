@@ -499,7 +499,22 @@ const packageSourceViolation = ({
     : "Package imports require an exact owner, installed package and runtime/type-only permission";
 };
 
+/**
+ * Keep catalog reads in their exact owners. The standalone bootstrap error page
+ * needs only English and Persian resources because its language/provider setup
+ * may itself have failed; other components still use the lazy runtime registry.
+ */
 const catalogSourceViolation = (owner, specifier, target, typeOnly) => {
+  if (
+    owner === "src/app/global-error.tsx" &&
+    specifier === "@/" + target.slice("src/".length) &&
+    [
+      "src/i18n/catalog-data/locales/en.json",
+      "src/i18n/catalog-data/locales/fa.json",
+    ].includes(target) &&
+    !typeOnly
+  )
+    return undefined;
   if (
     owner === "src/i18n/catalogs.ts" &&
     specifier === "@/" + target.slice("src/".length) &&
@@ -513,7 +528,7 @@ const catalogSourceViolation = (owner, specifier, target, typeOnly) => {
     typeOnly
   )
     return undefined;
-  return "Catalog JSON requires the exact runtime registry or erased English type owner";
+  return "Catalog JSON requires the exact runtime registry, erased English type owner or bilingual bootstrap error owner";
 };
 
 export const boundaryViolation = ({

@@ -20,8 +20,11 @@ export const ciProfiles = Object.freeze({
   audit: ["audit"],
   unit: ["unit-coverage"],
   governance: ["governance-coverage", "font-integrity"],
+  build: ["dead-code", "build"],
+  e2e: ["e2e"],
+  visual: ["visual"],
 });
-export const aggregateCommand = `node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"`;
+export const aggregateCommand = `node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance', 'build', 'e2e', 'visual']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"`;
 export const requiredChecks = Object.freeze([
   "snapshot",
   "ci-policy",
@@ -35,6 +38,10 @@ export const requiredChecks = Object.freeze([
   "unit-coverage",
   "governance-coverage",
   "font-integrity",
+  "dead-code",
+  "build",
+  "e2e",
+  "visual",
 ]);
 const commands = [
   "check:snapshot",
@@ -49,6 +56,10 @@ const commands = [
   "test:unit",
   "test:governance",
   "check:fonts",
+  "check:unused",
+  "build",
+  "test:e2e",
+  "test:visual",
 ];
 export const checkoutAction =
   "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
@@ -66,6 +77,19 @@ export const downloadAction =
   "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333";
 export const scannerAction =
   "SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9";
+export const browserInstallCommand =
+  "node node_modules/@playwright/test/cli.js install chromium";
+export const applicationEnvironment = Object.freeze({
+  HOSTNAME: "127.0.0.1",
+  PORT: "3010",
+  WEBSITE_URL: "http://127.0.0.1:3010",
+  API_BASE_URL: "http://127.0.0.1:3100",
+  WEBSITE_INDEXING_ENABLED: "false",
+  NODE_ENV: "production",
+  KERNEL_SYNTHETIC_ENV: "1",
+  PLAYWRIGHT_BROWSERS_PATH: "0",
+  NPM_CONFIG_INCLUDE: "dev",
+});
 
 export function workflowDocument(content) {
   const parsed = parseDocument(content, { uniqueKeys: true });
@@ -88,12 +112,12 @@ export function workflowDocument(content) {
  * not execution or provider success.
  */
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "browser-foundation");
-  assert.equal(manifest.applicationReady, false);
+  assert.equal(manifest.phase, "application");
+  assert.equal(manifest.applicationReady, true);
   assert.deepEqual(
     manifest.profiles?.full,
     requiredChecks,
-    "All twelve real checks run once.",
+    "All sixteen real checks run once.",
   );
   assert.deepEqual(
     manifest.checks.map((check) => check.id),
@@ -103,9 +127,17 @@ export function validateCheckManifest(manifest) {
     assert.equal(check.kind, "required");
     assert.equal(check.command, `npm run ${commands[index]}`);
     assert.deepEqual(check.scopes, [manifest.phase]);
-    assert.deepEqual(check.ciJobs, [
-      Object.keys(ciProfiles).find((job) => ciProfiles[job].includes(check.id)),
-    ]);
+    // Browser jobs build their own fresh outputs before their runtime profile.
+    assert.deepEqual(
+      check.ciJobs,
+      check.id === "build"
+        ? ["build", "e2e", "visual"]
+        : [
+            Object.keys(ciProfiles).find((job) =>
+              ciProfiles[job].includes(check.id),
+            ),
+          ],
+    );
   }
   for (const [job, ids] of Object.entries(ciProfiles))
     assert.deepEqual(manifest.profiles[`ci-${job}`], ids);
@@ -121,6 +153,64 @@ export function validateCheckManifest(manifest) {
     new Set(manifest.profiles.full),
     "CI partitions the canonical full gate without omissions or duplicates.",
   );
+}
+
+/** Verify real isolated runtime jobs, including their own build and browser. */
+function validateApplicationJob(job, mode) {
+  unconditional(job);
+  assert.equal(
+    Object.hasOwn(job, "defaults"),
+    false,
+    "Verification jobs cannot override run defaults.",
+  );
+  assert.equal(
+    Object.hasOwn(job, "permissions"),
+    false,
+    "Verification jobs must inherit workflow permissions.",
+  );
+  assert.equal(job.name, mode);
+  assert.equal(job.env, undefined);
+  assert.equal(job.strategy, undefined);
+  assert.deepEqual(job.needs, mode === "build" ? undefined : ["build"]);
+  assert.equal(job["runs-on"], "windows-latest");
+  assert.equal(job["timeout-minutes"], mode === "build" ? 30 : 60);
+  assert.equal(job.outputs, undefined);
+  pinnedActions(job);
+  assert.deepEqual(job.steps[0].with, {
+    ref: "${{ github.sha }}",
+    "persist-credentials": false,
+  });
+  assert.deepEqual(job.steps[1].with, {
+    "node-version-file": ".nvmrc",
+    cache: "npm",
+  });
+  const expected = [checkoutAction, nodeAction, installCommand];
+  if (mode !== "build") expected.push(browserInstallCommand, "npm run build");
+  expected.push(`npm run validate -- ci-${mode}`);
+  if (mode !== "build") expected.push(uploadAction);
+  assert.deepEqual(
+    job.steps.map((step) => step.uses ?? step.run),
+    expected,
+  );
+  for (const step of mode === "build" ? job.steps : job.steps.slice(0, -1)) {
+    unconditional(step);
+    assert.equal(step.env, undefined);
+    assert.equal(step.shell, undefined);
+  }
+  if (mode !== "build") {
+    const evidence = job.steps.at(-1);
+    assert.equal(evidence.if, "${{ !cancelled() }}");
+    assert.equal(evidence["continue-on-error"], undefined);
+    assert.deepEqual(evidence.with, {
+      name:
+        `${mode}-evidence-` + "${{ github.run_id }}-${{ github.run_attempt }}",
+      path: "playwright-report\ntest-results\n",
+      "if-no-files-found": "error",
+      "retention-days": 14,
+      overwrite: false,
+      "include-hidden-files": false,
+    });
+  }
 }
 
 const unconditional = (entry) => {
@@ -232,6 +322,7 @@ export function validateCiWorkflow(content, manifest) {
   assert.deepEqual(workflow.permissions, {
     contents: "read",
   });
+  assert.deepEqual(workflow.env, applicationEnvironment);
   assert.ok(
     Object.hasOwn(workflow.on, "pull_request"),
     "Every PR including drafts needs CI.",
@@ -264,6 +355,9 @@ export function validateCiWorkflow(content, manifest) {
     "audit",
     "unit",
     "governance",
+    "build",
+    "e2e",
+    "visual",
     "check",
     "analysis",
   ]);
@@ -291,6 +385,8 @@ export function validateCiWorkflow(content, manifest) {
   };
   for (const [name, label] of Object.entries(labels))
     validateProducerJob(workflow.jobs[name], name, label);
+  for (const mode of ["build", "e2e", "visual"])
+    validateApplicationJob(workflow.jobs[mode], mode);
 
   const check = workflow.jobs.check;
   assert.equal(
@@ -537,6 +633,6 @@ export async function inspectCi(root = repository) {
 if (import.meta.main) {
   await inspectCi();
   console.log(
-    "Browser foundation CI, native security and real Sonar coverage order passed.",
+    "Application CI, native security and real Sonar coverage order passed.",
   );
 }

@@ -10,6 +10,16 @@ import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
+/**
+ * Check readiness before reading options, resolving the SDK or inspecting suite
+ * files. Run only the CSP scenario with forced report-only markers and skip-build
+ * mode, using validated synthetic origins and the selected local Playwright CLI.
+ * @param {string} root Website root with an explicit true readiness marker.
+ * @param {object} options Public environment, AbortSignal, empty argv and stdio.
+ * @returns {Promise<object>} Owned child exit details after successful completion;
+ * invalid inputs, cancellation, missing artifacts and child failures reject.
+ * This entry performs no build.
+ */
 export async function runCspReportOnly(root = repository, options = {}) {
   const directory = await readyRunnerRoot(root);
   const signal = options.signal;

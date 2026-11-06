@@ -3,6 +3,11 @@
 Start with [AGENTS.md](../AGENTS.md), [source scope](bootstrap.md),
 [settings](../.agents/settings.json) and [machine navigation](../.agents/navigation.json).
 
+The publication phase is **application** and application readiness is **true**.
+The canonical manifest owns every required check, including actionlint and real
+build, browser/CSP and visual execution. The marker describes admitted source,
+not a successful local run, hosted check or deployment.
+
 | Task                                         | Owners and evidence                                                                                                                                                                                                                                                                                                                           |
 | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Change phase or public inventory             | [Source policy](../.github/bootstrap-policy.json), [snapshot validator](../scripts/validate-bootstrap.mjs) and [its tests](../scripts/validate-bootstrap.test.mjs)                                                                                                                                                                            |
@@ -29,7 +34,9 @@ Start with [AGENTS.md](../AGENTS.md), [source scope](bootstrap.md),
 | Change authored browser acceptance           | [Website suites](../e2e/website/website.spec.ts), [CSP runner](../scripts/test-csp-report-only.mjs), [CSP tests](../scripts/test-csp-report-only.test.mjs), [application-check owner](../scripts/application-checks.mjs), [its tests](../scripts/application-checks.test.mjs) and [tooling TypeScript project](../tsconfig.tooling.json)      |
 | Change bundle budgets or operational targets | [Bundle owner](../scripts/check-bundle-website.mjs), [bundle tests](../scripts/check-bundle-website.test.mjs), [target guard](../scripts/validate-workflow-targets.mjs), [target tests](../scripts/validate-workflow-targets.test.mjs), [smoke suite](../e2e/operations/smoke.spec.ts) and [staging suite](../e2e/operations/staging.spec.ts) |
 
+| Change application composition | [Application guide](application.md), [root layout](../src/app/layout.tsx), [providers](../src/app/providers/Providers.tsx), [request proxy](../src/proxy.ts) and [runtime tests](../src/app/runtime-composition.test.tsx) |
+
 Read whole owners and matching tests, not isolated search matches.
-The browser-foundation scope contains authored suites without a delivered
-application or browser execution.
+The application scope includes delivered composition and authored suites;
+actual acceptance requires executing the complete canonical gate.
 Indexes establish discoverability and consistency, not comprehension or hosted success.

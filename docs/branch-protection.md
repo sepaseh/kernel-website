@@ -18,6 +18,9 @@ history. Allow neither force pushes nor branch deletion. Add no bypass actors.
 | `SonarQube Cloud analysis` | GitHub Actions `15368`           |
 | `SonarCloud Code Analysis` | SonarQube Cloud `12526`          |
 | `CodeRabbit`               | CodeRabbit `347564`              |
+| `build`                    | GitHub Actions `15368`           |
+| `e2e`                      | GitHub Actions `15368`           |
+| `visual`                   | GitHub Actions `15368`           |
 
 The native `CodeQL` security result is required separately from its Actions
 analysis job. A successful scanner job alone is not the native result.

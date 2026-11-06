@@ -179,6 +179,49 @@ test("catalog JSON imports require exact resources, registry and erased type own
   );
 });
 
+test("the standalone bootstrap error owns only exact English and Persian runtime catalog imports", () => {
+  const bootstrap = path.join(root, "src/app/global-error.tsx");
+  const english = "src/i18n/catalog-data/locales/en.json";
+  const persian = "src/i18n/catalog-data/locales/fa.json";
+  for (const target of [english, persian]) {
+    const specifier = "@/" + target.slice("src/".length);
+    const resolved = path.join(root, target);
+    assert.equal(check(specifier, resolved, bootstrap), undefined);
+    assert.ok(check(specifier, resolved, bootstrap, true));
+    for (const owner of [
+      "src/app/error.tsx",
+      "src/app/layout.tsx",
+      "src/app/_components/Header.tsx",
+      "src/app/global-error-other.tsx",
+    ])
+      assert.ok(check(specifier, resolved, path.join(root, owner)));
+    for (const alias of [
+      `../i18n/catalog-data/locales/${path.basename(target)}`,
+      specifier.replace(".json", ""),
+      specifier.replace("/catalog-data/", "/catalog-data/../catalog-data/"),
+    ])
+      assert.ok(check(alias, resolved, bootstrap));
+    assert.ok(
+      check(
+        specifier,
+        path.join(root, target === english ? persian : english),
+        bootstrap,
+      ),
+    );
+    assert.ok(
+      check(specifier, path.resolve(root, "../foreign", target), bootstrap),
+    );
+  }
+  for (const code of ["ar", "de", "es", "fr", "it", "pt", "ru", "tr"])
+    assert.ok(
+      check(
+        `@/i18n/catalog-data/locales/${code}.json`,
+        path.join(root, `src/i18n/catalog-data/locales/${code}.json`),
+        bootstrap,
+      ),
+    );
+});
+
 test("the import graph distinguishes erased declarations from module-loading edges", () => {
   const edges = inspectImports(`
 import type Shape from "./shape";

@@ -2,6 +2,8 @@
 
 Read the current [source scope](../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
+This standalone TypeScript website has explicit phase ownership. Read [the source marker](../../.github/bootstrap-policy.json), [phase guide](../../docs/bootstrap.md) and [application contract](../../docs/application.md). False-marker phases retain local feature/support owners without runnable framework composition. A runnable package must publish its routes/layout, request/CSS adapters and complete acceptance together; documentation alone does not establish readiness.
+
 ## Ownership and boundaries
 
 Feature behavior belongs under its owning src/features directory. Shared frontend
@@ -20,6 +22,13 @@ rather than introducing overlapping presentation folders.
 
 Production package imports require the exact owner, installed package identity
 and runtime/type-only permission in scripts/check-boundaries.mjs. In a false-marker phase the installed Next.js package supplies only its declared feature-local link/router boundaries, erased document types and Web Vitals hook adapter. Do not broaden permissions to make a test realistic. Runnable adapters need explicit owners, package permissions and tests. Inspect installed framework request APIs and actual supported signatures rather than assuming older synchronous APIs.
+
+Keep request composition consistent with failure semantics. Independently useful
+reads retain their own result/error state; dependent operations stay ordered.
+Preserve request/session generation and mount ownership, cleanup and cancellation.
+Protected personal data and settings remain uncached. Read
+[server boundaries](../../docs/server-boundary.md) and
+[session ownership](../../docs/session.md).
 
 ## Components and controls
 

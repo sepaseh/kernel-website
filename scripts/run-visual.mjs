@@ -45,6 +45,10 @@ try { process.stdout.write(JSON.stringify({browserVersion:browser.version()})); 
 finally { await browser.close(); }
 `;
 
+/**
+ * Drain bounded probe output and parse its JSON result. A read/size failure stops
+ * the owned child and preserves both the output failure and any stop failure.
+ */
 async function collectProbe(owned) {
   const chunks = [];
   let bytes = 0;
@@ -70,6 +74,10 @@ async function collectProbe(owned) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
+/**
+ * Launch the selected SDK in an owned filtered child, track its actual closure,
+ * and return a bounded nonempty browser version after process and stream completion.
+ */
 async function probeBrowser(
   root,
   installation,
@@ -106,6 +114,7 @@ async function probeBrowser(
   return browserVersion;
 }
 
+/** Refuse an existing Next build lock without removing another process's ownership. */
 async function requireNoNextLock(root) {
   try {
     await artifactDirectory(path.join(root, ".next"));
@@ -122,6 +131,10 @@ async function requireNoNextLock(root) {
   throw new Error("Another Next process owns .next/lock; no lock was removed.");
 }
 
+/**
+ * Hash declared source paths and exact artifact bytes in a stable order. This
+ * provenance digest describes those inputs, not a completed visual review.
+ */
 async function fingerprintSources(root) {
   const contents = await completeArtifactWork(
     sourceInputs.map((relative) => readArtifactFile(path.join(root, relative))),
@@ -134,6 +147,11 @@ async function fingerprintSources(root) {
   return fingerprint.digest("hex");
 }
 
+/**
+ * Run the validated snapshot CLI with owned cancellation and record a pending
+ * environment report for success or failure. Preserve capture and report errors
+ * together; actual child closure determines whether the enclosing lock can clear.
+ */
 async function runCapture({
   root,
   installation,
@@ -181,9 +199,15 @@ async function runCapture({
   if (failure) throw failure;
 }
 
+/**
+ * Execute one visual action under exclusive output ownership, preserving action
+ * and release failures. An unclosed tracked child retains the lock file even
+ * when its completion promise has already rejected at the stop deadline.
+ */
 async function withVisualLock(root, action) {
   const releaseLock = await acquireVisualLock(path.join(root, "test-results"));
   const activeChildren = new Set();
+  /** Track real close events rather than assuming completion implies shutdown. */
   const trackChild = (child) => {
     activeChildren.add(child);
     child.once("close", () => activeChildren.delete(child));
@@ -211,6 +235,11 @@ async function withVisualLock(root, action) {
   return result;
 }
 
+/**
+ * Gate all visual work on application readiness and explicit inputs, then compare
+ * reviewed baselines or mark an authorized update pending before capture. CI
+ * updates are forbidden; this guarded operation does not authorize baseline changes.
+ */
 export async function runVisual(root = repository, options = {}) {
   const directory = await readyRunnerRoot(root);
   const signal = options.signal;

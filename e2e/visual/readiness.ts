@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 
+/** Await registered local font faces and reject failed or entirely unloaded fonts. */
 export const waitForVisualFonts = async (page: Page) => {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const fonts = await page.evaluate(() =>

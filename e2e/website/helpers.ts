@@ -8,6 +8,7 @@ import type { PublicSettingsResponse } from "@/shared/settings/contracts";
 export const fixtureCode = "123456";
 export const initialPassword = "Website-example-password-42";
 
+/** Require a canonical, explicit IPv4 loopback origin before fixture requests. */
 function loopbackOrigin(value: string | undefined, name: string) {
   if (!value) throw new Error(`${name} must be an explicit fixture origin.`);
   const url = new URL(value);
@@ -39,6 +40,10 @@ if (apiOrigin === websiteOrigin)
 // administrator session so locale coverage does not turn into login flooding.
 let languageAdministratorToken: string | undefined;
 
+/**
+ * Change the disposable fixture's global language through its administrator API.
+ * Reuse only this test worker's synthetic session and assert no-store responses.
+ */
 export const setSiteLanguage = async (
   request: APIRequestContext,
   code: LocaleCode,
@@ -77,6 +82,7 @@ export const setSiteLanguage = async (
   return updated.language;
 };
 
+/** Assert that the administrator-owned language has no public switching control. */
 export const expectNoLanguageControl = async (page: Page) => {
   await expect(
     page.getByRole("link", { name: /Switch to Persian|Switch to English/ }),
@@ -86,6 +92,7 @@ export const expectNoLanguageControl = async (page: Page) => {
   ).toHaveCount(0);
 };
 
+/** Wait for fonts and reveal completion before saving a stable evidence image. */
 export const capturePage = async (page: Page, target: string) => {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const reveals = page.locator('main [style*="opacity"]');
@@ -102,6 +109,7 @@ export const capturePage = async (page: Page, target: string) => {
   });
 };
 
+/** Assert viewport containment after font readiness, reporting bounded geometry. */
 export const assertNoHorizontalOverflow = async (page: Page) => {
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const geometry = await page.evaluate(() => ({
@@ -124,6 +132,10 @@ export const assertNoHorizontalOverflow = async (page: Page) => {
   );
 };
 
+/**
+ * Register one synthetic account through the website and verify OTP completion,
+ * cookie-owned sign-in and narrow-screen account rendering without token exposure.
+ */
 export const registerAccount = async (page: Page, mobile: string) => {
   await page.setViewportSize({ height: 900, width: 360 });
   await page.goto("/register");
@@ -166,6 +178,7 @@ export const registerAccount = async (page: Page, mobile: string) => {
   await capturePage(page, "test-results/website/evidence/account-en-360.png");
 };
 
+/** Submit synthetic credentials and wait for the website proxy's token-free reply. */
 export const signIn = async (page: Page, mobile: string, password: string) => {
   await page.goto("/login");
   const form = page.getByTestId("login-form");

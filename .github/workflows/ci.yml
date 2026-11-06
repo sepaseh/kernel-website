@@ -14,6 +14,17 @@ concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  HOSTNAME: 127.0.0.1
+  PORT: "3010"
+  WEBSITE_URL: http://127.0.0.1:3010
+  API_BASE_URL: http://127.0.0.1:3100
+  WEBSITE_INDEXING_ENABLED: "false"
+  NODE_ENV: production
+  KERNEL_SYNTHETIC_ENV: "1"
+  PLAYWRIGHT_BROWSERS_PATH: "0"
+  NPM_CONFIG_INCLUDE: dev
+
 jobs:
   quality:
     name: Static checks
@@ -129,8 +140,96 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
+  build:
+    name: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Check unused source and production bundle budgets
+        run: npm run validate -- ci-build
+
+  e2e:
+    name: e2e
+    needs: [build]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Install the root-owned bundled Chromium
+        run: node node_modules/@playwright/test/cli.js install chromium
+      - name: Build this job's exact source before browser acceptance
+        run: npm run build
+      - name: Run website and report-only CSP journeys
+        run: npm run validate -- ci-e2e
+      - name: Retain e2e acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
+          include-hidden-files: false
+
+  visual:
+    name: visual
+    needs: [build]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install application dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Install the root-owned bundled Chromium
+        run: node node_modules/@playwright/test/cli.js install chromium
+      - name: Build this job's exact source before browser acceptance
+        run: npm run build
+      - name: Run reviewed visual comparisons
+        run: npm run validate -- ci-visual
+      - name: Retain visual acceptance evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: visual-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
+          include-hidden-files: false
+
   check:
-    needs: [quality, audit, unit, governance]
+    needs: [quality, audit, unit, governance, build, e2e, visual]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -139,7 +238,7 @@ jobs:
       - name: Require every verification job to succeed
         env:
           CI_NEEDS: ${{ toJSON(needs) }}
-        run: node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"
+        run: node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance', 'build', 'e2e', 'visual']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"
 
   analysis:
     name: SonarQube Cloud analysis
