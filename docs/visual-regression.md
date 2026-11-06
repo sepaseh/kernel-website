@@ -27,6 +27,12 @@ exclusive visual lock, refuses an existing Next lock and probes the actual bundl
 Chromium version. Comparison requires matching platform, Playwright/browser
 versions and reviewed baseline metadata.
 
+The lock remains present if child shutdown cannot confirm the capture has closed,
+or if initial lock identity cannot be established. The descriptor is closed but
+retries remain excluded, even with different fixture ports. Confirm the owned
+process has stopped and inspect lock ownership before manually recovering that
+lock; a replacement owner's lock must be preserved.
+
 When readiness permits execution, the runner starts its owned website build/API
 processes through Playwright.
 The suite waits for local fonts, verifies language/theme/content and blocks

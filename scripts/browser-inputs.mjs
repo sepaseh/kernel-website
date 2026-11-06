@@ -1,3 +1,4 @@
+import { findPackageJSON } from "node:module";
 import path from "node:path";
 
 import { artifactFile, readArtifactFile } from "./release-files.mjs";
@@ -9,6 +10,47 @@ import {
 
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
+
+async function playwrightDependency(directory, lock, owner, name, version) {
+  const relative = `node_modules/${name}`;
+  const filename = path.join(directory, relative, "package.json");
+  if (findPackageJSON(name, owner) !== filename)
+    throw new Error(
+      "Playwright dependencies must resolve inside their root-owned installation.",
+    );
+  const installed = await readJson(filename);
+  if (
+    installed?.name !== name ||
+    installed?.version !== version ||
+    lock?.packages?.[relative]?.version !== version
+  )
+    throw new Error(
+      "Playwright transitive packages must match the exact manifest and lock version.",
+    );
+  return installed;
+}
+
+async function playwrightEntry(directory, installed, exported, mode, relative) {
+  const conditions = installed.exports?.[exported];
+  let target;
+  if (typeof conditions === "string") target = conditions;
+  else if (
+    conditions &&
+    typeof conditions === "object" &&
+    !Array.isArray(conditions) &&
+    Object.keys(conditions).every((condition) =>
+      ["types", "import", "require", "default"].includes(condition),
+    )
+  )
+    target = Object.entries(conditions).find(([condition]) =>
+      [mode, "default"].includes(condition),
+    )?.[1];
+  if (target !== `./${relative}`)
+    throw new Error(
+      "Playwright entry points must select their reviewed root-owned installation.",
+    );
+  return artifactFile(path.join(directory, relative));
+}
 
 async function playwrightPackage(root, includeModule) {
   const directory = await readyRunnerRoot(root);
@@ -26,9 +68,12 @@ async function playwrightPackage(root, includeModule) {
     lock?.packages?.[""]?.name !== "kernel-website" ||
     lock?.packages?.[""]?.devDependencies?.["@playwright/test"] !== version ||
     lock?.packages?.["node_modules/@playwright/test"]?.version !== version ||
+    lock?.packages?.["node_modules/@playwright/test"]?.dependencies
+      ?.playwright !== version ||
     installed?.name !== "@playwright/test" ||
     installed?.version !== version ||
-    installed?.bin?.playwright !== "cli.js"
+    installed?.bin?.playwright !== "cli.js" ||
+    installed?.dependencies?.playwright !== version
   )
     throw new Error(
       "Playwright must be a root-owned installed @playwright/test matching its exact manifest and lock version.",
@@ -41,6 +86,57 @@ async function playwrightPackage(root, includeModule) {
         path.join(directory, "node_modules/@playwright/test/index.mjs"),
       )
     : undefined;
+
+  const playwrightDirectory = path.join(directory, "node_modules/playwright");
+  const playwright = await playwrightDependency(
+    directory,
+    lock,
+    cli,
+    "playwright",
+    version,
+  );
+  if (
+    playwright.dependencies?.["playwright-core"] !== version ||
+    lock.packages["node_modules/playwright"].dependencies?.[
+      "playwright-core"
+    ] !== version
+  )
+    throw new Error(
+      "Playwright must pin its reviewed playwright-core dependency.",
+    );
+  const program = await playwrightEntry(
+    playwrightDirectory,
+    playwright,
+    "./lib/program",
+    "require",
+    "lib/program.js",
+  );
+  const core = await playwrightDependency(
+    directory,
+    lock,
+    program,
+    "playwright-core",
+    version,
+  );
+  const coreDirectory = path.join(directory, "node_modules/playwright-core");
+  await playwrightEntry(coreDirectory, core, ".", "require", "index.js");
+  if (module) {
+    await playwrightEntry(
+      playwrightDirectory,
+      playwright,
+      "./test",
+      "require",
+      "test.js",
+    );
+    await playwrightEntry(
+      playwrightDirectory,
+      playwright,
+      "./test",
+      "import",
+      "test.mjs",
+    );
+    await playwrightEntry(coreDirectory, core, ".", "import", "index.mjs");
+  }
   return { cli, version, module };
 }
 

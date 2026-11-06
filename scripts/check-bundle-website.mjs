@@ -18,11 +18,16 @@ const compareStrings = (left, right) => {
 
 export function parseClientManifest(text) {
   // Generated assignments contain JSON. No build output is evaluated as code.
-  const marker = typeof text === "string" ? text.indexOf("] = {") : -1;
-  if (marker < 0) throw new Error("Unsupported Next client manifest format.");
+  const assignment =
+    typeof text === "string"
+      ? /globalThis\.__RSC_MANIFEST\["(?:[^"\\\r\n]|\\.)*"\]\s*=\s*(?=\{)/.exec(
+          text,
+        )
+      : null;
+  if (!assignment) throw new Error("Unsupported Next client manifest format.");
   const manifest = JSON.parse(
     text
-      .slice(marker + 4)
+      .slice(assignment.index + assignment[0].length)
       .trim()
       .replace(/;$/, ""),
   );
@@ -56,13 +61,33 @@ export function parseClientManifest(text) {
 
 export function clientAssetPath(value) {
   const normalized =
-    typeof value === "string" ? value.replace(/^\/_next\//, "") : "";
+    typeof value === "string"
+      ? value
+          .replace(/^\/_next\//, "")
+          .replace(/%5b/gi, "[")
+          .replace(/%5d/gi, "]")
+      : "";
   if (
-    !/^static\/[a-zA-Z0-9_./~-]+\.(?:js|css)$/.test(normalized) ||
+    !/^static\/[a-zA-Z0-9_./~[\]-]+\.(?:js|css)$/.test(normalized) ||
     normalized.split("/").some((part) => !part || part === ".." || part === ".")
   )
     throw new Error(`Not a browser JS/CSS asset: ${value}`);
   return normalized;
+}
+
+function clientChunkAssets(chunks) {
+  const filename = (value) =>
+    value.startsWith("static/") || value.startsWith("/_next/static/");
+  if (chunks.every(filename)) return chunks;
+  if (
+    chunks.length % 2 !== 0 ||
+    chunks.some((value, index) =>
+      index % 2 === 0 ? !value || filename(value) : !filename(value),
+    )
+  )
+    throw new Error("Invalid Next client chunk ID/filename pairs.");
+
+  return chunks.filter((_, index) => index % 2 === 1);
 }
 
 async function buildRoot(directory) {
@@ -141,13 +166,53 @@ const pageEntry = (entry, route) => {
     throw new Error("Invalid page route in route manifest.");
 };
 
+function pageIdentity(entry) {
+  const segments = entry
+    .split("/")
+    .slice(1, -1)
+    .filter((part) => !(part.startsWith("(") && part.endsWith(")")));
+  return {
+    signature: segments.filter((part) => part !== "@children").join("/"),
+    route: `/${segments.filter((part) => !part.startsWith("@")).join("/")}`,
+  };
+}
+
+function pageGraphs(routeMap) {
+  const pages = Object.entries(routeMap)
+    .sort((left, right) => compareStrings(String(left), String(right)))
+    .filter(([entry]) => entry.endsWith("/page"));
+  if (!pages.length) throw new Error("No website page client graphs found.");
+
+  const routeEntries = new Map();
+  for (const [entry, route] of pages) {
+    pageEntry(entry, route);
+    const entries = routeEntries.get(route) ?? [];
+    const identity = pageIdentity(entry);
+    if (
+      entries.length &&
+      (identity.route !== route ||
+        entries.some((previous) => {
+          const other = pageIdentity(previous);
+          return (
+            other.route !== route || other.signature === identity.signature
+          );
+        }))
+    )
+      throw new Error("Duplicate page route in route manifest.");
+
+    entries.push(entry);
+    routeEntries.set(route, entries);
+  }
+  return routeEntries;
+}
+
 async function pageAssets(root, entry) {
   const filename = `server/app/${entry.slice(1)}_client-reference-manifest.js`;
   const manifest = parseClientManifest(
     (await buildFile(root, filename)).toString("utf8"),
   );
-  const chunks = Object.values(manifest.clientModules).flatMap(
-    (item) => item.chunks,
+  const chunks = Object.values(manifest.clientModules).flatMap((item) =>
+    clientChunkAssets(item.chunks),
   );
   const entryJavaScript = Object.values(manifest.entryJSFiles ?? {}).flat();
   const css = Object.values(manifest.entryCSSFiles).flatMap((items) =>
@@ -202,26 +267,17 @@ export async function measureWebsiteBundle(buildDirectory) {
       }),
     ),
   );
-  const pages = Object.entries(routeMap)
-    .sort((left, right) => compareStrings(String(left), String(right)))
-    .filter(([entry]) => entry.endsWith("/page"));
-  const seenRoutes = new Set();
-  for (const [entry, route] of pages) {
-    pageEntry(entry, route);
-    if (seenRoutes.has(route))
-      throw new Error("Duplicate page route in route manifest.");
-    seenRoutes.add(route);
-  }
-  if (!pages.length) throw new Error("No website page client graphs found.");
   const routes = Object.fromEntries(
     await Promise.all(
-      pages.map(async ([entry, route]) => [
+      [...pageGraphs(routeMap)].map(async ([route, entries]) => [
         route,
         summarizeAssets(
           [
             ...build.rootMainFiles,
             ...build.polyfillFiles,
-            ...(await pageAssets(root, entry)),
+            ...(
+              await Promise.all(entries.map((entry) => pageAssets(root, entry)))
+            ).flat(),
           ],
           assets,
         ),

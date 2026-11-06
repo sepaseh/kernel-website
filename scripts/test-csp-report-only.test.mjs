@@ -51,7 +51,15 @@ async function fixture(t, ready = true) {
         name: "kernel-website",
         devDependencies: { "@playwright/test": "1.64.1" },
       },
-      "node_modules/@playwright/test": { version: "1.64.1" },
+      "node_modules/@playwright/test": {
+        version: "1.64.1",
+        dependencies: { playwright: "1.64.1" },
+      },
+      "node_modules/playwright": {
+        version: "1.64.1",
+        dependencies: { "playwright-core": "1.64.1" },
+      },
+      "node_modules/playwright-core": { version: "1.64.1" },
     },
   });
   await put("node_modules/@playwright/test/package.json", {
@@ -59,7 +67,34 @@ async function fixture(t, ready = true) {
     version: "1.64.1",
     type: "module",
     bin: { playwright: "cli.js" },
+    dependencies: { playwright: "1.64.1" },
   });
+  await put("node_modules/playwright/package.json", {
+    name: "playwright",
+    version: "1.64.1",
+    dependencies: { "playwright-core": "1.64.1" },
+    exports: {
+      "./package.json": "./package.json",
+      "./lib/program": "./lib/program.js",
+      "./test": { import: "./test.mjs", require: "./test.js" },
+    },
+  });
+  await put("node_modules/playwright-core/package.json", {
+    name: "playwright-core",
+    version: "1.64.1",
+    exports: {
+      "./package.json": "./package.json",
+      ".": { import: "./index.mjs", require: "./index.js" },
+    },
+  });
+  for (const filename of [
+    "playwright/lib/program.js",
+    "playwright/test.js",
+    "playwright/test.mjs",
+    "playwright-core/index.js",
+    "playwright-core/index.mjs",
+  ])
+    await put(`node_modules/${filename}`, "// Owned inert transitive SDK.\n");
   await put(
     "playwright.website.config.ts",
     "// Owned fake config; not loaded by fake CLI.\n",

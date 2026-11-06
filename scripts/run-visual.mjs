@@ -15,11 +15,7 @@ import {
   readArtifactFile,
 } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
-import {
-  runOwnedProcess,
-  runVerificationCli,
-  startOwnedProcess,
-} from "./runner-process.mjs";
+import { runVerificationCli, startOwnedProcess } from "./runner-process.mjs";
 import {
   acquireVisualLock,
   assertReviewedVisualBaseline,
@@ -74,7 +70,13 @@ async function collectProbe(owned) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function probeBrowser(root, installation, environment, signal) {
+async function probeBrowser(
+  root,
+  installation,
+  environment,
+  signal,
+  trackChild,
+) {
   const owned = startOwnedProcess({
     args: [
       "--input-type=module",
@@ -87,6 +89,7 @@ async function probeBrowser(root, installation, environment, signal) {
     signal,
     stdio: ["ignore", "pipe", "inherit"],
   });
+  trackChild(owned.child);
   const results = await completeArtifactWork([
     owned.completion,
     collectProbe(owned),
@@ -139,10 +142,11 @@ async function runCapture(
   update,
   metadata,
   reportPath,
+  trackChild,
 ) {
   let failure;
   try {
-    await runOwnedProcess({
+    const owned = startOwnedProcess({
       args: [
         installation.cli,
         "test",
@@ -154,6 +158,8 @@ async function runCapture(
       signal,
       stdio: "inherit",
     });
+    trackChild(owned.child);
+    await owned.completion;
   } catch (error) {
     failure = error;
   }
@@ -177,15 +183,22 @@ async function runCapture(
 
 async function withVisualLock(root, action) {
   const releaseLock = await acquireVisualLock(path.join(root, "test-results"));
+  const activeChildren = new Set();
+  const trackChild = (child) => {
+    activeChildren.add(child);
+    child.once("close", () => activeChildren.delete(child));
+  };
   let result;
   let failure;
   try {
-    result = await action();
+    result = await action(trackChild);
   } catch (error) {
     failure = error;
   }
   try {
-    await releaseLock();
+    // Completion can reject at the bounded stop deadline before actual close.
+    // Keep exclusion in that case, including retries on different fixture ports.
+    await releaseLock({ retain: activeChildren.size > 0 });
   } catch (error) {
     failure = failure
       ? new AggregateError(
@@ -208,7 +221,7 @@ export async function runVisual(root = repository, options = {}) {
   if (
     !Array.isArray(argv) ||
     argv.length > 1 ||
-    argv.some((arg) => arg !== "--update")
+    (argv.length === 1 && argv[0] !== "--update")
   )
     throw new Error("Visual runs accept only one optional --update argument.");
   const update = argv.length === 1;
@@ -230,17 +243,17 @@ export async function runVisual(root = repository, options = {}) {
     platform,
     "metadata.json",
   );
-  let baseline;
-  if (!update) {
-    baseline = JSON.parse(
-      (await readArtifactFile(metadataPath)).toString("utf8"),
-    );
-    assertReviewedVisualBaseline(baseline, {
-      platform,
-      playwright: installation.version,
-    });
-  }
-  return withVisualLock(directory, async () => {
+  return withVisualLock(directory, async (trackChild) => {
+    let baseline;
+    if (!update) {
+      baseline = JSON.parse(
+        (await readArtifactFile(metadataPath)).toString("utf8"),
+      );
+      assertReviewedVisualBaseline(baseline, {
+        platform,
+        playwright: installation.version,
+      });
+    }
     await requireNoNextLock(directory);
     await assertVisualPortsAvailable([
       Number(new URL(inputs.websiteOrigin).port),
@@ -258,6 +271,7 @@ export async function runVisual(root = repository, options = {}) {
       installation,
       environment,
       signal,
+      trackChild,
     );
     if (baseline)
       assertReviewedVisualBaseline(baseline, {
@@ -292,6 +306,7 @@ export async function runVisual(root = repository, options = {}) {
       update,
       metadata,
       reportPath,
+      trackChild,
     );
     return { mode: update ? "update" : "compare", metadataPath, reportPath };
   });

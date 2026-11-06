@@ -90,6 +90,7 @@ export async function runApplicationCheck(root, mode, options = {}) {
     ...browserInputs.websiteEnvironment,
     WEBSITE_SKIP_BUILD: "1",
     WEBSITE_CSP_MODE: "enforce",
+    WEBSITE_TEST_CSP_MODE: "enforce",
     PLAYWRIGHT_BROWSERS_PATH: "0",
   };
   if (mode === "visual")

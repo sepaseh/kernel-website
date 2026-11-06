@@ -91,7 +91,29 @@ for (const language of ["en", "fa"] as const) {
           name: messages.siteTheme,
           exact: true,
         });
-        await toggle.focus();
+        const tabStopCount = await page
+          .locator("a[href], button, input, select, textarea, [tabindex]")
+          .evaluateAll(
+            (elements) =>
+              elements.filter(
+                (element) =>
+                  element instanceof HTMLElement &&
+                  element.tabIndex >= 0 &&
+                  !element.hasAttribute("disabled") &&
+                  element.getClientRects().length > 0 &&
+                  getComputedStyle(element).visibility !== "hidden",
+              ).length,
+          );
+        for (let index = 0; index < tabStopCount; index++) {
+          await page.keyboard.press("Tab");
+          if (
+            await toggle.evaluate(
+              (element) => document.activeElement === element,
+            )
+          )
+            break;
+        }
+        await expect(toggle).toBeFocused();
         await page.keyboard.press("Enter");
         await expect(page.locator("html")).toHaveClass(
           new RegExp(theme === "dark" ? "light" : "dark"),

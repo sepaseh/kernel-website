@@ -113,19 +113,30 @@ export async function acquireVisualLock(resultsDirectory) {
       );
     throw error_;
   }
-  const identity = await handle.stat({ bigint: true });
+  let identity;
   try {
+    identity = await handle.stat({ bigint: true });
     await handle.writeFile(`${process.pid}\n`);
   } catch (error_) {
-    await handle.close();
-    await removeOwnedLock(filename, identity);
+    try {
+      await handle.close();
+      // Without descriptor identity, retaining exclusion is safer than removing
+      // a pathname that could now belong to a replacement owner.
+      if (identity) await removeOwnedLock(filename, identity);
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error_, cleanupError],
+        "Visual lock initialization and owned cleanup failed.",
+        { cause: cleanupError },
+      );
+    }
     throw error_;
   }
   let release;
-  return () =>
+  return ({ retain = false } = {}) =>
     (release ??= (async () => {
       await handle.close();
-      await removeOwnedLock(filename, identity);
+      if (!retain) await removeOwnedLock(filename, identity);
     })());
 }
 

@@ -151,10 +151,17 @@ test("registers through the website proxy and local HTTP fixture, restores the c
     ),
   ).toBe(true);
   expect(
-    await page.evaluate(() =>
-      Object.keys(localStorage).filter((key) =>
-        /token|password|session/i.test(key),
-      ),
+    await page.evaluate(
+      (password) =>
+        [localStorage, sessionStorage].flatMap((storage) =>
+          Object.keys(storage).filter(
+            (key) =>
+              /token|password|session/i.test(key) ||
+              key.includes(password) ||
+              storage.getItem(key)?.includes(password),
+          ),
+        ),
+      initialPassword,
     ),
   ).toEqual([]);
   await page.reload();
@@ -286,6 +293,9 @@ test("changes and recovers a password with invalid-code rejection and subsequent
   await expect(
     page.getByRole("status").filter({ hasText: /password/i }),
   ).toBeVisible();
+  await signIn(page, "09180000012", initialPassword);
+  await expect(page.getByRole("alert").first()).toBeVisible();
+  await expect(page).toHaveURL(`${websiteOrigin}/login`);
   await signIn(page, "09180000012", changedPassword);
   await expect(page.getByTestId("account-content")).toBeVisible();
   await page

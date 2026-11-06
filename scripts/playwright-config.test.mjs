@@ -12,6 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import {
@@ -59,6 +60,48 @@ test("all four actual configuration entries refuse execution without required pu
   }
 });
 
+test("actual configuration entries forward their repository root and declared browser mode to the loader", () => {
+  const loaderUrl = new URL("./playwright-config.mjs", import.meta.url).href;
+  const root = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
+  for (const mode of ["smoke", "staging", "visual", "website"]) {
+    const entryUrl = new URL(`../playwright.${mode}.config.ts`, import.meta.url)
+      .href;
+    const source = `
+import { registerHooks } from "node:module";
+registerHooks({
+  load(url, context, nextLoad) {
+    if (url === ${JSON.stringify(loaderUrl)})
+      return {
+        format: "module",
+        shortCircuit: true,
+        source: "export async function loadPlaywrightConfig(root, mode) { return { root, mode }; }",
+      };
+    return nextLoad(url, context);
+  },
+});
+const { default: config } = await import(${JSON.stringify(entryUrl)});
+console.log(JSON.stringify(config));
+`;
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "--eval", source],
+      {
+        env:
+          typeof process.env.SystemRoot === "string"
+            ? { SystemRoot: process.env.SystemRoot }
+            : {},
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    const config = JSON.parse(result.stdout);
+    assert.equal(path.resolve(config.root), root);
+    assert.equal(config.mode, mode);
+  }
+});
+
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());
   const root = await realpath(
@@ -84,21 +127,59 @@ async function fixture(t, ready = true) {
   return { put, root };
 }
 
-async function sdk(put) {
-  const devDependencies = { "@playwright/test": "1.64.1" };
+async function sdk(put, version = "1.64.1") {
+  const devDependencies = { "@playwright/test": version };
   await put("package.json", { devDependencies, name: "kernel-website" });
   await put("package-lock.json", {
     lockfileVersion: 3,
     packages: {
       "": { devDependencies, name: "kernel-website" },
-      "node_modules/@playwright/test": { version: "1.64.1" },
+      "node_modules/@playwright/test": {
+        version,
+        dependencies: { playwright: version },
+      },
+      "node_modules/playwright": {
+        version,
+        dependencies: { "playwright-core": version },
+      },
+      "node_modules/playwright-core": { version },
     },
   });
   await put("node_modules/@playwright/test/package.json", {
     bin: { playwright: "cli.js" },
     name: "@playwright/test",
-    version: "1.64.1",
+    version,
+    dependencies: { playwright: version },
   });
+  await put("node_modules/playwright/package.json", {
+    name: "playwright",
+    version,
+    dependencies: { "playwright-core": version },
+    exports: {
+      "./package.json": "./package.json",
+      "./lib/program": "./lib/program.js",
+      "./test": { import: "./test.mjs", require: "./test.js" },
+    },
+  });
+  await put("node_modules/playwright-core/package.json", {
+    name: "playwright-core",
+    version,
+    exports: {
+      "./package.json": "./package.json",
+      ".": { import: "./index.mjs", require: "./index.js" },
+    },
+  });
+  for (const entry of [
+    "playwright/lib/program.js",
+    "playwright/test.js",
+    "playwright/test.mjs",
+    "playwright-core/index.js",
+    "playwright-core/index.mjs",
+  ])
+    await put(
+      `node_modules/${entry}`,
+      'throw new Error("Transitive SDK must not execute");',
+    );
   await put(
     "node_modules/@playwright/test/cli.js",
     'throw new Error("SDK CLI must not execute");',
@@ -254,20 +335,7 @@ test("the SDK worker marker accepts only literal 1 with the reviewed installed S
       }),
       /filtered parent environment/,
     );
-  const devDependencies = { "@playwright/test": "1.64.2" };
-  await put("package.json", { name: "kernel-website", devDependencies });
-  await put("package-lock.json", {
-    lockfileVersion: 3,
-    packages: {
-      "": { name: "kernel-website", devDependencies },
-      "node_modules/@playwright/test": { version: "1.64.2" },
-    },
-  });
-  await put("node_modules/@playwright/test/package.json", {
-    name: "@playwright/test",
-    version: "1.64.2",
-    bin: { playwright: "cli.js" },
-  });
+  await sdk(put, "1.64.2");
   await assert.rejects(
     assertPlaywrightParentEnvironment(root, { PLAYWRIGHT_TEST: "1" }),
     /reviewed installed Playwright 1.64.1/,

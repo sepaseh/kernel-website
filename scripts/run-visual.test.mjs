@@ -16,6 +16,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { createApiFixture } from "./api-fixture-test-support.mjs";
+import { createPlaywrightConfig } from "./playwright-config.mjs";
 import { runVisual } from "./run-visual.mjs";
 import {
   abortOnFixtureFile,
@@ -70,7 +71,15 @@ async function fixture(t, ready = true) {
         name: "kernel-website",
         devDependencies: { "@playwright/test": "1.64.1" },
       },
-      "node_modules/@playwright/test": { version: "1.64.1" },
+      "node_modules/@playwright/test": {
+        version: "1.64.1",
+        dependencies: { playwright: "1.64.1" },
+      },
+      "node_modules/playwright": {
+        version: "1.64.1",
+        dependencies: { "playwright-core": "1.64.1" },
+      },
+      "node_modules/playwright-core": { version: "1.64.1" },
     },
   });
   await put("node_modules/@playwright/test/package.json", {
@@ -78,7 +87,34 @@ async function fixture(t, ready = true) {
     version: "1.64.1",
     type: "module",
     bin: { playwright: "cli.js" },
+    dependencies: { playwright: "1.64.1" },
   });
+  await put("node_modules/playwright/package.json", {
+    name: "playwright",
+    version: "1.64.1",
+    dependencies: { "playwright-core": "1.64.1" },
+    exports: {
+      "./package.json": "./package.json",
+      "./lib/program": "./lib/program.js",
+      "./test": { import: "./test.mjs", require: "./test.js" },
+    },
+  });
+  await put("node_modules/playwright-core/package.json", {
+    name: "playwright-core",
+    version: "1.64.1",
+    exports: {
+      "./package.json": "./package.json",
+      ".": { import: "./index.mjs", require: "./index.js" },
+    },
+  });
+  for (const name of [
+    "playwright/lib/program.js",
+    "playwright/test.js",
+    "playwright/test.mjs",
+    "playwright-core/index.js",
+    "playwright-core/index.mjs",
+  ])
+    await put(`node_modules/${name}`, "// Inert synthetic transitive entry.\n");
   await put(
     "node_modules/@playwright/test/cli.js",
     `import{writeFileSync}from'node:fs';writeFileSync('capture.json',JSON.stringify({args:process.argv.slice(2),environment:process.env}));`,
@@ -174,7 +210,12 @@ test("visual readiness and pre-abort precede options, public environment and art
 
 test("visual arguments and every nonempty CI update marker fail before SDK or baseline access", async (t) => {
   const { root, environment } = await fixture(t);
-  for (const argv of [["--foreign"], ["--update", "--update"], "--update"])
+  for (const argv of [
+    ["--foreign"],
+    ["--update", "--update"],
+    "--update",
+    new Array(1),
+  ])
     await assert.rejects(
       runVisual(root, { environment, argv }),
       /one optional --update/,
@@ -232,14 +273,14 @@ test("comparison uses actual host metadata, verified SDK and public explicit ori
   // known bytes in source order, independently of asynchronous read completion.
   assert.equal(
     report.sourceFingerprint,
-    "a72b3ad42f6e64461df7072118a19b1faa7c8f694a444d7de88a1f68c2114403",
+    "f49afa8eb0688b73c150dff784191edf8bd69ed5fb4373d621ec902b0a604473",
   );
   await put("src/features/home/Home.tsx", "// Changed owned source bytes.\n");
   await runVisual(root, { environment });
   assert.equal(
     (await json(root, "test-results/visual/environment.json"))
       .sourceFingerprint,
-    "407d818943a26c15a5ec54913638562c780953f6f4e01a0665f19b9a45517e4b",
+    "33d590bcee7ea43639e8852da6e118d309ab1274bcdc7156fee658b0d8034640",
   );
   assert.deepEqual(await json(root, metadataPath), reviewed);
   await lockReleased(root);
@@ -336,6 +377,81 @@ test("an existing Next lock and another visual owner block probing without remov
   }
 });
 
+test("comparison acquires exclusion before reading baseline review metadata", async (t) => {
+  const { root, put, environment, metadataPath, reviewed } = await fixture(t);
+  const release = await acquireVisualLock(path.join(root, "test-results"));
+  await put(metadataPath, {
+    ...reviewed,
+    review: { ...reviewed.review, status: "pending" },
+  });
+  try {
+    await assert.rejects(
+      runVisual(root, { environment }),
+      /Another visual run/,
+    );
+  } finally {
+    await release();
+  }
+  await assert.rejects(
+    runVisual(root, { environment }),
+    /review metadata mismatch/,
+  );
+  await noFile(root, "capture.json");
+  await lockReleased(root);
+});
+
+test("capture output cleanup preserves exclusion until the actual capture finishes", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  const config = await createPlaywrightConfig(root, "visual", {
+    environment: { ...environment, KERNEL_VISUAL_RUNNER: "1" },
+    argv: [],
+  });
+  assert.equal(
+    path.relative(root, config.outputDir),
+    path.join("test-results", "visual"),
+  );
+  const ready = Promise.withResolvers();
+  const server = createServer((socket) => {
+    socket.once("error", ready.reject);
+    socket.once("data", (data) => {
+      assert.equal(data.toString(), "ready");
+      ready.resolve(socket);
+    });
+  });
+  server.once("error", ready.reject);
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const controller = new AbortController();
+  let connection;
+  let operation;
+  try {
+    await put(
+      "node_modules/@playwright/test/cli.js",
+      `import{mkdirSync,rmSync}from'node:fs';import{connect}from'node:net';rmSync(${JSON.stringify(config.outputDir)},{recursive:true,force:true});mkdirSync(${JSON.stringify(config.outputDir)},{recursive:true});const socket=connect(${server.address().port},'127.0.0.1');socket.once('connect',()=>socket.write('ready'));socket.once('data',()=>socket.end());`,
+    );
+    operation = runVisual(root, { environment, signal: controller.signal });
+    connection = await Promise.race([
+      ready.promise,
+      operation.then(() => {
+        throw Error("Synthetic capture finished before publishing readiness.");
+      }),
+    ]);
+    await assert.rejects(
+      acquireVisualLock(path.join(root, "test-results")),
+      /Another visual run/,
+    );
+    connection.end("continue");
+    await operation;
+    await lockReleased(root);
+  } finally {
+    controller.abort();
+    connection?.destroy();
+    await operation?.catch(() => {});
+    await new Promise((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("probe validation and bounded output failures preserve baselines and release ownership", async (t) => {
   const { root, put, environment, metadataPath, reviewed } = await fixture(t);
   await put(
@@ -419,7 +535,14 @@ test("probe overflow retains its read failure when direct-child stopping also fa
       await closed;
     }
   }
-  await lockReleased(root);
+  assert.equal(
+    await readFile(path.join(root, "test-results/.visual-run.lock"), "utf8"),
+    `${process.pid}\n`,
+  );
+  await assert.rejects(
+    acquireVisualLock(path.join(root, "test-results")),
+    /Another visual run/,
+  );
 });
 
 test("capture failure and report failure are both preserved", async (t) => {
@@ -435,6 +558,79 @@ test("capture failure and report failure are both preserved", async (t) => {
     return true;
   });
   await lockReleased(root);
+});
+
+test("a capture stop deadline keeps exclusion across retries with different ports", async (t) => {
+  const { root, put, environment, metadataPath } = await fixture(t);
+  await put(
+    "node_modules/@playwright/test/cli.js",
+    `import{createServer}from'node:net';import{renameSync,writeFileSync}from'node:fs';createServer().listen(0,'127.0.0.1');writeFileSync('capture-started.tmp','ready');renameSync('capture-started.tmp','capture-started');`,
+  );
+  const controller = new AbortController();
+  const timers = controlledStopTimers(t);
+  const stopping = Promise.withResolvers();
+  const original = ChildProcess.prototype.kill;
+  const ownedChildren = [];
+  const replacement = t.mock.method(
+    ChildProcess.prototype,
+    "kill",
+    function () {
+      ownedChildren.push(this);
+      stopping.resolve();
+      throw Error("synthetic capture kill failure");
+    },
+  );
+  try {
+    const outcome = assert.rejects(
+      abortOnFixtureFile(root, "capture-started", controller, () =>
+        runVisual(root, {
+          environment,
+          argv: ["--update"],
+          signal: controller.signal,
+        }),
+      ),
+      /bounded stop deadline/,
+    );
+    await Promise.race([
+      stopping.promise,
+      outcome.then(() => {
+        throw Error("Capture finished before its synthetic stop failure.");
+      }),
+    ]);
+    timers.fireNext();
+    timers.fireNext();
+    await outcome;
+    assert.equal(timers.pendingCount, 0);
+    assert.equal((await json(root, metadataPath)).review.status, "pending");
+    const websitePort = await unusedPort();
+    await assert.rejects(
+      runVisual(root, {
+        environment: {
+          ...environment,
+          PORT: String(websitePort),
+          WEBSITE_URL: `http://127.0.0.1:${websitePort}`,
+        },
+        argv: ["--update"],
+      }),
+      /Another visual run/,
+    );
+  } finally {
+    replacement.mock.restore();
+    const ownedChild = ownedChildren[0];
+    if (
+      ownedChild &&
+      ownedChild.exitCode === null &&
+      ownedChild.signalCode === null
+    ) {
+      const closed = once(ownedChild, "close");
+      original.call(ownedChild, "SIGKILL");
+      await closed;
+    }
+  }
+  assert.equal(
+    await readFile(path.join(root, "test-results/.visual-run.lock"), "utf8"),
+    `${process.pid}\n`,
+  );
 });
 
 test("capture failure and replaced-lock cleanup failure remain visible while replacement survives", async (t) => {

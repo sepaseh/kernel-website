@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdir,
   mkdtemp,
+  open,
   readdir,
   readFile,
   realpath,
@@ -140,6 +141,92 @@ test("release preserves a replacement lock and tolerates an already removed owne
   const missing = await acquireVisualLock(root);
   await unlink(filename);
   await missing();
+});
+
+test("initial lock stat failure closes its descriptor and preserves unverified exclusion", async (t) => {
+  const root = await fixture(t);
+  const witness = await open(path.join(root, "witness"), "wx");
+  const prototype = Object.getPrototypeOf(witness);
+  await witness.close();
+  const failure = Error("synthetic initial lock stat failure");
+  const ownedHandles = [];
+  const stat = t.mock.method(prototype, "stat", function () {
+    ownedHandles.push(this);
+    return Promise.reject(failure);
+  });
+  await assert.rejects(acquireVisualLock(root), (error) => error === failure);
+  stat.mock.restore();
+  assert.equal(ownedHandles[0].fd, -1);
+  assert.equal(await readFile(path.join(root, ".visual-run.lock"), "utf8"), "");
+  await assert.rejects(acquireVisualLock(root), /Another visual run/);
+});
+
+test("initial lock stat failure never removes a replacement owner", async (t) => {
+  const root = await fixture(t);
+  const witness = await open(path.join(root, "witness"), "wx");
+  const prototype = Object.getPrototypeOf(witness);
+  await witness.close();
+  const failure = Error("synthetic replaced lock stat failure");
+  const filename = path.join(root, ".visual-run.lock");
+  const ownedHandles = [];
+  const stat = t.mock.method(prototype, "stat", async function () {
+    ownedHandles.push(this);
+    await rename(filename, path.join(root, "old-owned-lock"));
+    await writeFile(filename, "replacement owner");
+    throw failure;
+  });
+  await assert.rejects(acquireVisualLock(root), (error) => error === failure);
+  stat.mock.restore();
+  assert.equal(ownedHandles[0].fd, -1);
+  assert.equal(await readFile(filename, "utf8"), "replacement owner");
+});
+
+test("lock write failure removes only a verified owned lock", async (t) => {
+  const root = await fixture(t);
+  const witness = await open(path.join(root, "witness"), "wx");
+  const prototype = Object.getPrototypeOf(witness);
+  await witness.close();
+  const failure = Error("synthetic lock write failure");
+  const writing = t.mock.method(prototype, "writeFile", () =>
+    Promise.reject(failure),
+  );
+  await assert.rejects(acquireVisualLock(root), (error) => error === failure);
+  writing.mock.restore();
+  await assert.rejects(readFile(path.join(root, ".visual-run.lock")), /ENOENT/);
+  const release = await acquireVisualLock(root);
+  await release();
+});
+
+test("lock initialization preserves both the original stat and descriptor cleanup failures", async (t) => {
+  const root = await fixture(t);
+  const witness = await open(path.join(root, "witness"), "wx");
+  const prototype = Object.getPrototypeOf(witness);
+  await witness.close();
+  const statFailure = Error("synthetic stat failure");
+  const closeFailure = Error("synthetic close failure");
+  const ownedHandles = [];
+  const stat = t.mock.method(prototype, "stat", function () {
+    const close = this.close;
+    const mockedClose = t.mock.method(this, "close", () =>
+      Promise.reject(closeFailure),
+    );
+    ownedHandles.push({ handle: this, close, mockedClose });
+    return Promise.reject(statFailure);
+  });
+  try {
+    await assert.rejects(acquireVisualLock(root), (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [statFailure, closeFailure]);
+      return true;
+    });
+  } finally {
+    stat.mock.restore();
+    for (const { handle, close, mockedClose } of ownedHandles) {
+      mockedClose.mock.restore();
+      await close.call(handle);
+    }
+  }
+  assert.equal(await readFile(path.join(root, ".visual-run.lock"), "utf8"), "");
 });
 
 test("visual modes require supported platforms and forbid CI baseline updates", () => {

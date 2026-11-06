@@ -41,7 +41,15 @@ async function fixture(t, ready = true) {
       "": manifest,
       "node_modules/next": { version: "16.4.3" },
       "node_modules/knip": { version: "6.12.2" },
-      "node_modules/@playwright/test": { version: "1.64.1" },
+      "node_modules/@playwright/test": {
+        version: "1.64.1",
+        dependencies: { playwright: "1.64.1" },
+      },
+      "node_modules/playwright": {
+        version: "1.64.1",
+        dependencies: { "playwright-core": "1.64.1" },
+      },
+      "node_modules/playwright-core": { version: "1.64.1" },
     },
   };
   await put("package.json", manifest);
@@ -54,13 +62,41 @@ async function fixture(t, ready = true) {
     await put(`node_modules/${name}/package.json`, {
       name,
       version,
-      ...(name === "@playwright/test" ? { bin: { playwright: "cli.js" } } : {}),
+      ...(name === "@playwright/test"
+        ? {
+            bin: { playwright: "cli.js" },
+            dependencies: { playwright: version },
+          }
+        : {}),
     });
   }
+  await put("node_modules/playwright/package.json", {
+    name: "playwright",
+    version: "1.64.1",
+    dependencies: { "playwright-core": "1.64.1" },
+    exports: {
+      "./package.json": "./package.json",
+      "./lib/program": "./lib/program.js",
+      "./test": { import: "./test.mjs", require: "./test.js" },
+    },
+  });
+  await put("node_modules/playwright-core/package.json", {
+    name: "playwright-core",
+    version: "1.64.1",
+    exports: {
+      "./package.json": "./package.json",
+      ".": { import: "./index.mjs", require: "./index.js" },
+    },
+  });
   for (const entry of [
     "next/dist/bin/next",
     "knip/bin/knip.js",
     "@playwright/test/cli.js",
+    "playwright/lib/program.js",
+    "playwright/test.js",
+    "playwright/test.mjs",
+    "playwright-core/index.js",
+    "playwright-core/index.mjs",
   ])
     await put(
       `node_modules/${entry}`,
@@ -330,6 +366,7 @@ test("build execution, measurement and budget failures remain required failures"
 
 test("e2e dispatch awaits enforce-mode browser completion before report-only CSP and forwards cancellation", async (t) => {
   const { root, environment } = await fixture(t);
+  environment.WEBSITE_TEST_CSP_MODE = "report-only";
   const controller = new AbortController();
   const order = [];
   const result = await runApplicationCheck(root, "e2e", {
@@ -343,6 +380,7 @@ test("e2e dispatch awaits enforce-mode browser completion before report-only CSP
         `--config=${path.join(root, "playwright.website.config.ts")}`,
       ]);
       assert.equal(options.env.WEBSITE_CSP_MODE, "enforce");
+      assert.equal(options.env.WEBSITE_TEST_CSP_MODE, "enforce");
       assert.equal(options.env.WEBSITE_SKIP_BUILD, "1");
       assert.equal(options.env.PLAYWRIGHT_BROWSERS_PATH, "0");
       assert.equal(Object.hasOwn(options.env, "TOKEN"), false);
@@ -353,11 +391,13 @@ test("e2e dispatch awaits enforce-mode browser completion before report-only CSP
       assert.equal(directory, root);
       assert.equal(options.signal, controller.signal);
       assert.equal(options.environment.WEBSITE_CSP_MODE, "enforce");
+      assert.equal(options.environment.WEBSITE_TEST_CSP_MODE, "enforce");
       return "owned report-only result";
     },
   });
   assert.deepEqual(order, ["enforce", "report-only"]);
   assert.equal(result, "owned report-only result");
+  assert.equal(environment.WEBSITE_TEST_CSP_MODE, "report-only");
   assert.equal(Object.hasOwn(environment, "WEBSITE_SKIP_BUILD"), false);
 });
 

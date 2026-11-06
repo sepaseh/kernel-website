@@ -6,10 +6,12 @@ test("authorized release serves its expected marker, standalone assets and API h
 }, testInfo) => {
   const targets = testInfo.config.metadata.kernelBrowserTargets as {
     apiHealthUrl: string;
+    baseUrl: string;
     deploymentId: string;
     mode: string;
   };
   expect(targets?.mode).toBe("smoke");
+  const origin = new URL(targets.baseUrl).origin;
   const failed: string[] = [];
   page.on("response", (response) => {
     if (
@@ -20,8 +22,13 @@ test("authorized release serves its expected marker, standalone assets and API h
     )
       failed.push(response.url());
   });
+  page.on("requestfailed", (request) => {
+    if (["font", "script", "stylesheet"].includes(request.resourceType()))
+      failed.push(request.url());
+  });
   for (const route of ["/login", "/register"]) {
     expect((await page.goto(route))?.status()).toBe(200);
+    await expect(page).toHaveURL(new URL(route, origin).href);
     await expect(page.locator("form")).toBeVisible();
   }
   expect(failed).toEqual([]);

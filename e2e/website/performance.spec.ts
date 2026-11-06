@@ -9,8 +9,8 @@ test("live language HTML and cookie proxy remain uncached while fonts stay self-
   const requests: { method: string; url: string }[] = [];
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin !== websiteOrigin) return route.abort();
     requests.push({ method: route.request().method(), url: url.href });
+    if (url.origin !== websiteOrigin) return route.abort();
     return route.continue();
   });
   try {

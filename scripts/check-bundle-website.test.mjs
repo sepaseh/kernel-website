@@ -202,6 +202,104 @@ test("entry JavaScript joins both route graphs, deduplicates and cannot bypass r
   );
 });
 
+test("webpack assignments and chunk pairs measure bracketed assets without evaluating generated code", async (t) => {
+  const { build, write } = await fixture(t);
+  await mkdir(path.join(build, "static/chunks/app/[slug]"), {
+    recursive: true,
+  });
+  const filename = "static/chunks/app/[slug]/page.js";
+  await write(filename, "dynamic".repeat(10));
+  const graph = {
+    ...clientGraph(),
+    clientModules: {
+      dynamic: {
+        chunks: [
+          "104",
+          "static/chunks/app/%5Bslug%5D/page.js",
+          "app/layout",
+          "static/chunks/shared.js",
+        ],
+      },
+      shared: { chunks: ["104", "static/chunks/app/%5bslug%5d/page.js"] },
+    },
+  };
+  const generated = `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/[slug]/page"]=${JSON.stringify(graph)};`;
+  assert.deepEqual(parseClientManifest(generated), graph);
+  await write("server/app/page_client-reference-manifest.js", generated);
+
+  const result = await measureWebsiteBundle(build);
+  assert.equal(result.javaScriptBytes, 220);
+  assert.equal(result.routes["/"].javaScriptBytes, 170);
+  assert.deepEqual(result.routes["/"].files, [
+    filename,
+    "static/chunks/shared.js",
+    "static/chunks/style.css",
+  ]);
+  assert.throws(() => parseClientManifest(`${generated}process.exit(0);`));
+  assert.throws(
+    () => clientAssetPath("static/chunks/%2e%2e/private.js"),
+    /Not a browser/,
+  );
+  assert.throws(
+    () => clientAssetPath("static/chunks/%2fprivate.js"),
+    /Not a browser/,
+  );
+
+  for (const chunks of [
+    ["104"],
+    ["104", "https://external.test/chunk.js"],
+    ["", filename],
+    ["104", filename, "105"],
+  ]) {
+    await write(
+      "server/app/page_client-reference-manifest.js",
+      assignment({ ...graph, clientModules: { invalid: { chunks } } }),
+    );
+    await assert.rejects(
+      measureWebsiteBundle(build),
+      /Invalid Next client chunk/,
+    );
+  }
+});
+
+test("parallel page graphs sharing one public route are unioned and remain subject to route budgets", async (t) => {
+  const { build, write } = await fixture(t);
+  await mkdir(path.join(build, "server/app/@panel"));
+  await write("static/chunks/panel.js", "panel".repeat(12));
+  await write(
+    "server/app/@panel/page_client-reference-manifest.js",
+    assignment(
+      clientGraph(["static/chunks/panel.js", "static/chunks/shared.js"]),
+    ),
+  );
+  await write("app-path-routes-manifest.json", {
+    "/page": "/",
+    "/@panel/page": "/",
+    "/nested/page": "/nested",
+  });
+
+  const result = await measureWebsiteBundle(build);
+  assert.deepEqual(Object.keys(result.routes).sort(), ["/", "/nested"]);
+  assert.equal(result.routes["/"].javaScriptBytes, 210);
+  assert.equal(result.routes["/nested"].javaScriptBytes, 150);
+  assert.equal(result.routes["/"].files.length, 4);
+  assert.ok(
+    evaluateWebsiteBudget(result, {
+      ...budget,
+      totalJavaScriptBytes: 210,
+    }).includes("/ client graph JavaScript: 210 bytes exceeds 150"),
+  );
+
+  for (const routes of [
+    { "/(one)/page": "/", "/(two)/page": "/" },
+    { "/page": "/", "/@children/page": "/" },
+    { "/page": "/", "/@panel/nested/page": "/" },
+  ]) {
+    await write("app-path-routes-manifest.json", routes);
+    await assert.rejects(measureWebsiteBundle(build), /Duplicate page route/);
+  }
+});
+
 test("optional entry JavaScript accepts missing or empty maps and rejects malformed lists", () => {
   assert.deepEqual(
     parseClientManifest(assignment({ ...clientGraph(), entryJSFiles: {} })),

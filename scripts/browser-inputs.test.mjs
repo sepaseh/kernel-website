@@ -9,6 +9,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { findPackageJSON } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -22,13 +23,15 @@ import {
 
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());
-  const root = await realpath(
+  const container = await realpath(
     await mkdtemp(path.join(parent, "website-browser-inputs-")),
   );
+  const root = path.join(container, "website");
+  await mkdir(root);
   t.after(async () => {
-    assert.equal(path.dirname(root), parent);
-    assert.ok(path.basename(root).startsWith("website-browser-inputs-"));
-    await rm(root, { recursive: true, force: true });
+    assert.equal(path.dirname(container), parent);
+    assert.ok(path.basename(container).startsWith("website-browser-inputs-"));
+    await rm(container, { recursive: true, force: true });
   });
   const put = async (name, value) => {
     const filename = path.join(root, name);
@@ -50,17 +53,57 @@ async function fixture(t, ready = true) {
     lockfileVersion: 3,
     packages: {
       "": { ...manifest },
-      "node_modules/@playwright/test": { version: "1.64.1" },
+      "node_modules/@playwright/test": {
+        version: "1.64.1",
+        dependencies: { playwright: "1.64.1" },
+      },
+      "node_modules/playwright": {
+        version: "1.64.1",
+        dependencies: { "playwright-core": "1.64.1" },
+      },
+      "node_modules/playwright-core": { version: "1.64.1" },
     },
   };
   const installed = {
     name: "@playwright/test",
     version: "1.64.1",
     bin: { playwright: "cli.js" },
+    dependencies: { playwright: "1.64.1" },
+  };
+  const playwright = {
+    name: "playwright",
+    version: "1.64.1",
+    dependencies: { "playwright-core": "1.64.1" },
+    exports: {
+      "./package.json": "./package.json",
+      "./lib/program": "./lib/program.js",
+      "./test": { import: "./test.mjs", require: "./test.js" },
+    },
+  };
+  const core = {
+    name: "playwright-core",
+    version: "1.64.1",
+    exports: {
+      "./package.json": "./package.json",
+      ".": { import: "./index.mjs", require: "./index.js" },
+    },
   };
   await put("package.json", manifest);
   await put("package-lock.json", lock);
   await put("node_modules/@playwright/test/package.json", installed);
+  await put("node_modules/playwright/package.json", playwright);
+  await put("node_modules/playwright-core/package.json", core);
+  for (const filename of [
+    "playwright/lib/program.js",
+    "playwright/test.js",
+    "playwright/test.mjs",
+    "playwright-core/index.js",
+    "playwright-core/index.mjs",
+  ])
+    await put(
+      `node_modules/${filename}`,
+      "throw new Error('SDK execution is forbidden during resolution');\n",
+    );
   await put(
     "node_modules/@playwright/test/cli.js",
     "// Owned fake CLI; never executes a browser.\n",
@@ -79,7 +122,17 @@ async function fixture(t, ready = true) {
     WEBSITE_INDEXING_ENABLED: "false",
     KERNEL_SYNTHETIC_ENV: "1",
   };
-  return { root, put, manifest, lock, installed, inherited };
+  return {
+    root,
+    container,
+    put,
+    manifest,
+    lock,
+    installed,
+    playwright,
+    core,
+    inherited,
+  };
 }
 
 test("browser inputs refuse a false marker before environment or SDK reads", async (t) => {
@@ -183,6 +236,180 @@ test("CLI resolution needs no SDK import and has no parent/global fallback", asy
   await assert.rejects(resolvePlaywrightInstallation(root), /ENOENT/);
   await rm(path.join(root, "node_modules/@playwright/test/package.json"));
   await assert.rejects(resolvePlaywrightCli(root), /ENOENT/);
+});
+
+test("SDK resolution rejects parent and nested transitive installations before execution", async (t) => {
+  for (const name of ["playwright", "playwright-core"]) {
+    const { root, container } = await fixture(t);
+    const destination = path.join(container, "node_modules", name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await rename(path.join(root, "node_modules", name), destination);
+    const owner = path.join(
+      root,
+      "node_modules",
+      name === "playwright"
+        ? "@playwright/test/cli.js"
+        : "playwright/package.json",
+    );
+    assert.equal(
+      findPackageJSON(name, owner),
+      path.join(destination, "package.json"),
+    );
+    await assert.rejects(resolvePlaywrightCli(root), /root-owned installation/);
+    await assert.rejects(
+      resolvePlaywrightInstallation(root),
+      /root-owned installation/,
+    );
+  }
+  const { root } = await fixture(t);
+  const destination = path.join(
+    root,
+    "node_modules/@playwright/test/node_modules/playwright",
+  );
+  await mkdir(path.dirname(destination), { recursive: true });
+  await rename(path.join(root, "node_modules/playwright"), destination);
+  await assert.rejects(resolvePlaywrightCli(root), /root-owned installation/);
+
+  const nestedCore = await fixture(t);
+  const coreDestination = path.join(
+    nestedCore.root,
+    "node_modules/playwright/lib/node_modules/playwright-core",
+  );
+  await mkdir(path.dirname(coreDestination), { recursive: true });
+  await rename(
+    path.join(nestedCore.root, "node_modules/playwright-core"),
+    coreDestination,
+  );
+  await assert.rejects(
+    resolvePlaywrightCli(nestedCore.root),
+    /root-owned installation/,
+  );
+});
+
+test("SDK resolution rejects transitive metadata and dependency drift", async (t) => {
+  const { root, put, lock, installed, playwright, core } = await fixture(t);
+  for (const [name, invalid] of [
+    [
+      "node_modules/@playwright/test/package.json",
+      { ...installed, dependencies: {} },
+    ],
+    [
+      "node_modules/playwright/package.json",
+      { ...playwright, name: "foreign" },
+    ],
+    [
+      "node_modules/playwright/package.json",
+      { ...playwright, version: "1.64.0" },
+    ],
+    [
+      "node_modules/playwright/package.json",
+      { ...playwright, dependencies: { "playwright-core": "^1.64.1" } },
+    ],
+    ["node_modules/playwright-core/package.json", { ...core, name: "foreign" }],
+    [
+      "node_modules/playwright-core/package.json",
+      { ...core, version: "1.64.0" },
+    ],
+    ...["@playwright/test", "playwright", "playwright-core"].map((name) => [
+      "package-lock.json",
+      {
+        ...lock,
+        packages: {
+          ...lock.packages,
+          [`node_modules/${name}`]: { version: "1.64.0" },
+        },
+      },
+    ]),
+    [
+      "package-lock.json",
+      {
+        ...lock,
+        packages: {
+          ...lock.packages,
+          "node_modules/playwright": { version: "1.64.1" },
+        },
+      },
+    ],
+    [
+      "package-lock.json",
+      {
+        ...lock,
+        packages: {
+          ...lock.packages,
+          "node_modules/@playwright/test": { version: "1.64.1" },
+        },
+      },
+    ],
+  ]) {
+    await put(name, invalid);
+    await assert.rejects(resolvePlaywrightCli(root), /Playwright/);
+    await put("package-lock.json", lock);
+    await put("node_modules/@playwright/test/package.json", installed);
+    await put("node_modules/playwright/package.json", playwright);
+    await put("node_modules/playwright-core/package.json", core);
+  }
+});
+
+test("SDK resolution validates selected CLI and import entry points without importing them", async (t) => {
+  const redirected = await fixture(t);
+  await redirected.put(
+    "node_modules/playwright/replacement.js",
+    "throw new Error('must never execute');\n",
+  );
+  await redirected.put("node_modules/playwright/package.json", {
+    ...redirected.playwright,
+    exports: {
+      ...redirected.playwright.exports,
+      "./lib/program": "./replacement.js",
+    },
+  });
+  await assert.rejects(
+    resolvePlaywrightCli(redirected.root),
+    /root-owned installation/,
+  );
+  for (const [name, exported] of [
+    ["playwright", "./test"],
+    ["playwright-core", "."],
+  ]) {
+    for (const change of [
+      () => "./replacement.mjs",
+      (original) => ({
+        require: original.require,
+        import: "./replacement.mjs",
+      }),
+      (original) => ({ node: "./replacement.mjs", ...original }),
+      (original) => ({ default: original.require, ...original }),
+    ]) {
+      const { root, put, playwright, core } = await fixture(t);
+      const original = name === "playwright" ? playwright : core;
+      await put(`node_modules/${name}/package.json`, {
+        ...original,
+        exports: {
+          ...original.exports,
+          [exported]: change(original.exports[exported]),
+        },
+      });
+      await assert.rejects(resolvePlaywrightInstallation(root));
+    }
+  }
+  const { root } = await fixture(t);
+  assert.ok(await resolvePlaywrightInstallation(root));
+  await rm(path.join(root, "node_modules/playwright/test.mjs"));
+  assert.ok(await resolvePlaywrightCli(root));
+  await assert.rejects(resolvePlaywrightInstallation(root), /ENOENT/);
+});
+
+test("SDK resolution rejects linked transitive packages", async (t) => {
+  const { root } = await fixture(t);
+  const installed = path.join(root, "node_modules/playwright-core");
+  const moved = path.join(root, "owned-core");
+  await rename(installed, moved);
+  await symlink(
+    moved,
+    installed,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(resolvePlaywrightCli(root), /root-owned|links|unlinked/);
 });
 
 test("SDK links and dotenv presence are rejected without executing or reading them", async (t) => {
