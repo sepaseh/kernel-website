@@ -2,10 +2,16 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-This phase publishes login, registration, recovery and account form components
-with their local integration tests. They combine form-value helpers, UI
-primitives, HTTP operations and session hooks. Application routes and browser
-execution remain outside this phase.
+The local [login](../src/features/auth/login/Login.tsx),
+[registration](../src/features/auth/register/Register.tsx),
+[recovery](../src/features/auth/recovery/Recovery.tsx) and
+[account](../src/features/account/Account.tsx) components own the form behavior
+described here. Registration and
+recovery share the typed [OTP form](../src/features/auth/OtpForm.tsx); their
+payloads and success destinations remain feature-owned. App Router pages compose
+these features under the [application providers](../src/app/providers/Providers.tsx).
+API validation, authorization, OTP limits and cookie revocation remain owned by
+the configured HTTP backend. See the [application acceptance contract](application.md).
 
 ## Values and controls
 
@@ -72,3 +78,10 @@ verification, profile and username responses, password changes and owner resets.
 These local tests use synthetic responses and controlled navigation adapters.
 They do not establish Next.js routing, browser constraint validation, cookie
 isolation, hydration, visual layout or deployment.
+
+Run the [canonical full gate](../.agents/validation.json) on the exact proposed
+snapshot as described in [validation](validation.md). Retain the owner tests and
+observe genuine production build, browser/CSP and visual jobs against the
+[local synthetic HTTP fixture](api-fixture.md). Required checks and review
+protection remain separate obligations; a prior component pass does not validate
+different application source.

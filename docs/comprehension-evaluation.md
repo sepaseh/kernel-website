@@ -21,6 +21,14 @@ and observable positive/negative criteria. The assistant specification and human
    missing evidence, assumptions and limits. A clarified prompt is a new trial,
    not permission to silently rescore an older answer.
 
+Bind every trial to its publication marker and inventory. A false-marker
+prerequisite contains tested local support, forms, runner guards and authored
+browser cases; it does not establish application execution. For an application
+trial, expose only the actually published composition and matching evidence
+required by the [application contract](application.md). Distinguish accepted
+architecture from implemented source and local tests from hosted/browser results.
+Never require files absent from the subject snapshot or credit invented results.
+
 The [guidance checker](../scripts/check-guidance.mjs) checks metadata, paths, links
 and command projections. It does not execute an assistant, prove semantic-map
 completeness, measure discovery or judge answer quality. The checked-in template is unrun. Report actual observations in the task or terminal; save a local evaluation report only when explicitly requested, under ignored `test-results/`. Do not add run reports to the evaluation directory or documentation.

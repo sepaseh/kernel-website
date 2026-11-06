@@ -20,6 +20,14 @@ It increments at the start of a refresh or locale transition, including a return
 to a previously used locale. Accepting an account mutation does not increment it.
 It is local request ownership, not an API session token or authorization value.
 
+The kernel:session-expired listener starts a fresh read and is removed on unmount.
+Accepted mutation data can replace only its own loaded snapshot; a callback
+captured before a newer session cannot overwrite that session. Consumers outside
+the provider fail explicitly. Cookie isolation and full login/logout browser
+journeys require actual exact-tree execution under the [application contract](application.md)
+and [local synthetic HTTP fixture](api-fixture.md), regardless of which source
+phase first introduced this provider. Local owner tests cannot replace that evidence.
+
 ## Form operation ownership
 
 [Authentication and account forms](forms.md) key their local owner by locale,

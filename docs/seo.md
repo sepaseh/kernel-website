@@ -1,8 +1,14 @@
 # Prepare website metadata and indexing
 
-The [features phase](bootstrap.md) publishes helpers for origin validation,
-page metadata and JSON-LD. Rendering metadata, serving a sitemap or social
-image, and enabling indexing depend on later application and deployment work.
+The [published application](bootstrap.md) integrates origin validation,
+page metadata, JSON-LD, sitemap and social-image owners. Production indexing and
+deployment remain separately authorized operations.
+
+The SEO owners validate the website origin, create page
+metadata and serialize structured data. The App Router consumes those helpers for
+the home page, robots, sitemap and social image. Use this guide when changing
+public content or indexing policy; [server boundaries](server-boundary.md) owns
+request security and the `X-Robots-Tag` response policy.
 
 ## Configuration and privacy
 
@@ -20,31 +26,76 @@ metadata. Requested indexing requires a non-loopback HTTPS origin and becomes
 active only with `NODE_ENV=production`. Production mode alone never enables it.
 Keep local, preview and staging environments non-indexed.
 
-Noindex controls search inclusion. Protect private content with authentication
-and API authorization. Crawlers need access to a page to see its noindex
-instruction.
+Use explicit synthetic settings in tests; do not inspect real dotenv files or
+credentials. The helpers need no `NEXT_PUBLIC_*` configuration. Operator loading,
+restart and an authorized production indexing change belong to
+[deployment](deployment.md).
 
-## Check page metadata and structured data
+Noindex controls search inclusion, not confidentiality. Authentication and API
+authorization protect private content. Crawlers need access to a page to see its
+noindex instruction; inspect both returned HTML and response headers rather than
+treating robots.txt as access control.
 
-Pass a localized title and description with the page's own absolute pathname
-to `createPageMetadata`. The helper rejects unsafe pathnames and removes a
-trailing slash from non-root paths. With a configured origin, it supplies a
-self-canonical URL and refers to `/social-image` in social metadata. Setting
-`index: false` overrides enabled site-wide indexing for the page. Without an
-origin, URL-bearing metadata is omitted. [Metadata tests](../src/shared/seo/metadata.test.ts).
+## Page and language contracts
+
+[The root layout](../src/app/layout.tsx) supplies translated defaults and noindex
+for routes that have not explicitly selected public metadata.
+[The home page](../src/app/page.tsx) calls
+[createPageMetadata](../src/shared/seo/metadata.ts) with its own title,
+description and `path:"/"`.
+
+The helper normalizes a trailing path slash and rejects schemes, queries,
+fragments, traversal and encoded separators/control characters. It returns an
+absolute title, page canonical when configured, robots and Open Graph/Twitter
+metadata. `index:false` cannot be overridden by the global indexing flag.
+When an origin exists, share metadata points to the
+[1200×630 social-image route](../src/app/social-image/route.tsx).
+
+The current public content page is `/`. Login, registration, recovery, account
+and error pages stay noindex and outside the sitemap. A new public page needs its
+own canonical path; assigning `/` globally misidentifies distinct pages.
+Tracking queries and fragments are not separate pages. Internal links, redirects,
+canonicals and sitemap entries must identify the same public destination.
+
+The API selects the sole active language and exact direction.
+[Localization](localization.md) owns all ten complete flat catalogs and explicit
+message scopes. The permanent `/en` and `/fa` aliases in
+[next.config.ts](../next.config.ts) redirect to unprefixed destinations while
+preserving queries. They are not separate language versions and are not advertised
+through sitemap or hreflang. Concurrent language-specific URLs need an explicit
+language/cache/metadata design change.
+
+[robots.ts](../src/app/robots.ts) allows page retrieval and disallows `/api/`.
+It advertises the sitemap only while indexing is enabled.
+[sitemap.ts](../src/app/sitemap.ts) returns an empty set while indexing is
+disabled and only the public home URL when enabled. Neither uses a request-time
+timestamp as `lastModified`.
 
 `createWebsiteJsonLd` builds a `WebSite` object from the actual name,
 description, language and configured origin. It returns no object without an
 origin. `serializeJsonLd` escapes every `<` and rejects undefined
 serialization. [Structured data tests](../src/shared/seo/structured-data.test.ts).
 
-## Verify a later application integration
+## Add or change public content
 
-When page composition is published, keep authentication, account and error
-pages noindex and outside the sitemap. Give each indexable page its own
-canonical path. Internal links, redirects and sitemap entries should identify
-the same destination. Include `lastModified` only when the actual content
-change time is known.
+1. Define the audience and useful content, then place the route in `src/app`
+   with presentation in its semantic feature owner. Keep unpublished/personal
+   data out of shared caches.
+2. Use the page's own canonical path and complete catalog keys. The current home
+   metadata provides the pattern:
+
+```tsx
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return createPageMetadata({
+    title: t("metadataTitle"),
+    description: t("metadataDescription"),
+    path: "/",
+  });
+}
+```
+
+Include `lastModified` only when the actual content change time is known.
 
 Render serialized JSON-LD with the trusted document nonce. Publish real social
 media at stable public URLs with descriptive alternatives and correct
@@ -56,7 +107,22 @@ canonical and robots values. Check the actual status for missing content,
 including when streaming is enabled. Verify the social image response and
 parsed JSON-LD, including with a crawler user agent and JavaScript disabled.
 
-## Verify launch separately
+## Verify the change and launch separately
+
+Config, metadata and structured-data tests live beside their
+owners. [Browser SEO cases](../e2e/website/seo.spec.ts)
+exercise runtime configuration, initial HTML, language/direction, metadata,
+redirects, robots/sitemap, missing-document statuses and unavailable settings
+using the [local synthetic HTTP fixture](api-fixture.md). Run the complete
+publication procedure in [validation](validation.md); source and helper passes
+do not claim that a browser or public domain was checked.
+
+For the executed revision, inspect the returned canonical, status, HTML and
+`X-Robots-Tag`, social-image response and parsed JSON-LD. Also review headings,
+links, keyboard behavior, contrast, mobile/reduced-motion states and measured
+[performance](website-performance.md). [Accessibility](accessibility.md) has its
+own checks. Complete metadata or a lab score does not guarantee ranking or
+enhanced search display.
 
 DNS, Search Console verification, sitemap submission and production indexing
 changes require separate authorization. After an approved launch, use the

@@ -61,6 +61,26 @@ const commands = [
   "test:e2e",
   "test:visual",
 ];
+const manualWorkflows = [
+  "dast",
+  "deployment-smoke",
+  "package-release",
+  "release",
+  "staging",
+];
+const operationChecks = [
+  ["package", "deploy:package", "manual"],
+  ["smoke", "test:smoke", "manual"],
+  ["staging", "test:staging", "manual"],
+  ["docker", "test:docker", "manual"],
+  ["lighthouse", "perf:website", "advisory"],
+].map(([id, script, kind]) => ({
+  id,
+  command: `npm run ${script}`,
+  kind,
+  ciJobs: [],
+  scopes: ["operations"],
+}));
 export const checkoutAction =
   "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1";
 export const nodeAction =
@@ -112,7 +132,7 @@ export function workflowDocument(content) {
  * not execution or provider success.
  */
 export function validateCheckManifest(manifest) {
-  assert.equal(manifest.phase, "application");
+  assert.ok(["application", "operations"].includes(manifest.phase));
   assert.equal(manifest.applicationReady, true);
   assert.deepEqual(
     manifest.profiles?.full,
@@ -120,10 +140,19 @@ export function validateCheckManifest(manifest) {
     "All sixteen real checks run once.",
   );
   assert.deepEqual(
-    manifest.checks.map((check) => check.id),
+    manifest.checks
+      .filter((check) => check.kind === "required")
+      .map((check) => check.id),
     requiredChecks,
   );
-  for (const [index, check] of manifest.checks.entries()) {
+  assert.deepEqual(
+    manifest.checks.slice(requiredChecks.length),
+    manifest.phase === "operations" ? operationChecks : [],
+    "Only explicitly manual or advisory operations may extend the application gate.",
+  );
+  for (const [index, check] of manifest.checks
+    .slice(0, requiredChecks.length)
+    .entries()) {
     assert.equal(check.kind, "required");
     assert.equal(check.command, `npm run ${commands[index]}`);
     assert.deepEqual(check.scopes, [manifest.phase]);
@@ -153,6 +182,16 @@ export function validateCheckManifest(manifest) {
     new Set(manifest.profiles.full),
     "CI partitions the canonical full gate without omissions or duplicates.",
   );
+  assert.deepEqual(manifest.externalWorkflows, [
+    { path: ".github/workflows/ci.yml", mode: "ci" },
+    { path: ".github/workflows/codeql.yml", mode: "security" },
+    ...(manifest.phase === "operations"
+      ? manualWorkflows.map((name) => ({
+          path: `.github/workflows/${name}.yml`,
+          mode: "manual",
+        }))
+      : []),
+  ]);
 }
 
 /** Verify real isolated runtime jobs, including their own build and browser. */
@@ -549,8 +588,59 @@ export function validateAdditionalWorkflow(filename, content) {
       queries: "security-extended",
     });
     assert.equal(steps[2].with, undefined, "Analyze step must not set inputs.");
+  } else if (manualWorkflows.includes(filename)) {
+    assert.deepEqual(
+      Object.keys(workflow.on),
+      ["workflow_dispatch"],
+      "Operational workflows require an explicit manual dispatch.",
+    );
+    assert.deepEqual(workflow.permissions, { contents: "read" });
+    const name = {
+      dast: "zap",
+      "deployment-smoke": "smoke",
+      "package-release": "package",
+      release: "release",
+      staging: "validate",
+    }[filename];
+    assert.deepEqual(Object.keys(workflow.jobs), [name]);
+    const job = workflow.jobs[name];
+    assert.equal(job.if, "github.ref == 'refs/heads/main'");
+    assert.equal(job["continue-on-error"], undefined);
+    assert.deepEqual(
+      job.permissions,
+      filename === "release"
+        ? { contents: "write", "pull-requests": "write" }
+        : undefined,
+    );
+    if (filename !== "release") {
+      const checkout = job.steps[0];
+      assert.equal(checkout.uses, checkoutAction);
+      assert.deepEqual(checkout.with, { "persist-credentials": false });
+      if (["dast", "deployment-smoke", "staging"].includes(filename)) {
+        const mode = filename === "deployment-smoke" ? "smoke" : filename;
+        const index = job.steps.findIndex(
+          (step) =>
+            step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
+        );
+        assert.ok(
+          index > 0,
+          "External operations must validate explicit authorized targets first.",
+        );
+        unconditional(job.steps[index]);
+        for (const step of job.steps.slice(0, index)) {
+          assert.equal(
+            step.run,
+            undefined,
+            "Target validation must precede installs and execution.",
+          );
+          assert.ok([checkoutAction, nodeAction].includes(step.uses));
+        }
+      }
+    }
   } else {
-    assert.fail("Only the real CodeQL security workflow is additional policy.");
+    assert.fail(
+      "Only reviewed security and manual operation workflows are permitted.",
+    );
   }
 }
 
@@ -628,6 +718,13 @@ export async function inspectCi(root = repository) {
     "codeql",
     await readPublishedFile(root, ".github/workflows/codeql.yml"),
   );
+  if (manifest.phase === "operations") {
+    for (const name of manualWorkflows)
+      validateAdditionalWorkflow(
+        name,
+        await readPublishedFile(root, `.github/workflows/${name}.yml`),
+      );
+  }
 }
 
 if (import.meta.main) {

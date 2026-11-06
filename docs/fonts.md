@@ -30,3 +30,10 @@ Measured Python branch/line coverage is generated at coverage/governance/font-co
 ## Authorized maintenance
 
 Only after an intentional font change, use python scripts/subset-website-fonts.py to rewrite generated outputs, then run the full gate. Ordinary validation uses --check and never regenerates missing/stale files to hide a failure. Pinned tools are required for byte determinism. The source remains outside public/; do not restore the full source as a preload.
+
+Binary checks do not establish browser shaping or visual quality. The
+[browser suites](browser-foundation.md) exercise EN/FA/TR resource loading, mixed
+text, reduced motion and JavaScript-disabled content; their actual results must
+come from the current tree. Review rendered glyphs against the full source when
+changing subsets and use [visual comparison](visual-regression.md) for layout.
+Field font performance needs its own observed evidence.

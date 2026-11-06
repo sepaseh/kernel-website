@@ -1,6 +1,6 @@
 # Kernel Website
 
-The current publication phase is **application** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **operations** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
 This stage delivers application routes, providers and website composition. A source
 marker or installed dependency does not prove a successful runtime check.
@@ -16,6 +16,8 @@ marker or installed dependency does not prove a successful runtime check.
 - Guarded Node runners, a synthetic HTTP fixture and deployment templates.
 - Guarded browser tooling, authored typed browser/visual suites and retained baseline images.
 - Framework routes, application shell, providers and local HTTP request adapters.
+- Manual packaging, smoke/staging and disposable Docker runners, release workflows
+  and an advisory local Lighthouse lab.
 
 The [application](docs/application.md), [runner contracts](docs/runner-foundation.md),
 [browser tooling](docs/browser-foundation.md), [HTTP fixture](docs/api-fixture.md)
@@ -23,6 +25,10 @@ and [deployment references](docs/deployment.md) define the delivered contracts.
 The full gate must execute real production build, browser/CSP and visual checks
 with the disposable local fixture and reviewed browser. Compilation and historical
 screenshots alone establish no browser execution or external backend compatibility.
+
+[Operations](docs/release-operations.md), [releasing](docs/releasing.md) and
+[staging](docs/staging.md) have separate public inputs, authorization and acceptance.
+Their source does not establish an executed container, release or remote check.
 
 Start with [Contributing](CONTRIBUTING.md), [task navigation](docs/source-navigation.md), [source scope](docs/bootstrap.md) and [exact-tree validation](docs/validation.md). [AGENTS](AGENTS.md) owns assistant entry instructions.
 

@@ -9,6 +9,21 @@ sending messages, committing and publishing need authorization for their actual 
 
 ## Establish the change contract
 
+- Record the request, source and date. Distinguish required, proposed, conditional
+  and out-of-scope items. A roadmap topic alone is not a product requirement.
+- Name the repository/source owner and affected HTTP consumers. Local contracts
+  and catalogs belong here; coordinate observable wire compatibility when needed.
+- Read [navigation](source-navigation.md), full owner source, contracts, rules and
+  tests. Record current behavior and the failure, including relevant dirty or
+  untracked source without reading real environments, private state or secrets.
+- Write observable acceptance scenarios: trigger, result, failure/authorization
+  boundary and verification. Include applicable session races, language/cache
+  privacy and recovery behavior.
+- Read the publication marker and exact source inventory. Distinguish a
+  false-marker prerequisite from application activation under the
+  [application contract](application.md). Source, authored suites and historical
+  results do not establish current build, browser or deployment execution.
+
 ## Reusable task record
 
 Copy and fill this record. Placeholders are not completed evidence.

@@ -1,8 +1,8 @@
 # Understand this publication
 
-The current publication phase is **application** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **operations** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
-The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory of 362 files. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
+The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory of 382 files. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
 
 ## Published source
 
@@ -20,6 +20,10 @@ The [source policy](../.github/bootstrap-policy.json) is the exact admitted inve
   deterministic bundle-measurement helpers with Node owner tests.
 - Authored typed website, visual, smoke and staging suites, with retained
   Windows baseline images and historical capture metadata.
+- Manual package/smoke/staging wrappers, disposable Docker smoke and advisory
+  Lighthouse sampling with owned-resource and cleanup tests.
+- Main-only manual release, package, staging, deployment-smoke and DAST workflows,
+  plus maintained version metadata and operational procedures.
 
 Application routes, shell, providers and HTTP adapters are delivered with the
 existing guarded tooling. The [application guide](application.md) describes the
@@ -29,6 +33,11 @@ The canonical gate must actually exercise the local HTTP fixture and verified
 browser; no existing service may substitute for those disposable resources.
 
 The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.
+
+Manual operations and advisory measurements stay outside the required full profile.
+They require their own inputs, authorization and observed acceptance under
+[operations](release-operations.md); publication proves no executed deployment,
+container, release, external scan or performance lab.
 
 Real font verification requires Python 3.14.4 and the pinned dependencies in an owned disposable validation environment; actual binary regeneration and measured Python coverage remain required.
 

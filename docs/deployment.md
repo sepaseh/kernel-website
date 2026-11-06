@@ -16,26 +16,32 @@ authorization and intended-platform verification.
 
 ## Prepare and build
 
-The package helper consumes an existing completed standalone build; it does not
-build the website. Required inputs include `.next/BUILD_ID`,
-`.next/standalone/server.js`, public assets and `.next/static`. The published
-[test-server runner](runner-foundation.md) defines guarded build/start sequencing,
-but the application configuration and framework entry points are not admitted
-yet. Neither the template files nor synthetic test outputs establish a real
-build or bundle-budget result.
+Use a clean owned source tree, the Node version in [.nvmrc](../.nvmrc), and the
+explicit public inputs in [local development](development.md). That guide also
+starts the same-repository test-only HTTP fixture. Before publication, complete the
+fresh isolated-tree [validation procedure](validation.md).
 
-Once application composition is delivered, verify the complete build against its
-source before packaging. A previous `.next` directory cannot validate current
-source. Keep one writer for build and packaging outputs.
+From the website root, with the development inputs set:
+
+```sh
+npm run build
+```
+
+Success produces `.next/BUILD_ID`, `.next/standalone/server.js` and static assets,
+and passes the production bundle budgets. Stop on a failed build; a previous
+`.next` directory cannot validate the current source. Keep one writer for build
+and packaging outputs.
 
 ## Create an immutable local package
 
 Choose an unused release ID: 1–128 letters, digits, dots, underscores or hyphens,
 starting with a letter/digit and containing no `..`.
 
-For an accepted application-ready source tree, the wrapper command is
-`node scripts/package-release.mjs --release=local-preview-001`. It consumes the
-existing build. Expected output is
+```sh
+npm run deploy:package -- --release=local-preview-001
+```
+
+The wrapper consumes the existing build. Expected output is
 `dist/releases/local-preview-001/`, containing:
 
 - `website/server.js`, bundled runtime dependencies, public files and static assets;
@@ -138,3 +144,9 @@ Verify the running build against the artifact identity as well as the gateway's
 `/_kernel/release` response. Demonstrate atomic current-selection replacement and
 rollback to a previous verified artifact with matching configuration and cache
 ownership. Website rollback does not migrate or recover API data.
+
+Retain artifacts needed for rollback. Clean only files/resources owned by the
+specific preparation or test; inspect cleanup failures and report retained
+resources in the task. [Operations](release-operations.md) maps separate Docker,
+external smoke/staging and advisory commands. [Versioning](releasing.md) covers
+release PRs/tags; neither is part of local packaging.

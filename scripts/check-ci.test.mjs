@@ -60,6 +60,103 @@ test("CI profiles form an exact partition and cannot drop, duplicate or soften a
   }
 });
 
+test("operations retain all required checks and cannot promote manual work into CI", () => {
+  validateCheckManifest(manifest);
+  for (const change of [
+    (value) => value.checks.pop(),
+    (value) => {
+      value.checks.at(-1).kind = "manual";
+    },
+    (value) => {
+      value.checks.at(-2).ciJobs = ["build"];
+    },
+    (value) => value.profiles.full.push("docker"),
+    (value) => {
+      value.checks.at(-1).command = "npm run build";
+    },
+    (value) =>
+      value.externalWorkflows.push({
+        path: ".github/workflows/automatic-deploy.yml",
+        mode: "manual",
+      }),
+  ]) {
+    const value = structuredClone(manifest);
+    change(value);
+    assert.throws(() => validateCheckManifest(value));
+  }
+  const application = structuredClone(manifest);
+  application.phase = "application";
+  application.checks = application.checks.filter(
+    (check) => check.kind === "required",
+  );
+  application.checks.forEach((check) => {
+    check.scopes = ["application"];
+  });
+  application.externalWorkflows = application.externalWorkflows.filter(
+    (workflow) => workflow.mode !== "manual",
+  );
+  validateCheckManifest(application);
+});
+
+test("operational publication cannot silently dispatch targets or extend write privileges", async () => {
+  for (const name of [
+    "dast",
+    "deployment-smoke",
+    "package-release",
+    "release",
+    "staging",
+  ]) {
+    const original = workflowDocument(
+      await read(`.github/workflows/${name}.yml`),
+    );
+    validateAdditionalWorkflow(name, JSON.stringify(original));
+    for (const change of [
+      (value) => {
+        value.on.push = { branches: ["main"] };
+      },
+      (value) => {
+        Object.values(value.jobs)[0].if = "true";
+      },
+      (value) => {
+        value.permissions.contents = "write";
+      },
+      (value) => {
+        Object.values(value.jobs)[0].permissions = { contents: "write" };
+      },
+    ]) {
+      const value = structuredClone(original);
+      change(value);
+      assert.throws(() =>
+        validateAdditionalWorkflow(name, JSON.stringify(value)),
+      );
+    }
+  }
+  for (const [name, mode] of [
+    ["dast", "dast"],
+    ["deployment-smoke", "smoke"],
+    ["staging", "staging"],
+  ]) {
+    const value = workflowDocument(await read(`.github/workflows/${name}.yml`));
+    const steps = Object.values(value.jobs)[0].steps;
+    const index = steps.findIndex(
+      (step) =>
+        step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
+    );
+    for (const field of ["if", "continue-on-error"]) {
+      const changed = structuredClone(value);
+      Object.values(changed.jobs)[0].steps[index][field] =
+        field === "if" ? "false" : true;
+      assert.throws(() =>
+        validateAdditionalWorkflow(name, JSON.stringify(changed)),
+      );
+    }
+    steps.splice(index, 1);
+    assert.throws(() =>
+      validateAdditionalWorkflow(name, JSON.stringify(value)),
+    );
+  }
+});
+
 test("producers cannot skip work, run the full gate again, drift actions or mix suite coverage", () => {
   for (const change of [
     (value) => {

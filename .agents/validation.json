@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "application",
+  "phase": "operations",
   "applicationReady": true,
   "checks": [
     {
@@ -8,112 +8,147 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "actions-lint",
       "command": "npm run check:actions",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["audit"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["unit"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "font-integrity",
       "command": "npm run check:fonts",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "dead-code",
       "command": "npm run check:unused",
       "kind": "required",
       "ciJobs": ["build"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "build",
       "command": "npm run build",
       "kind": "required",
       "ciJobs": ["build", "e2e", "visual"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "e2e",
       "command": "npm run test:e2e",
       "kind": "required",
       "ciJobs": ["e2e"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
     },
     {
       "id": "visual",
       "command": "npm run test:visual",
       "kind": "required",
       "ciJobs": ["visual"],
-      "scopes": ["application"]
+      "scopes": ["operations"]
+    },
+    {
+      "id": "package",
+      "command": "npm run deploy:package",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "smoke",
+      "command": "npm run test:smoke",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "staging",
+      "command": "npm run test:staging",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "docker",
+      "command": "npm run test:docker",
+      "kind": "manual",
+      "ciJobs": [],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "lighthouse",
+      "command": "npm run perf:website",
+      "kind": "advisory",
+      "ciJobs": [],
+      "scopes": ["operations"]
     }
   ],
   "profiles": {
@@ -160,6 +195,26 @@
     {
       "path": ".github/workflows/codeql.yml",
       "mode": "security"
+    },
+    {
+      "path": ".github/workflows/dast.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/deployment-smoke.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/package-release.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "mode": "manual"
+    },
+    {
+      "path": ".github/workflows/staging.yml",
+      "mode": "manual"
     }
   ]
 }

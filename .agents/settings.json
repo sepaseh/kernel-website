@@ -1,6 +1,6 @@
 {
-  "name": "kernel-website-application-guidance",
-  "description": "Published application scope, exact-tree validation and protected current-head reviews",
+  "name": "kernel-website-operations-guidance",
+  "description": "Published operations scope, exact-tree validation and protected current-head reviews",
   "rules": [
     ".agents/rules/api-collection.md",
     ".agents/rules/branches.md",

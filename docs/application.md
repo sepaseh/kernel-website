@@ -53,3 +53,12 @@ Before runnable merge, observe genuine current-head `check`, `build`, `e2e` and
 authorized policy change. Scanner execution, native Sonar quality gate and review
 are separate evidence under [branch protection](branch-protection.md) and the
 [CodeRabbit preflight](reviews.md#before-requesting-coderabbit).
+
+## Publication boundary
+
+[Contributing](../CONTRIBUTING.md) owns PR sizing, authorization and sequencing.
+Keep required behavior, tests and acceptance together when selecting a package;
+revalidate whenever the proposed bytes change. Application acceptance grants no
+release, workflow-dispatch or deployment authority. Those operations follow
+[delivery](deployment.md), [operations](release-operations.md) and
+[staging](staging.md).
