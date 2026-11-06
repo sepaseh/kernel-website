@@ -3,7 +3,10 @@ import { fileURLToPath } from "node:url";
 
 import { parseDocument } from "yaml";
 
-import { readPublishedFile } from "./validate-bootstrap.mjs";
+import {
+  completePublicationWork,
+  readPublishedFile,
+} from "./validate-bootstrap.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 export const ciProfiles = Object.freeze({
@@ -528,6 +531,112 @@ export function validateSonarWorkflow(content) {
   }
 }
 
+function validateCodeQlWorkflow(workflow) {
+  assert.deepEqual(
+    Object.keys(workflow.jobs),
+    ["analyze"],
+    "Only the reviewed CodeQL analysis job is permitted.",
+  );
+  unconditional(workflow.jobs.analyze);
+  assert.equal(
+    Object.hasOwn(workflow.jobs.analyze, "needs"),
+    false,
+    "CodeQL analysis cannot depend on other jobs.",
+  );
+  assert.equal(
+    workflow.jobs.analyze.name,
+    "Analyze JavaScript, TypeScript and GitHub Actions",
+  );
+  assert.ok(
+    Object.hasOwn(workflow.on, "pull_request"),
+    "CodeQL must inspect every PR base.",
+  );
+  const event = workflow.on.pull_request;
+  assert.ok(
+    event === null ||
+      (typeof event === "object" &&
+        !Array.isArray(event) &&
+        Object.keys(event).length === 0),
+    "CodeQL PR checks cannot filter branches, paths or activities.",
+  );
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  assert.deepEqual(workflow.jobs.analyze.permissions, {
+    contents: "read",
+    "security-events": "write",
+  });
+  const steps = workflow.jobs.analyze.steps;
+  steps.forEach(unconditional);
+  assert.deepEqual(
+    steps.map((step) => step.uses),
+    [
+      checkoutAction,
+      "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+      "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+    ],
+  );
+  assert.deepEqual(
+    steps[0].with,
+    { ref: "${{ github.sha }}", "persist-credentials": false },
+    "CodeQL must use the exact current-revision checkout inputs.",
+  );
+  assert.deepEqual(steps[1].with, {
+    languages: "javascript-typescript,actions",
+    queries: "security-extended",
+  });
+  assert.equal(steps[2].with, undefined, "Analyze step must not set inputs.");
+}
+
+function validateManualWorkflow(filename, workflow) {
+  assert.deepEqual(
+    Object.keys(workflow.on),
+    ["workflow_dispatch"],
+    "Operational workflows require an explicit manual dispatch.",
+  );
+  assert.deepEqual(workflow.permissions, { contents: "read" });
+  const name = {
+    dast: "zap",
+    "deployment-smoke": "smoke",
+    "package-release": "package",
+    release: "release",
+    staging: "validate",
+  }[filename];
+  assert.deepEqual(Object.keys(workflow.jobs), [name]);
+  const job = workflow.jobs[name];
+  assert.equal(job.if, "github.ref == 'refs/heads/main'");
+  assert.equal(job["continue-on-error"], undefined);
+  assert.deepEqual(
+    job.permissions,
+    filename === "release"
+      ? { contents: "write", "pull-requests": "write" }
+      : undefined,
+  );
+  if (filename !== "release") {
+    const checkout = job.steps[0];
+    assert.equal(checkout.uses, checkoutAction);
+    assert.deepEqual(checkout.with, { "persist-credentials": false });
+    if (["dast", "deployment-smoke", "staging"].includes(filename)) {
+      const mode = filename === "deployment-smoke" ? "smoke" : filename;
+      const index = job.steps.findIndex(
+        (step) =>
+          step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
+      );
+      assert.ok(
+        index > 0,
+        "External operations must validate explicit authorized targets first.",
+      );
+      unconditional(job.steps[index]);
+      for (const step of job.steps.slice(0, index)) {
+        assert.equal(
+          step.run,
+          undefined,
+          "Target validation must precede installs and execution.",
+        );
+        assert.ok([checkoutAction, nodeAction].includes(step.uses));
+      }
+    }
+  }
+}
+
 export function validateAdditionalWorkflow(filename, content) {
   const workflow = workflowDocument(content);
   assert.ok(
@@ -535,109 +644,10 @@ export function validateAdditionalWorkflow(filename, content) {
     "Every published workflow must contain real jobs.",
   );
   for (const job of Object.values(workflow.jobs)) pinnedActions(job);
-  if (filename === "codeql") {
-    assert.deepEqual(
-      Object.keys(workflow.jobs),
-      ["analyze"],
-      "Only the reviewed CodeQL analysis job is permitted.",
-    );
-    unconditional(workflow.jobs.analyze);
-    assert.equal(
-      Object.hasOwn(workflow.jobs.analyze, "needs"),
-      false,
-      "CodeQL analysis cannot depend on other jobs.",
-    );
-    assert.equal(
-      workflow.jobs.analyze.name,
-      "Analyze JavaScript, TypeScript and GitHub Actions",
-    );
-    assert.ok(
-      Object.hasOwn(workflow.on, "pull_request"),
-      "CodeQL must inspect every PR base.",
-    );
-    const event = workflow.on.pull_request;
-    assert.ok(
-      event === null ||
-        (typeof event === "object" &&
-          !Array.isArray(event) &&
-          Object.keys(event).length === 0),
-      "CodeQL PR checks cannot filter branches, paths or activities.",
-    );
-    assert.deepEqual(workflow.permissions, { contents: "read" });
-    assert.deepEqual(workflow.jobs.analyze.permissions, {
-      contents: "read",
-      "security-events": "write",
-    });
-    const steps = workflow.jobs.analyze.steps;
-    steps.forEach(unconditional);
-    assert.deepEqual(
-      steps.map((step) => step.uses),
-      [
-        checkoutAction,
-        "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-        "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-      ],
-    );
-    assert.deepEqual(
-      steps[0].with,
-      { ref: "${{ github.sha }}", "persist-credentials": false },
-      "CodeQL must use the exact current-revision checkout inputs.",
-    );
-    assert.deepEqual(steps[1].with, {
-      languages: "javascript-typescript,actions",
-      queries: "security-extended",
-    });
-    assert.equal(steps[2].with, undefined, "Analyze step must not set inputs.");
-  } else if (manualWorkflows.includes(filename)) {
-    assert.deepEqual(
-      Object.keys(workflow.on),
-      ["workflow_dispatch"],
-      "Operational workflows require an explicit manual dispatch.",
-    );
-    assert.deepEqual(workflow.permissions, { contents: "read" });
-    const name = {
-      dast: "zap",
-      "deployment-smoke": "smoke",
-      "package-release": "package",
-      release: "release",
-      staging: "validate",
-    }[filename];
-    assert.deepEqual(Object.keys(workflow.jobs), [name]);
-    const job = workflow.jobs[name];
-    assert.equal(job.if, "github.ref == 'refs/heads/main'");
-    assert.equal(job["continue-on-error"], undefined);
-    assert.deepEqual(
-      job.permissions,
-      filename === "release"
-        ? { contents: "write", "pull-requests": "write" }
-        : undefined,
-    );
-    if (filename !== "release") {
-      const checkout = job.steps[0];
-      assert.equal(checkout.uses, checkoutAction);
-      assert.deepEqual(checkout.with, { "persist-credentials": false });
-      if (["dast", "deployment-smoke", "staging"].includes(filename)) {
-        const mode = filename === "deployment-smoke" ? "smoke" : filename;
-        const index = job.steps.findIndex(
-          (step) =>
-            step.run === `node scripts/validate-workflow-targets.mjs ${mode}`,
-        );
-        assert.ok(
-          index > 0,
-          "External operations must validate explicit authorized targets first.",
-        );
-        unconditional(job.steps[index]);
-        for (const step of job.steps.slice(0, index)) {
-          assert.equal(
-            step.run,
-            undefined,
-            "Target validation must precede installs and execution.",
-          );
-          assert.ok([checkoutAction, nodeAction].includes(step.uses));
-        }
-      }
-    }
-  } else {
+  if (filename === "codeql") validateCodeQlWorkflow(workflow);
+  else if (manualWorkflows.includes(filename))
+    validateManualWorkflow(filename, workflow);
+  else {
     assert.fail(
       "Only reviewed security and manual operation workflows are permitted.",
     );
@@ -719,11 +729,14 @@ export async function inspectCi(root = repository) {
     await readPublishedFile(root, ".github/workflows/codeql.yml"),
   );
   if (manifest.phase === "operations") {
-    for (const name of manualWorkflows)
-      validateAdditionalWorkflow(
-        name,
-        await readPublishedFile(root, `.github/workflows/${name}.yml`),
-      );
+    const contents = await completePublicationWork(
+      manualWorkflows.map((name) =>
+        readPublishedFile(root, `.github/workflows/${name}.yml`),
+      ),
+    );
+    contents.forEach((content, index) =>
+      validateAdditionalWorkflow(manualWorkflows[index], content),
+    );
   }
 }
 

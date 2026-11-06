@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
@@ -15,6 +17,7 @@ import {
   validateSonarWorkflow,
   workflowDocument,
 } from "./check-ci.mjs";
+import { completePublicationWork } from "./validate-bootstrap.mjs";
 
 const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
@@ -23,6 +26,38 @@ const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 test("CI executes all sixteen application checks through real runtime jobs and separate coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
+});
+
+test("CI inspection reports every missing operational workflow after independent reads finish", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "kernel-ci-workflows-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await completePublicationWork(
+    [
+      ".agents/validation.json",
+      ".github/bootstrap-policy.json",
+      ".github/dependabot.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/codeql.yml",
+    ].map(async (filename) => {
+      const destination = path.join(root, filename);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await writeFile(destination, await read(filename));
+    }),
+  );
+  await assert.rejects(inspectCi(root), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(
+      error.errors.map((failure) => path.basename(failure.path)),
+      [
+        "dast.yml",
+        "deployment-smoke.yml",
+        "package-release.yml",
+        "release.yml",
+        "staging.yml",
+      ],
+    );
+    return true;
+  });
 });
 
 test("CI profiles form an exact partition and cannot drop, duplicate or soften a required check", () => {
