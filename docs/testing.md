@@ -35,15 +35,15 @@ runner ownership and sequencing, not compatibility with a real framework build.
 Authored browser and visual suites are published with a required tooling
 TypeScript project. Compilation checks compatibility with installed SDK types;
 it does not execute the suites. Node browser-owner cases use synthetic SDK files
-and disposable programs, not a real browser. No runnable application, completed
-browser/visual comparison, Docker smoke or installed-service acceptance is
-delivered here. Retained baseline images describe historical captures.
+and disposable programs, not a real browser. These tests establish neither a
+completed browser/visual comparison nor Docker or installed-service acceptance.
+Retained baseline images describe historical captures.
 
-Future application acceptance must exercise the delivered website with this
+Application acceptance must exercise the delivered website with this
 repository's HTTP fixture and a verified browser. Build, browser/CSP and visual
-operations share outputs and must run sequentially. The current false marker
-rejects those operations before configuration, dependencies or child startup;
-it does not turn authored scenarios into passing or skipped browser results.
+operations share outputs and must run sequentially. False-marker guard tests
+reject operations before configuration, dependencies or child startup; they do
+not turn authored scenarios into passing or skipped browser results.
 See [visual regression](visual-regression.md) for baseline review and update rules.
 
 The [boundary check](../scripts/check-boundaries.mjs) traces literal imports,
@@ -56,5 +56,6 @@ A passing check supplies evidence for these supported syntax paths.
 
 A passed local suite proves only the exercised source. It does not establish
 hosted CI, Sonar binding or CodeRabbit approval. This phase verifies the font binaries with the pinned Python environment.
-It requires no application server, browser or external backend.
+The full application gate also requires a verified browser and disposable local
+servers; no external backend is used as a test fixture.
 Report actual commands, first failures/skips and limits in the task or terminal.

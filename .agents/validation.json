@@ -1,91 +1,119 @@
 {
   "schemaVersion": 1,
-  "phase": "browser-foundation",
-  "applicationReady": false,
+  "phase": "application",
+  "applicationReady": true,
   "checks": [
     {
       "id": "snapshot",
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "actions-lint",
       "command": "npm run check:actions",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["audit"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "unit-coverage",
       "command": "npm run test:unit",
       "kind": "required",
       "ciJobs": ["unit"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "governance-coverage",
       "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
     },
     {
       "id": "font-integrity",
       "command": "npm run check:fonts",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["browser-foundation"]
+      "scopes": ["application"]
+    },
+    {
+      "id": "dead-code",
+      "command": "npm run check:unused",
+      "kind": "required",
+      "ciJobs": ["build"],
+      "scopes": ["application"]
+    },
+    {
+      "id": "build",
+      "command": "npm run build",
+      "kind": "required",
+      "ciJobs": ["build", "e2e", "visual"],
+      "scopes": ["application"]
+    },
+    {
+      "id": "e2e",
+      "command": "npm run test:e2e",
+      "kind": "required",
+      "ciJobs": ["e2e"],
+      "scopes": ["application"]
+    },
+    {
+      "id": "visual",
+      "command": "npm run test:visual",
+      "kind": "required",
+      "ciJobs": ["visual"],
+      "scopes": ["application"]
     }
   ],
   "profiles": {
@@ -101,7 +129,11 @@
       "format",
       "unit-coverage",
       "governance-coverage",
-      "font-integrity"
+      "font-integrity",
+      "dead-code",
+      "build",
+      "e2e",
+      "visual"
     ],
     "ci-quality": [
       "snapshot",
@@ -115,7 +147,10 @@
     ],
     "ci-audit": ["audit"],
     "ci-unit": ["unit-coverage"],
-    "ci-governance": ["governance-coverage", "font-integrity"]
+    "ci-governance": ["governance-coverage", "font-integrity"],
+    "ci-build": ["dead-code", "build"],
+    "ci-e2e": ["e2e"],
+    "ci-visual": ["visual"]
   },
   "externalWorkflows": [
     {

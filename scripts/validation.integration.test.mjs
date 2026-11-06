@@ -21,6 +21,7 @@ test("the full profile and CI declare every required check once with its expecte
   assert.equal(new Set(manifest.profiles.full).size, required.length);
   const expectedScripts = {
     audit: "node scripts/run-audit.mjs",
+    build: "node scripts/application-checks.mjs build",
     "check:actions": "node scripts/run-actionlint.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:ci": "node scripts/check-ci.mjs",
@@ -28,13 +29,16 @@ test("the full profile and CI declare every required check once with its expecte
       "node -e \"for (const folder of ['fonts', 'governance']) require('node:fs').mkdirSync('coverage/' + folder, { recursive: true })\" && python -m coverage run --data-file=coverage/fonts/.coverage --branch --source=scripts scripts/subset-website-fonts.py --check && python -m coverage xml --data-file=coverage/fonts/.coverage -o coverage/governance/font-coverage.xml && python -m coverage report --data-file=coverage/fonts/.coverage --fail-under=80",
     "check:guidance": "node scripts/check-guidance.mjs",
     "check:snapshot": "node scripts/validate-bootstrap.mjs",
+    "check:unused": "node scripts/application-checks.mjs dead-code",
     "format:check": "prettier . --check",
     lint: 'eslint . --ignore-pattern ".next/**" --ignore-pattern "test-results/**" --ignore-pattern "playwright-report/**" --ignore-pattern "*.tsbuildinfo"',
     "test:governance":
       "node -e \"require('node:fs').mkdirSync('coverage/governance', { recursive: true })\" && node --experimental-test-coverage --test-coverage-exclude=**/*.test.mjs --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80 --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/governance/lcov.info scripts/analyze-website-performance.test.mjs scripts/application-checks.test.mjs scripts/block-dangerous-shell.test.mjs scripts/block-dangerous.test.mjs scripts/browser-inputs.test.mjs scripts/check-boundaries.test.mjs scripts/check-bundle-website.test.mjs scripts/check-ci.test.mjs scripts/check-guidance.test.mjs scripts/ci-evidence.test.mjs scripts/dependency-toolchain.test.mjs scripts/deployment.integration.test.mjs scripts/healthcheck.test.mjs scripts/package-release.test.mjs scripts/playwright-config.test.mjs scripts/post-edit-format.test.mjs scripts/prepare-standalone.test.mjs scripts/quality-gate.test.mjs scripts/release-files.test.mjs scripts/render-deployment.test.mjs scripts/run-actionlint.test.mjs scripts/run-visual.test.mjs scripts/runner-inputs.test.mjs scripts/runner-process.test.mjs scripts/start-website.test.mjs scripts/test-csp-report-only.test.mjs scripts/test-website-api.test.mjs scripts/test-website-server.test.mjs scripts/validate-bootstrap.test.mjs scripts/validate-deployment-env.test.mjs scripts/validate-gateway-env.test.mjs scripts/validate-workflow-targets.test.mjs scripts/validate.test.mjs scripts/validation.integration.test.mjs scripts/visual-environment.test.mjs scripts/website-api-fixture.test.mjs scripts/website-entrypoint.test.mjs scripts/website-performance-environment.test.mjs",
     "test:unit": "vitest run --coverage",
+    "test:e2e": "node scripts/application-checks.mjs e2e",
+    "test:visual": "node scripts/application-checks.mjs visual",
     typecheck:
-      "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tooling.json",
+      "node scripts/application-checks.mjs types && tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.tooling.json",
   };
   const commands = required.map((check) => check.command);
   for (const command of commands) {

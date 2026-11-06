@@ -77,6 +77,52 @@
       ]
     },
     {
+      "id": "design-ui",
+      "when": "Design or implement published website pages/components with the actual CSS/layout and inspect current visual evidence; optional generator metadata is separate tooling.",
+      "owners": [
+        "src/features/auth/login/Login.tsx",
+        "src/features/home/Reveal.tsx",
+        "src/shared/ui/Feedback.test.tsx",
+        "src/shared/ui/Feedback.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/shared/ui/FormField.tsx",
+        "src/shared/ui/ThemeToggle.test.tsx",
+        "src/shared/ui/ThemeToggle.tsx",
+        "src/shared/ui/alert.test.tsx",
+        "src/shared/ui/alert.tsx",
+        "src/shared/ui/button.test.tsx",
+        "src/shared/ui/button.tsx",
+        "src/shared/ui/card.test.tsx",
+        "src/shared/ui/card.tsx",
+        "src/shared/ui/input-label.integration.test.tsx",
+        "src/shared/ui/input.tsx",
+        "src/shared/ui/label.tsx"
+      ],
+      "contracts": [
+        ".agents/rules/localization.md",
+        ".agents/rules/website.md",
+        ".agents/skills/design-ui/SKILL.md",
+        "DESIGN.md",
+        "docs/application.md"
+      ],
+      "tests": [
+        "src/features/auth/login/Login.test.tsx",
+        "src/shared/ui/FormField.test.tsx",
+        "src/shared/ui/alert.test.tsx",
+        "src/shared/ui/button.test.tsx",
+        "src/shared/ui/card.test.tsx",
+        "src/shared/ui/input-label.integration.test.tsx"
+      ],
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-coverage",
+        "guidance"
+      ],
+      "rules": []
+    },
+    {
       "id": "website-feature",
       "when": "Change local login, registration, recovery, account forms or their operation ownership.",
       "owners": [
@@ -115,6 +161,28 @@
         "src/shared/api/client.test.ts",
         "src/shared/api/proxy.test.ts",
         "src/shared/hooks/use-operation-scope.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
+      "id": "active-language",
+      "when": "Change API-owned settings-language validation, catalog selection, supported aliases or the request/server language adapters; visitor negotiation remains forbidden.",
+      "owners": [
+        "src/i18n/catalogs.ts",
+        "src/i18n/request.ts",
+        "src/shared/settings/language.ts",
+        "src/shared/settings/server.ts"
+      ],
+      "contracts": [
+        ".agents/rules/localization.md",
+        "src/i18n/catalog-data/locales.ts",
+        "src/shared/settings/contracts.ts"
+      ],
+      "tests": [
+        "src/i18n/catalogs.test.ts",
+        "src/shared/runtime-adapters.test.ts",
+        "src/shared/settings/language.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
       "rules": []
@@ -175,6 +243,39 @@
       "rules": []
     },
     {
+      "id": "public-seo",
+      "when": "Change explicit-origin SEO data, metadata/JSON-LD helpers and their actual route/SSR composition; distinguish source behavior from separately recorded browser and indexing evidence.",
+      "owners": [
+        "src/app/robots.ts",
+        "src/app/sitemap.ts",
+        "src/app/social-image/route.tsx",
+        "src/shared/seo/config.ts",
+        "src/shared/seo/metadata.ts",
+        "src/shared/seo/structured-data.ts"
+      ],
+      "contracts": [
+        "docs/client-document.md",
+        "src/i18n/catalog-data/locales/ar.json",
+        "src/i18n/catalog-data/locales/de.json",
+        "src/i18n/catalog-data/locales/en.json",
+        "src/i18n/catalog-data/locales/es.json",
+        "src/i18n/catalog-data/locales/fa.json",
+        "src/i18n/catalog-data/locales/fr.json",
+        "src/i18n/catalog-data/locales/it.json",
+        "src/i18n/catalog-data/locales/pt.json",
+        "src/i18n/catalog-data/locales/ru.json",
+        "src/i18n/catalog-data/locales/tr.json"
+      ],
+      "tests": [
+        "src/shared/runtime-adapters.test.ts",
+        "src/shared/seo/config.test.ts",
+        "src/shared/seo/metadata.test.ts",
+        "src/shared/seo/structured-data.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
+      "rules": []
+    },
+    {
       "id": "website-performance",
       "when": "Change scoped messages, visible-first motion, font assets/preload selection or optional private Web Vitals delivery.",
       "owners": [
@@ -207,6 +308,26 @@
         "unit-coverage",
         "font-integrity"
       ],
+      "rules": []
+    },
+    {
+      "id": "website-csp",
+      "when": "Change pure CSP and forwarding/cache privacy or the actual nonce, proxy and API-route adapters; preserve header replacement, no-store and origin boundaries.",
+      "owners": [
+        "src/app/api/[...path]/route.ts",
+        "src/proxy.ts",
+        "src/shared/api/proxy.ts",
+        "src/shared/security/csp.ts",
+        "src/shared/security/nonce.ts"
+      ],
+      "contracts": ["SECURITY.md", "docs/server-boundary.md"],
+      "tests": [
+        "src/proxy.test.ts",
+        "src/shared/api/proxy.test.ts",
+        "src/shared/runtime-adapters.test.ts",
+        "src/shared/security/csp.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "unit-coverage"],
       "rules": []
     },
     {
@@ -309,6 +430,41 @@
       "rules": []
     },
     {
+      "id": "guidance",
+      "when": "Change portable instructions, optional hooks, source navigation, canonical validation or evaluation templates.",
+      "owners": [
+        ".agents/evaluation/cases.json",
+        ".agents/hooks/block-dangerous.mjs",
+        ".agents/navigation.json",
+        ".agents/settings.json",
+        ".agents/validation.json",
+        "scripts/check-guidance.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/guidance.md",
+        "docs/application.md",
+        "docs/bootstrap.md",
+        "docs/comprehension-evaluation.md"
+      ],
+      "tests": [
+        "scripts/block-dangerous-shell.test.mjs",
+        "scripts/block-dangerous.test.mjs",
+        "scripts/check-guidance.test.mjs",
+        "scripts/hook.test-support.mjs",
+        "scripts/post-edit-format.test.mjs",
+        "scripts/quality-gate.test.mjs",
+        "scripts/validate.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "governance-coverage"
+      ],
+      "rules": []
+    },
+    {
       "id": "git-workflow",
       "when": "Plan an issue/branch, prepare an authorized commit or PR, or inspect review/publication policy while preserving session authorization.",
       "owners": [
@@ -345,6 +501,202 @@
         "guidance",
         "format",
         "governance-coverage"
+      ],
+      "rules": []
+    },
+    {
+      "id": "runner-foundation",
+      "when": "Change readiness-first local Node inputs, owned direct-child lifecycle, same-repository HTTP fixture launch or bounded analysis output; distinguish owner tests from real website/browser execution against synthetic responses.",
+      "owners": [
+        "scripts/analyze-website-performance.mjs",
+        "scripts/runner-inputs.mjs",
+        "scripts/runner-process.mjs",
+        "scripts/start-website.mjs",
+        "scripts/test-website-api.mjs",
+        "scripts/test-website-server.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/testing.md",
+        ".github/bootstrap-policy.json",
+        "docs/application.md",
+        "docs/runner-foundation.md",
+        "scripts/release-files.mjs",
+        "scripts/website-api-fixture.mjs"
+      ],
+      "tests": [
+        "scripts/analyze-website-performance.test.mjs",
+        "scripts/runner-inputs.test.mjs",
+        "scripts/runner-process.test.mjs",
+        "scripts/start-website.test.mjs",
+        "scripts/test-website-api.test.mjs",
+        "scripts/test-website-server.test.mjs",
+        "scripts/validate-bootstrap.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "governance-coverage"
+      ],
+      "rules": []
+    },
+    {
+      "id": "browser-foundation",
+      "when": "Change guarded Playwright configuration, installed SDK identity, visual/CSP orchestration or authored suites. Distinguish measured Node owner tests from actual application/browser execution recorded by the full application gate.",
+      "owners": [
+        "playwright.smoke.config.ts",
+        "playwright.staging.config.ts",
+        "playwright.visual.config.ts",
+        "playwright.website.config.ts",
+        "scripts/browser-inputs.mjs",
+        "scripts/playwright-config.mjs",
+        "scripts/run-visual.mjs",
+        "scripts/test-csp-report-only.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/testing.md",
+        ".github/bootstrap-policy.json",
+        "docs/application.md",
+        "docs/browser-foundation.md",
+        "scripts/release-files.mjs",
+        "scripts/runner-inputs.mjs",
+        "tsconfig.tooling.json"
+      ],
+      "tests": [
+        "e2e/operations/smoke.spec.ts",
+        "e2e/operations/staging.spec.ts",
+        "e2e/visual/readiness.ts",
+        "e2e/visual/website.spec.ts",
+        "e2e/website/accessibility.spec.ts",
+        "e2e/website/client-boundaries.spec.ts",
+        "e2e/website/csp.spec.ts",
+        "e2e/website/font-performance.spec.ts",
+        "e2e/website/helpers.ts",
+        "e2e/website/performance.spec.ts",
+        "e2e/website/seo.spec.ts",
+        "e2e/website/session-isolation.spec.ts",
+        "e2e/website/website.spec.ts",
+        "scripts/browser-inputs.test.mjs",
+        "scripts/playwright-config.test.mjs",
+        "scripts/run-visual.test.mjs",
+        "scripts/test-csp-report-only.test.mjs",
+        "scripts/validate-bootstrap.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "typecheck",
+        "lint",
+        "format",
+        "governance-coverage"
+      ],
+      "rules": []
+    },
+    {
+      "id": "api-fixture",
+      "contracts": [
+        "docs/api-fixture.md",
+        "docs/application.md",
+        "docs/browser-foundation.md",
+        "docs/runner-foundation.md"
+      ],
+      "owners": [
+        "scripts/playwright-config.mjs",
+        "scripts/runner-inputs.mjs",
+        "scripts/test-website-api.mjs",
+        "scripts/website-api-fixture.mjs"
+      ],
+      "tests": [
+        "scripts/playwright-config.test.mjs",
+        "scripts/runner-inputs.test.mjs",
+        "scripts/test-website-api.test.mjs",
+        "scripts/website-api-fixture.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "governance-coverage",
+        "guidance"
+      ],
+      "when": "Change the same-repository synthetic HTTP fixture, in-memory state, launcher settings or exact SDK worker controls",
+      "rules": []
+    },
+    {
+      "when": "Change runnable Next routes/layouts/CSS, server request adapters or real website/browser acceptance against the local HTTP fixture",
+      "contracts": [
+        ".agents/rules/website.md",
+        "docs/application.md",
+        "docs/architecture.md",
+        "docs/branch-protection.md",
+        "docs/server-boundary.md"
+      ],
+      "owners": [
+        "scripts/application-checks.mjs",
+        "scripts/test-website-api.mjs",
+        "src/app/(auth)/forgot-password/page.tsx",
+        "src/app/(auth)/layout.tsx",
+        "src/app/(auth)/login/page.tsx",
+        "src/app/(auth)/register/page.tsx",
+        "src/app/[...rest]/page.test.tsx",
+        "src/app/[...rest]/page.tsx",
+        "src/app/_components/Footer.tsx",
+        "src/app/_components/Header.tsx",
+        "src/app/_components/HeaderAccountLink.test.tsx",
+        "src/app/_components/HeaderAccountLink.tsx",
+        "src/app/account/page.tsx",
+        "src/app/api/[...path]/route.ts",
+        "src/app/error.test.tsx",
+        "src/app/error.tsx",
+        "src/app/global-error.test.tsx",
+        "src/app/global-error.tsx",
+        "src/app/globals.css",
+        "src/app/icon.svg",
+        "src/app/layout.tsx",
+        "src/app/not-found.test.tsx",
+        "src/app/not-found.tsx",
+        "src/app/page.tsx",
+        "src/app/providers/Providers.test.ts",
+        "src/app/providers/Providers.tsx",
+        "src/app/robots.ts",
+        "src/app/runtime-composition.test.tsx",
+        "src/app/sitemap.ts",
+        "src/app/social-image/route.tsx",
+        "src/i18n/request.ts",
+        "src/proxy.ts",
+        "src/shared/settings/server.ts"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-coverage",
+        "governance-coverage",
+        "font-integrity",
+        "dead-code",
+        "build",
+        "e2e",
+        "visual"
+      ],
+      "id": "application",
+      "tests": [
+        "scripts/application-checks.test.mjs",
+        "scripts/test-website-api.test.mjs",
+        "src/app/[...rest]/page.test.tsx",
+        "src/app/_components/HeaderAccountLink.test.tsx",
+        "src/app/error.test.tsx",
+        "src/app/global-error.test.tsx",
+        "src/app/not-found.test.tsx",
+        "src/app/runtime-composition.test.tsx",
+        "src/proxy.test.ts",
+        "src/shared/runtime-adapters.test.ts"
       ],
       "rules": []
     }

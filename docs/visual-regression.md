@@ -2,13 +2,14 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-The current `browser-foundation` phase has `applicationReady: false`. The guarded
-visual runner rejects it before configuration, dependencies or browser startup.
+The current `application` phase has `applicationReady: true`. The guarded
+visual runner still rejects false or invalid markers before configuration,
+dependencies or browser startup.
 The retained Windows PNGs and capture metadata are historical evidence, not a
 comparison of this source. Do not change the marker or rewrite baseline dates to
 make them appear current.
 
-After runnable composition and acceptance are delivered, use the guarded visual
+Use the delivered composition and guarded visual
 runner to compare current pages with reviewed baseline images. The authored
 [visual suite](../e2e/visual/website.spec.ts) covers home in
 English/dark at 1280px, login in English/light at 1280px, registration in

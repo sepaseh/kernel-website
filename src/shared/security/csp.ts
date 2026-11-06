@@ -1,13 +1,13 @@
 export type WebsiteCspMode = "report-only" | "enforce";
 
-/** Classifies pathname-only input, excluding known API, asset and metadata routes. */
+/**
+ * Classifies potentially HTML paths before filesystem routing. Missing assets
+ * can render an HTML fallback, so only actual JSON and metadata handlers opt out.
+ */
 export function isCspDocumentPath(pathname: string): boolean {
   return !(
-    /^\/(?:api|fonts|_next\/static|_next\/image)(?:\/|$)/.test(pathname) ||
-    /^\/(?:favicon\.ico|icon\.svg|robots\.txt|sitemap\.xml|social-image)$/.test(
-      pathname,
-    ) ||
-    /^\/opengraph-image(?:\/|$)/.test(pathname)
+    /^\/api\/.+/.test(pathname) ||
+    /^\/(?:icon\.svg|robots\.txt|sitemap\.xml|social-image)$/.test(pathname)
   );
 }
 

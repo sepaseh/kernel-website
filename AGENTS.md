@@ -1,11 +1,10 @@
 # Kernel Website assistant instructions
 
-The publication phase is **browser-foundation** and `applicationReady` is **false**.
-This package publishes shared website contracts, catalogs, fonts, authentication
-and account forms, client controls, session ownership, website policy helpers,
-guarded Node/browser tooling, authored typed browser and visual suites, retained
-baseline images, a synthetic HTTP fixture and deployment templates.
-It does not deliver a runnable website or establish deployment readiness.
+The publication phase is **application** and `applicationReady` is **true**.
+This stage delivers framework routes, providers and website composition together
+with the existing contracts, forms, policies and guarded tooling. The marker
+describes admitted source; actual build, browser/CSP and visual acceptance require
+the complete canonical gate and establish no external backend or deployment readiness.
 
 Read [guidance](.agents/README.md), [settings](.agents/settings.json),
 [task navigation](docs/source-navigation.md), [source policy](.github/bootstrap-policy.json),
@@ -54,8 +53,7 @@ handling, stale session ownership, form reset identity and OTP destinations.
 See [architecture](docs/architecture.md), [forms](docs/forms.md),
 [session](docs/session.md) and [client UI](docs/client-ui.md).
 
-Preserve exact import boundaries and keep framework entry points out of this
-false-readiness phase. Use explicit SEO origins, opt-in indexing, escaped JSON-LD
+Preserve exact import boundaries and the delivered framework entry points. Use explicit SEO origins, opt-in indexing, escaped JSON-LD
 and pure CSP policy. Web Vitals has no default transport; optional consumers must
 not corrupt delivery. See [SEO](docs/seo.md), [CSP](docs/website-csp.md) and
 [performance](docs/website-performance.md). Optional hooks and comprehension

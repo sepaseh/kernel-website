@@ -1,8 +1,9 @@
 # Kernel Website
 
-The current publication phase is **browser-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **application** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
-Runnable application composition is not declared for this phase. Published helpers, authored suites and installed dependencies do not prove a running application.
+This stage delivers application routes, providers and website composition. A source
+marker or installed dependency does not prove a successful runtime check.
 
 ## Published source
 
@@ -14,13 +15,14 @@ Runnable application composition is not declared for this phase. Published helpe
 - Licensed font source and real font verification.
 - Guarded Node runners, a synthetic HTTP fixture and deployment templates.
 - Guarded browser tooling, authored typed browser/visual suites and retained baseline images.
+- Framework routes, application shell, providers and local HTTP request adapters.
 
-The [runner contracts](docs/runner-foundation.md), [browser tooling](docs/browser-foundation.md),
-[HTTP fixture](docs/api-fixture.md) and [deployment references](docs/deployment.md)
-are exercised through isolated owner tests. Tooling typechecking verifies the
-authored suites against installed types. Application launch, build, browser,
-packaging and delivery commands remain blocked by the false readiness marker;
-neither compilation nor historical screenshots establish browser execution.
+The [application](docs/application.md), [runner contracts](docs/runner-foundation.md),
+[browser tooling](docs/browser-foundation.md), [HTTP fixture](docs/api-fixture.md)
+and [deployment references](docs/deployment.md) define the delivered contracts.
+The full gate must execute real production build, browser/CSP and visual checks
+with the disposable local fixture and reviewed browser. Compilation and historical
+screenshots alone establish no browser execution or external backend compatibility.
 
 Start with [Contributing](CONTRIBUTING.md), [task navigation](docs/source-navigation.md), [source scope](docs/bootstrap.md) and [exact-tree validation](docs/validation.md). [AGENTS](AGENTS.md) owns assistant entry instructions.
 

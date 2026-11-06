@@ -1,8 +1,8 @@
 # Understand this publication
 
-The current publication phase is **browser-foundation** and application readiness is **false**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+The current publication phase is **application** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
 
-The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory of 318 files. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
+The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory of 362 files. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
 
 ## Published source
 
@@ -21,22 +21,19 @@ The [source policy](../.github/bootstrap-policy.json) is the exact admitted inve
 - Authored typed website, visual, smoke and staging suites, with retained
   Windows baseline images and historical capture metadata.
 
-The [runners](runner-foundation.md), [browser tooling](browser-foundation.md),
-[fixture](api-fixture.md) and [deployment references](deployment.md) define only
-the admitted foundation.
-The delivery and application-runner CLIs check readiness before their operations;
-the false marker prevents application startup, build, browser execution,
-packaging, rendering and health requests through those CLIs. Owner tests use
-explicitly synthetic roots, local HTTP responders and disposable child programs.
-The tooling TypeScript project checks authored suites against installed types.
-This phase includes no runnable framework composition or Docker smoke runner and
-establishes no successful Next build, browser execution, current-source pixel
-comparison, container deployment or live backend compatibility.
+Application routes, shell, providers and HTTP adapters are delivered with the
+existing guarded tooling. The [application guide](application.md) describes the
+composition. The marker does not prove a successful build, browser execution,
+visual comparison, container deployment or external backend compatibility.
+The canonical gate must actually exercise the local HTTP fixture and verified
+browser; no existing service may substitute for those disposable resources.
 
 The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.
 
 Real font verification requires Python 3.14.4 and the pinned dependencies in an owned disposable validation environment; actual binary regeneration and measured Python coverage remain required.
 
-Application readiness remains false. Do not add framework entry points, broaden imports or activate runtime operations to make isolated tests appear realistic. Runnable composition must deliver its boundaries, source, tests and complete acceptance together.
+Application composition is delivered with its exact import boundaries and tests.
+Readiness does not replace execution: run the complete gate against this source,
+the disposable HTTP fixture and the reviewed browser before claiming acceptance.
 
 Keep [ordinary review protection](branch-protection.md) throughout an explicitly authorized stack. Missing trusted default-branch checks remain blockers; there is no automatic bootstrap waiver.

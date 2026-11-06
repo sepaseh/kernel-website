@@ -7,7 +7,7 @@ required check commands and their full-profile order.
 ## Local and hosted execution
 
 Local `full` validation still runs all required checks once. Hosted CI uses
-`ci-quality`, `ci-audit`, `ci-unit` and `ci-governance` as an exact partition of
+the static, audit, unit, governance and application runtime profiles as an exact partition of
 that gate. The static checks and test suites install their locked dependencies;
 the dependency audit reads the lockfile without an installation.
 
@@ -30,10 +30,9 @@ The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
 Unit and governance jobs each record and upload their measured coverage once;
 Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. The browser-foundation phase runs no application
-build, E2E, visual or performance job. Required typechecking includes the authored
-browser suites and configurations through the [tooling project](../tsconfig.tooling.json);
-that compilation supplies no browser execution evidence.
+own hosted security workflow. The application phase also requires real dead-code, production build, browser/CSP
+and visual checks. Typechecking includes the authored suites through the
+[tooling project](../tsconfig.tooling.json); compilation alone supplies no browser execution evidence.
 
 ## Prepare an owned export
 
@@ -68,15 +67,14 @@ npm run validate -- full
 Stop on any failed command. Do not reuse installed dependencies, read private
 npm configuration, alter the lockfile or skip checks to obtain a pass.
 The [wheel lock](../font-source/requirements.txt) covers x64 Windows and x64
-and Arm64 on glibc Linux and macOS. This phase runs no application build or
-browser checks.
+and Arm64 on glibc Linux and macOS. The installed Playwright SDK must also provision its reviewed bundled Chromium
+with `PLAYWRIGHT_BROWSERS_PATH=0` inside the disposable export.
 
-Application and browser acceptance remain separate from this foundation gate.
-Once runnable composition and readiness are delivered, use the same-repository
-HTTP fixture and verified browser, with build, browser/CSP and visual operations
-run sequentially under one writer for shared outputs. The guarded commands reject
-this publication's false marker; do not change it to enter those operations or
-count the rejection as completed browser acceptance.
+The full profile executes the real production build, browser/CSP journeys and
+current visual comparison sequentially under one writer. Supply explicit public
+loopback origins on distinct website/API ports, use this repository's synthetic
+HTTP fixture, and preserve reviewed baseline bytes and dates. Never toggle the
+source marker to bypass missing composition or use a real backend as a fixture.
 
 ## Record the result and clean up
 

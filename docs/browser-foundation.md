@@ -2,11 +2,11 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-The current `browser-foundation` phase keeps `applicationReady: false`. It
-publishes guarded tooling and authored typed scenarios, without runnable
-framework composition or completed browser/visual acceptance. The operation
-entries below reject the marker before reading inputs or starting a browser.
-Do not change the source marker to activate them.
+The `application` phase delivers website composition with `applicationReady: true`.
+The tooling still rejects false or invalid markers before reading operation
+inputs or starting a browser. Never change a marker merely to enter an operation;
+actual build, browser/CSP and visual acceptance require the delivered composition,
+local HTTP fixture and reviewed browser described in [validation](validation.md).
 
 ## Published owners
 

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 import { localeCodes } from "@/i18n/catalog-data/locales";
-import english from "@/i18n/catalog-data/locales/en.json";
-import persian from "@/i18n/catalog-data/locales/fa.json";
+import english from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
+import persian from "@/i18n/catalog-data/locales/fa.json" with { type: "json" };
 import { catalogs } from "@/i18n/catalogs";
 
 import {

@@ -21,9 +21,15 @@ import { runCspReportOnly } from "./test-csp-report-only.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const modes = new Set(["dead-code", "types", "build", "e2e", "visual"]);
+/** Read JSON only through the unlinked regular-file guard; preserve parse failures. */
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
 
+/**
+ * Resolve Knip for an already readiness-checked root without executing it.
+ * Reject manifest, lock or installed identity drift before returning the guarded
+ * local CLI path; missing files and malformed metadata remain failures.
+ */
 async function knipCli(root) {
   const [manifest, lock, installed] = await Promise.all([
     readJson(path.join(root, "package.json")),
@@ -46,7 +52,18 @@ async function knipCli(root) {
   return artifactFile(path.join(root, "node_modules/knip/bin/knip.js"));
 }
 
-/** Execute one application check with explicit synthetic inputs and owned children. */
+/**
+ * Check readiness before options, synthetic inputs or installed tools are read.
+ * Dispatch one owned check: build awaits budget measurement, while E2E awaits
+ * enforce-mode success before its report-only pass. Visual mode delegates to
+ * the guarded capture owner; this entry does not establish application readiness.
+ *
+ * @param {string} root Website root with an explicit true readiness marker.
+ * @param {string} mode One of dead-code, types, build, e2e or visual.
+ * @param {object} options Public environment, cancellation and execution hooks.
+ * @returns {Promise<unknown>} The selected check's result after owned completion.
+ * @throws On invalid input, cancellation, child failure or an exceeded budget.
+ */
 export async function runApplicationCheck(root, mode, options = {}) {
   const directory = await readyRunnerRoot(root);
   if (!modes.has(mode)) throw new Error("Unknown application check.");

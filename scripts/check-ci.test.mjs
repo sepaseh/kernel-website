@@ -20,14 +20,14 @@ const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
 const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 
-test("CI executes all twelve browser foundation checks once through separate visible jobs and real coverage producers", async () => {
+test("CI executes all sixteen application checks through real runtime jobs and separate coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
 });
 
 test("CI profiles form an exact partition and cannot drop, duplicate or soften a required check", () => {
   for (const change of [
-    ...["features", "runners-foundation", "application"].map(
+    ...["features", "runners-foundation", "browser-foundation"].map(
       (phase) => (value) => {
         value.phase = phase;
         value.checks.forEach((check) => {
@@ -36,7 +36,7 @@ test("CI profiles form an exact partition and cannot drop, duplicate or soften a
       },
     ),
     (value) => {
-      value.applicationReady = true;
+      value.applicationReady = false;
     },
     (value) => value.profiles.full.pop(),
     (value) => value.profiles.full.push(value.profiles.full[0]),
@@ -135,8 +135,15 @@ test("producers cannot skip work, run the full gate again, drift actions or mix 
     assert.throws(() => workflowDocument(value));
 });
 
-test("browser foundation typechecking and measured font integrity cannot be omitted or moved outside their producer", () => {
-  for (const id of ["typecheck", "font-integrity"]) {
+test("application typechecking, measured fonts and runtime acceptance cannot be omitted or moved outside their producer", () => {
+  for (const id of [
+    "typecheck",
+    "font-integrity",
+    "dead-code",
+    "build",
+    "e2e",
+    "visual",
+  ]) {
     for (const change of [
       (value) => {
         value.checks = value.checks.filter((check) => check.id !== id);
@@ -158,6 +165,87 @@ test("browser foundation typechecking and measured font integrity cannot be omit
       change(value);
       assert.throws(() => validateCheckManifest(value));
     }
+  }
+});
+
+test("application jobs require isolated exact-source builds, installed Chromium and retained browser evidence", () => {
+  for (const change of [
+    ...["build", "e2e", "visual"].flatMap((mode) => [
+      (value) => {
+        value.jobs[mode]["runs-on"] = "ubuntu-latest";
+      },
+      (value) => {
+        value.jobs[mode].steps[0].with.ref = "main";
+      },
+      (value) => {
+        value.jobs[mode].steps[1].with["node-version"] = "latest";
+      },
+      (value) => {
+        value.jobs[mode].env = { WEBSITE_URL: "https://production.test" };
+      },
+      (value) => {
+        value.jobs[mode].steps[2].run = "npm ci";
+      },
+      (value) => {
+        value.jobs[mode].steps[3].if = "false";
+      },
+    ]),
+    ...["e2e", "visual"].flatMap((mode) => [
+      (value) => {
+        value.jobs[mode].needs = [];
+      },
+      (value) => {
+        value.jobs[mode].steps.splice(3, 1);
+      },
+      (value) => {
+        value.jobs[mode].steps[3].run = "npx playwright install chromium";
+      },
+      (value) => {
+        value.jobs[mode].steps[4].run = "echo reuse another job's build";
+      },
+      (value) => {
+        value.jobs[mode].steps[5].env = { WEBSITE_SKIP_BUILD: "1" };
+      },
+      (value) => {
+        value.jobs[mode].steps[5].shell = "sh -c 'exit 0' {0}";
+      },
+      (value) => {
+        value.jobs[mode].steps.at(-1).if = "false";
+      },
+      (value) => {
+        value.jobs[mode].steps.at(-1).with["if-no-files-found"] = "ignore";
+      },
+      (value) => {
+        value.jobs[mode].steps.at(-1).with["include-hidden-files"] = true;
+      },
+    ]),
+    ...[
+      "API_BASE_URL",
+      "WEBSITE_URL",
+      "HOSTNAME",
+      "PORT",
+      "WEBSITE_INDEXING_ENABLED",
+      "KERNEL_SYNTHETIC_ENV",
+      "PLAYWRIGHT_BROWSERS_PATH",
+    ].map((key) => (value) => {
+      delete value.env[key];
+    }),
+    (value) => {
+      value.env.API_BASE_URL = value.env.WEBSITE_URL;
+    },
+    (value) => {
+      value.env.WEBSITE_INDEXING_ENABLED = "true";
+    },
+    (value) => {
+      value.env.PLAYWRIGHT_BROWSERS_PATH = "shared/browser/cache";
+    },
+    (value) => {
+      value.env.TOKEN = "synthetic-forbidden";
+    },
+  ]) {
+    const value = structuredClone(ci);
+    change(value);
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
   }
 });
 

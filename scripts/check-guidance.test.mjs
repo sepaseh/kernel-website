@@ -88,7 +88,7 @@ test("guidance rejects private or unpublished owners, unsafe rule references and
       value.tasks[0].id = "../bad";
     },
     (value) => {
-      value.tasks[0].owners = ["src/app/page.tsx"];
+      value.tasks[0].owners = ["src/unreviewed/page.tsx"];
     },
     (value) => {
       value.tasks[0].tests = [];
@@ -457,7 +457,7 @@ test("malformed HTML attribute quotes fail without rewinding the scanner", () =>
     );
 });
 
-test("Markdown references obey the explicit current phase rather than the eventual publication union", () => {
+test("Markdown references obey the selected phase before application and operations are admitted", () => {
   const current = publicationInventories[manifest.phase];
   validateGuideLinks(
     "docs/testing.md",
@@ -465,11 +465,30 @@ test("Markdown references obey the explicit current phase rather than the eventu
     current,
   );
   const content = "[application](../src/app/page.tsx)";
-  assert.throws(() => validateGuideLinks("docs/testing.md", content, current));
+  assert.throws(() =>
+    validateGuideLinks(
+      "docs/testing.md",
+      content,
+      publicationInventories["browser-foundation"],
+    ),
+  );
   validateGuideLinks(
     "docs/testing.md",
     content,
     publicationInventories.application,
+  );
+  const operation = "[operations](../scripts/operations-checks.mjs)";
+  assert.throws(() =>
+    validateGuideLinks(
+      "docs/testing.md",
+      operation,
+      publicationInventories.application,
+    ),
+  );
+  validateGuideLinks(
+    "docs/testing.md",
+    operation,
+    publicationInventories.operations,
   );
 });
 test("evaluation keeps whole cases tied to published tasks, evidence and checks without recording a run", () => {
@@ -488,13 +507,16 @@ test("evaluation keeps whole cases tied to published tasks, evidence and checks 
     ],
   });
   const files = publicationInventories[manifest.phase];
+  const unpublishedEvidence =
+    publicationInventories.operations.find((file) => !files.includes(file)) ??
+    "scripts/unpublished-operations.mjs";
   validateEvaluation(evaluation(), navigation(), manifest, files);
   for (const change of [
     (value) => {
       value.cases[0].taskIds = ["unpublished-task"];
     },
     (value) => {
-      value.cases[0].evidence = ["src/app/page.tsx"];
+      value.cases[0].evidence = [unpublishedEvidence];
     },
     (value) => {
       value.cases[0].checks = ["unpublished-check"];

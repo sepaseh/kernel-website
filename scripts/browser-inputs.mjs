@@ -8,9 +8,14 @@ import {
   syntheticRunnerInputs,
 } from "./runner-inputs.mjs";
 
+/** Parse an artifact only after its regular-file and unlinked-path checks pass. */
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
 
+/**
+ * Resolve a dependency from its actual importing file and require the selected
+ * root's unlinked package, installed identity and exact lock version to agree.
+ */
 async function playwrightDependency(directory, lock, owner, name, version) {
   const relative = `node_modules/${name}`;
   const filename = path.join(directory, relative, "package.json");
@@ -30,6 +35,10 @@ async function playwrightDependency(directory, lock, owner, name, version) {
   return installed;
 }
 
+/**
+ * Select the reviewed require/import export without loading package code. Reject
+ * alternate condition branches or targets before returning an unlinked file.
+ */
 async function playwrightEntry(directory, installed, exported, mode, relative) {
   const conditions = installed.exports?.[exported];
   let target;
@@ -52,6 +61,11 @@ async function playwrightEntry(directory, installed, exported, mode, relative) {
   return artifactFile(path.join(directory, relative));
 }
 
+/**
+ * Gate SDK inspection on application readiness, then validate the local facade
+ * and its transitive installation. Module callers additionally require both
+ * reviewed test entry points; CLI-only callers do not need the facade module.
+ */
 async function playwrightPackage(root, includeModule) {
   const directory = await readyRunnerRoot(root);
   const manifest = await readJson(path.join(directory, "package.json"));
@@ -140,14 +154,27 @@ async function playwrightPackage(root, includeModule) {
   return { cli, version, module };
 }
 
+/**
+ * Return the validated root-owned CLI path without importing the SDK or starting
+ * a browser; missing local transitive packages cannot fall back to a parent.
+ */
 export async function resolvePlaywrightCli(root) {
   return (await playwrightPackage(root, false)).cli;
 }
 
+/**
+ * Return CLI, module and exact SDK version after readiness and installation
+ * checks. Browser provisioning and execution remain the caller's responsibility.
+ */
 export async function resolvePlaywrightInstallation(root) {
   return playwrightPackage(root, true);
 }
 
+/**
+ * Snapshot only allowed parent settings after readiness, validate distinct
+ * synthetic loopback origins and fixture ownership, and derive separate child
+ * environments with explicit browser modes and the API child's own port.
+ */
 export async function syntheticBrowserInputs(root, inherited = process.env) {
   const directory = await readyRunnerRoot(root);
   const source = Object.fromEntries(

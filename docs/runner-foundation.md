@@ -4,9 +4,9 @@ Read the current [source scope](bootstrap.md) before using this reference. Publi
 
 ## Readiness and imports
 
-The phase is `browser-foundation` with `applicationReady: false`. Application
-startup, test-server, fixture-launcher and analyzer entry points reject this
-marker before reading operation configuration, resolving installed tools,
+The phase is `application` with `applicationReady: true`. Application
+startup, test-server, fixture-launcher and analyzer entry points reject false
+or invalid markers before reading operation configuration, resolving installed tools,
 writing output or starting children. Imports perform none of those operations.
 Never change the source marker just to run a command. [Browser tooling](browser-foundation.md)
 adds authored typed scenarios and guarded configuration; its operation entry
@@ -14,7 +14,7 @@ points preserve the same readiness-first boundary.
 
 The owner tests create disposable synthetic roots with explicit readiness
 metadata to exercise the contracts below. Their stub executables and standalone
-files are test fixtures. They do not supply the missing framework composition,
+files are test fixtures. They do not themselves establish framework compatibility,
 a real Next build, browser execution or an application readiness declaration.
 
 ## Owners and contracts

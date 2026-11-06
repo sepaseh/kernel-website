@@ -63,6 +63,13 @@ const windowsRuntimeKeys = new Set([
   "WINDIR",
 ]);
 
+/**
+ * Check readiness, then reject unreviewed parent key names without reading their
+ * values. Diagnostics contain bounded names only. A worker marker must be a data
+ * property holding literal "1" and requires the reviewed installed SDK identity.
+ * @returns {Promise<string>} The verified root; starts no browser or server.
+ * @throws On invalid environment shape, forbidden keys or unsupported worker state.
+ */
 export async function assertPlaywrightParentEnvironment(root, environment) {
   const directory = await readyRunnerRoot(root);
   if (
@@ -102,12 +109,18 @@ export async function assertPlaywrightParentEnvironment(root, environment) {
   return directory;
 }
 
-/** Guard the actual SDK parent because its web-server launcher merges ambient values. */
+/**
+ * Validate the actual SDK parent's environment before building configuration,
+ * because Playwright merges ambient values into its web-server children.
+ * @returns {Promise<import("@playwright/test").PlaywrightTestConfig>} Guarded
+ * configuration data; loading it starts no browser and contacts no target.
+ */
 export async function loadPlaywrightConfig(root, mode) {
   const directory = await assertPlaywrightParentEnvironment(root, process.env);
   return createPlaywrightConfig(directory, mode);
 }
 
+/** Return per-mode report destinations without creating directories or reports. */
 function reporters(root, mode) {
   return [
     ["list"],
@@ -121,6 +134,11 @@ function reporters(root, mode) {
   ];
 }
 
+/**
+ * Describe fresh API and website launchers with validated website-origin parent
+ * settings. The API launcher derives its own child port; neither definition
+ * reuses an existing service or starts a process during configuration creation.
+ */
 function fixtureServers(root, inputs) {
   return [
     {
@@ -140,6 +158,11 @@ function fixtureServers(root, inputs) {
   ];
 }
 
+/**
+ * Snapshot only the selected operational mode's public target fields, then apply
+ * its host, origin and deployment-identity validation without network access.
+ * @returns {object} Validated targets embedded in configuration metadata.
+ */
 function operationTargets(mode, environment) {
   const prefix = mode.toUpperCase();
   const keys = [
@@ -163,6 +186,11 @@ function operationTargets(mode, environment) {
   };
 }
 
+/**
+ * Build smoke or staging configuration against validated explicit targets.
+ * Staging selects all three browser engines; smoke selects Chromium. This data
+ * factory creates no services and does not verify external deployment readiness.
+ */
 function operationalConfig(root, mode, environment) {
   const targets = operationTargets(mode, environment);
   const browsers =
@@ -188,6 +216,11 @@ function operationalConfig(root, mode, environment) {
   };
 }
 
+/**
+ * Require the guarded visual-runner marker and supported snapshot arguments
+ * before constructing pinned capture settings. Reject updates in CI or on an
+ * unsupported platform; configuration construction changes no baseline bytes.
+ */
 function visualConfig(root, environment, argv, inputs) {
   if (environment.KERNEL_VISUAL_RUNNER !== "1")
     throw new Error("Visual configuration requires the guarded visual runner.");
@@ -253,8 +286,14 @@ function visualConfig(root, environment, argv, inputs) {
   };
 }
 
-/** Build data only; the caller must separately authorize future browser execution.
- * @returns {Promise<import("@playwright/test").PlaywrightTestConfig>}
+/**
+ * Check readiness and the root-owned SDK before reading mode-specific targets.
+ * Website and visual modes require isolated synthetic inputs; operational modes
+ * require validated explicit deployment targets. This factory only builds data;
+ * callers must validate the actual SDK parent and authorize future execution.
+ * @returns {Promise<import("@playwright/test").PlaywrightTestConfig>} Configuration
+ * with mode-specific reports and outputs; no browser, server or target is started.
+ * @throws On false readiness, unknown mode, SDK drift or invalid mode inputs.
  */
 export async function createPlaywrightConfig(root, mode, options = {}) {
   const directory = await readyRunnerRoot(root);

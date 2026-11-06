@@ -70,23 +70,26 @@ describe("document CSP policy helpers", () => {
     "/apiary",
     "/fonts-page",
     "/_next/staticity",
+    "/api",
+    "/api/",
+    "/fonts",
+    "/fonts/a.woff2",
+    "/_next/static/a.js",
+    "/_next/image",
+    "/favicon.ico",
+    "/opengraph-image",
+    "/opengraph-image/a",
+    "/social-image/missing",
   ])("includes document pathname %s", (pathname) => {
     expect(isCspDocumentPath(pathname)).toBe(true);
   });
 
   it.each([
-    "/api",
     "/api/account/me",
-    "/fonts/a.woff2",
-    "/_next/static/a.js",
-    "/_next/image",
-    "/favicon.ico",
     "/icon.svg",
     "/robots.txt",
     "/sitemap.xml",
     "/social-image",
-    "/opengraph-image",
-    "/opengraph-image/a",
   ])("excludes asset or API pathname %s", (pathname) => {
     expect(isCspDocumentPath(pathname)).toBe(false);
   });

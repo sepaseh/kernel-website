@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import english from "@/i18n/catalog-data/locales/en.json";
-import persian from "@/i18n/catalog-data/locales/fa.json";
+import english from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
+import persian from "@/i18n/catalog-data/locales/fa.json" with { type: "json" };
 
 // Reuse the existing temporary real-API fixture, never operator settings.
 import { setSiteLanguage, websiteOrigin } from "../website/helpers";

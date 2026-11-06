@@ -4,6 +4,8 @@ import path from "node:path";
 /**
  * Validate one path component before descent; optional components may be absent,
  * while links, nondirectories and other filesystem failures remain errors.
+ * @returns {boolean} False only for an optional missing path, true for a verified
+ * physical directory. This guard creates, reads and removes no file contents.
  */
 function assertUnlinkedDirectory(directory, optional = false) {
   let info;
@@ -26,6 +28,9 @@ function assertUnlinkedDirectory(directory, optional = false) {
  * Check physical directory ancestry before inspecting root and optional standalone
  * entry names. Reject runtime dotenv presence without opening or changing files,
  * allowing only the exact .env.example name in either inspected directory.
+ * @param {string} websiteDirectory Website path normalized before ancestry checks.
+ * @returns {void} Returns only when inspected directories contain no runtime dotenv.
+ * This filesystem guard neither checks readiness nor authorizes tool execution.
  */
 export function assertCleanWebsiteEnvironment(websiteDirectory) {
   const directory = path.resolve(websiteDirectory);
@@ -61,6 +66,10 @@ export function assertCleanWebsiteEnvironment(websiteDirectory) {
 /**
  * Require an explicit HTTP IPv4 loopback API port and build fixed synthetic
  * production settings, inheriting only process-location essentials for children.
+ * @param {string} apiOrigin Isolated API origin without credentials, query or path.
+ * @param {object} inherited Source of PATH and optional Windows/temp runtime values.
+ * @returns {object} A fresh child environment with disabled indexing and telemetry;
+ * private inherited keys are omitted and the supplied object is not modified.
  */
 export function websitePerformanceEnvironment(
   apiOrigin,

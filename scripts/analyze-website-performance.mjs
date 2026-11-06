@@ -25,6 +25,10 @@ const maximumExportBytes = 64 * 1024 * 1024;
 /**
  * Stream a nonempty graph within the byte limit, stopping the owned exporter on
  * read or write failure while preserving any distinct stop failure.
+ * @param {object} owned Direct child whose stdout supplies the graph.
+ * @param {import("node:fs/promises").FileHandle} output Exclusively claimed file.
+ * @param {number} limit Validated maximum byte count; a partial graph is not success.
+ * @returns {Promise<void>} Resolves only after stdout is fully drained and written.
  */
 async function writeGraph(owned, output, limit) {
   let bytes = 0;
@@ -53,6 +57,8 @@ async function writeGraph(owned, output, limit) {
 /**
  * Reject a changed identity before accepting output or attempting cleanup of
  * the exclusively claimed file.
+ * @returns {Promise<void>} Resolves for the same unlinked regular file; missing,
+ * replaced or linked paths remain errors and are not removed by this guard.
  */
 async function requireClaimedOutput(filename, identity) {
   const current = await lstat(await artifactFile(filename));
@@ -71,6 +77,10 @@ async function requireClaimedOutput(filename, identity) {
  * Exclusively claim the fixed graph output and await exporter/writer settlement.
  * Close the handle on every path and stop failed work; cleanup removes output
  * only after verifying its identity and retains operation and cleanup errors.
+ * @param {string} directory Already readiness-checked synthetic website root.
+ * @param {string} next Verified installed Next CLI, executed with explicit settings.
+ * @returns {Promise<string>} The completed graph's filename. Existing output is
+ * never overwritten; failed output is removed only while its identity is owned.
  */
 async function exportGraph(directory, next, environment, signal, limit) {
   const parent = path.join(directory, ".lighthouseci/website");
@@ -135,6 +145,12 @@ async function exportGraph(directory, next, environment, signal, limit) {
  * Run installed Next analysis after readiness and isolated input validation.
  * Export mode owns bounded exclusive output and propagates child, writer and
  * cleanup failures before returning its saved filename.
+ * Default output mode delegates framework-owned files to Next without applying
+ * the export stream's byte limit or cleanup contract to those files.
+ * @param {string} root Website root with an explicit true readiness marker.
+ * @param {object} options Public environment, AbortSignal and export/size controls.
+ * @returns {Promise<string|undefined>} Export filename, or no value after ordinary
+ * analysis completes; cancellation and nonzero child exits remain failures.
  */
 export async function analyzeWebsitePerformance(
   root = repository,
