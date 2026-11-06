@@ -60,16 +60,19 @@ remain API-owned.
 
 ## Document security
 
-[`src/proxy.ts`](../src/proxy.ts) generates a fresh nonce for each matched document
-from 18 random bytes, replaces caller nonce/CSP request headers and supplies
-Next's internal CSP header. Its response selects enforcing or report-only CSP
-and private/no-store caching. [The server-only nonce reader](../src/shared/security/nonce.ts)
-awaits framework headers and returns only a valid nonce.
+[`src/proxy.ts`](../src/proxy.ts) matches every path and strips caller nonce/CSP
+request headers. Paths that can return HTML receive a fresh nonce from 18 random
+bytes and Next's internal CSP header; the response selects enforcing or report-only
+CSP. Normal documents use private/no-store caching, while font and framework-resource
+paths preserve framework-owned resource caching and protect their private/no-store
+HTML fallbacks. Only nonempty `/api/` routes and the actual icon, robots, sitemap
+and social-image handlers opt out of CSP. The [server-only nonce reader](../src/shared/security/nonce.ts)
+awaits framework headers and checks nonce syntax; the proxy establishes its trust.
 
 [The root layout](../src/app/layout.tsx) passes that nonce into the theme
 provider; [the home page](../src/app/page.tsx) uses it on escaped JSON-LD.
 The [pure CSP helpers](../src/shared/security/csp.ts) validate the mode/nonce,
-build directives and distinguish document paths from API/static/metadata paths.
+build directives and identify paths that can return HTML before filesystem routing.
 They do not generate randomness or attach responses themselves.
 [CSP](website-csp.md) explains production script/style rules, deliberate SSR
 style-attribute allowance and development-only eval/WebSocket allowances.

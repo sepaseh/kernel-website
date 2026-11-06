@@ -8,6 +8,11 @@ const header = enforcing
   ? "content-security-policy"
   : "content-security-policy-report-only";
 const nonceFrom = (value: string) => value.match(/'nonce-([^']+)'/)?.[1];
+const forgedHeaders = {
+  "x-kernel-csp-nonce": "A".repeat(24),
+  "content-security-policy": `script-src 'nonce-${"B".repeat(24)}'`,
+  "content-security-policy-report-only": `script-src 'nonce-${"C".repeat(24)}'`,
+};
 
 test("uses fresh unforgeable document nonces for framework, theme and JSON-LD scripts", async ({
   page,
@@ -150,13 +155,14 @@ test("keeps API, fonts and metadata delivery separate and protects real missing 
   expect(personal.status()).toBe(401);
   expect(personal.headers()["cache-control"]).toBe("private, no-store");
   for (const resource of [
-    "/fonts/vazirmatn-latin.woff2",
     "/robots.txt",
     "/sitemap.xml",
     "/icon.svg",
     "/social-image",
   ]) {
-    const response = await request.get(`${websiteOrigin}${resource}`);
+    const response = await request.get(`${websiteOrigin}${resource}`, {
+      headers: forgedHeaders,
+    });
     expect(response.status()).toBe(200);
     expect(response.headers()[header]).toBeUndefined();
     if (resource === "/social-image")
@@ -169,4 +175,133 @@ test("keeps API, fonts and metadata delivery separate and protects real missing 
   });
   expect(missing.status()).toBe(404);
   expect(nonceFrom(missing.headers()[header])).toBeTruthy();
+});
+
+test("preserves real resource bytes and caching while protecting paths that can return HTML", async ({
+  request,
+}) => {
+  const home = await request.get(websiteOrigin);
+  const html = await home.text();
+  const chunk = html.match(
+    /<script[^>]+src="([^"]*\/_next\/static\/[^"]+)"/,
+  )?.[1];
+  if (!chunk)
+    throw new Error(
+      "The actual production document must identify a framework chunk.",
+    );
+  for (const resource of [
+    "/fonts/vazirmatn-latin.woff2",
+    "/fonts/vazirmatn-arabic.woff2",
+    "/fonts/vazirmatn-extended.woff2",
+    "/fonts/OFL.txt",
+    chunk,
+  ]) {
+    const ordinary = await request.get(`${websiteOrigin}${resource}`);
+    const forged = await request.get(`${websiteOrigin}${resource}`, {
+      headers: { ...forgedHeaders, Accept: "image/avif" },
+    });
+    expect(forged.status()).toBe(200);
+    expect(forged.headers()["content-type"]).toBe(
+      ordinary.headers()["content-type"],
+    );
+    expect(await forged.body()).toEqual(await ordinary.body());
+    expect(forged.headers()["cache-control"]).toBe(
+      ordinary.headers()["cache-control"],
+    );
+    expect(forged.headers()["cache-control"]).toContain("public");
+    expect(forged.headers()["cache-control"]).not.toContain("no-store");
+    const nonce = nonceFrom(forged.headers()[header]);
+    expect(nonce).toMatch(/^[A-Za-z0-9+/]{24}$/);
+    for (const character of ["A", "B", "C"])
+      expect(nonce).not.toBe(character.repeat(24));
+  }
+});
+
+test("protects real HTML fallbacks on excluded-looking paths against both forged nonce inputs", async ({
+  page,
+  request,
+}) => {
+  for (const pathname of [
+    "/opengraph-image",
+    "/opengraph-image/missing",
+    "/api",
+    "/fonts",
+    "/fonts/missing.woff2",
+    "/_next/static/missing.js",
+    "/favicon.ico",
+  ]) {
+    const response = await request.get(`${websiteOrigin}${pathname}`, {
+      headers: {
+        ...forgedHeaders,
+        Accept: "image/avif",
+        "user-agent": "facebookexternalhit/1.1",
+      },
+    });
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-type"]).toContain("text/html");
+    expect(response.headers()["cache-control"]).toContain("private");
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    const nonce = nonceFrom(response.headers()[header]);
+    expect(nonce).toMatch(/^[A-Za-z0-9+/]{24}$/);
+    for (const character of ["A", "B", "C"])
+      expect(nonce).not.toBe(character.repeat(24));
+    const scripts = await page.evaluate(
+      (html) =>
+        [
+          ...new DOMParser()
+            .parseFromString(html, "text/html")
+            .querySelectorAll("script"),
+        ].map((script) => script.nonce),
+      await response.text(),
+    );
+    expect(scripts.length).toBeGreaterThan(0);
+    expect(scripts.every((value) => value === nonce)).toBe(true);
+  }
+  const pathname = `${websiteOrigin}/opengraph-image/missing`;
+  await page.addInitScript(() => {
+    const state = window as unknown as { fallbackCspViolations: string[] };
+    state.fallbackCspViolations = [];
+    document.addEventListener("securitypolicyviolation", (event) =>
+      state.fallbackCspViolations.push(
+        `${event.disposition}:${event.effectiveDirective}`,
+      ),
+    );
+  });
+  await page.setExtraHTTPHeaders(forgedHeaders);
+  await page.route(pathname, async (route) => {
+    const response = await route.fetch();
+    const nonce = nonceFrom(response.headers()[header]);
+    const html = (await response.text()).replace(
+      "</head>",
+      `<script nonce="${nonce}">window.kernelFallbackTrustedProbe = true</script>` +
+        `<script nonce="${"A".repeat(24)}">window.kernelFallbackForgedProbe = true</script></head>`,
+    );
+    await route.fulfill({ response, body: html });
+  });
+  const response = await page.goto(pathname);
+  expect(response!.headers()[header]).toContain("'nonce-");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { fallbackCspViolations: string[] })
+            .fallbackCspViolations,
+      ),
+    )
+    .toContain(`${enforcing ? "enforce" : "report"}:script-src-elem`);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { kernelFallbackTrustedProbe?: boolean })
+          .kernelFallbackTrustedProbe,
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { kernelFallbackForgedProbe?: boolean })
+          .kernelFallbackForgedProbe,
+    ),
+  ).toBe(enforcing ? undefined : true);
 });

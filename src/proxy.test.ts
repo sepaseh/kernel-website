@@ -14,19 +14,19 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe("document request security integration", () => {
   it.each([
-    ["/_next/static/main.js", false],
+    ["/_next/static/main.js", true],
     ["/_next/static-document", true],
-    ["/_next/image", false],
-    ["/fonts/vazirmatn-latin.woff2", false],
+    ["/_next/image", true],
+    ["/fonts/vazirmatn-latin.woff2", true],
     ["/fonts-preview", true],
-    ["/favicon.ico", false],
+    ["/favicon.ico", true],
     ["/faviconXico", true],
-    ["/icon.svg", false],
+    ["/icon.svg", true],
     ["/iconXsvg", true],
     ["/login", true],
     ["/api/account/me", true],
   ] as const)(
-    "matches only the intended proxy path boundaries for %s",
+    "matches every route, including resource fallback %s",
     (pathname, matched) => {
       expect(new RegExp(`^${config.matcher[0]}$`).test(pathname)).toBe(matched);
     },
@@ -36,9 +36,9 @@ describe("document request security integration", () => {
     const response = proxy(
       new NextRequest("https://website.example.test/", {
         headers: {
-          "Content-Security-Policy": "default-src *",
-          "Content-Security-Policy-Report-Only": "default-src *",
-          "x-kernel-csp-nonce": "attacker",
+          "Content-Security-Policy": `script-src 'nonce-${"B".repeat(24)}'`,
+          "Content-Security-Policy-Report-Only": `script-src 'nonce-${"C".repeat(24)}'`,
+          "x-kernel-csp-nonce": "A".repeat(24),
         },
       }),
     );
@@ -50,7 +50,8 @@ describe("document request security integration", () => {
     expect(policy).toContain(`'nonce-${nonce}'`);
     expect(policy).toContain("'strict-dynamic'");
     expect(policy).not.toContain("unsafe-eval");
-    expect(policy).not.toContain("attacker");
+    for (const character of ["A", "B", "C"])
+      expect(policy).not.toContain(character.repeat(24));
     expect(
       response.headers.get("x-middleware-request-content-security-policy"),
     ).toBe(policy);
@@ -120,12 +121,17 @@ describe("document request security integration", () => {
     "/robots.txt",
     "/sitemap.xml",
     "/social-image",
-    "/fonts/vazirmatn-latin.woff2",
     "/icon.svg",
-    "/_next/static/test.js",
   ])("keeps document CSP off asset/API response %s", (path) => {
     const response = proxy(
-      new NextRequest(`https://website.example.test${path}`),
+      new NextRequest(`https://website.example.test${path}`, {
+        headers: {
+          Cookie: "session=owned",
+          "x-kernel-csp-nonce": "A".repeat(24),
+          "Content-Security-Policy": "script-src 'unsafe-inline'",
+          "Content-Security-Policy-Report-Only": "default-src *",
+        },
+      }),
     );
     expect(response.headers.get("Content-Security-Policy")).toBeNull();
     expect(
@@ -134,7 +140,74 @@ describe("document request security integration", () => {
     expect(
       response.headers.get("x-middleware-request-x-kernel-csp-nonce"),
     ).toBeNull();
+    for (const name of [
+      "content-security-policy",
+      "content-security-policy-report-only",
+    ])
+      expect(response.headers.get(`x-middleware-request-${name}`)).toBeNull();
+    expect(response.headers.get("x-middleware-request-cookie")).toBe(
+      "session=owned",
+    );
+    expect(response.headers.get("Cache-Control")).toBeNull();
   });
+
+  it.each([
+    "/fonts",
+    "/fonts/vazirmatn-latin.woff2",
+    "/fonts/missing.woff2",
+    "/_next/static/chunk.js",
+    "/_next/static/missing.js",
+    "/_next/image",
+  ])(
+    "protects possible HTML at %s without overriding framework resource caching",
+    (path) => {
+      const response = proxy(
+        new NextRequest(`https://website.example.test${path}`, {
+          headers: {
+            Accept: "image/avif",
+            "x-kernel-csp-nonce": "A".repeat(24),
+            "Content-Security-Policy": `script-src 'nonce-${"B".repeat(24)}'`,
+            "Content-Security-Policy-Report-Only": "default-src *",
+          },
+        }),
+      );
+      const nonce = response.headers.get(
+        "x-middleware-request-x-kernel-csp-nonce",
+      );
+      const policy = response.headers.get("Content-Security-Policy");
+      expect(nonce).toMatch(/^[A-Za-z0-9+/]{24}$/);
+      expect(policy).toContain(`'nonce-${nonce}'`);
+      expect(policy).not.toContain("A".repeat(24));
+      expect(policy).not.toContain("B".repeat(24));
+      expect(
+        response.headers.get("x-middleware-request-content-security-policy"),
+      ).toBe(policy);
+      expect(
+        response.headers.get(
+          "x-middleware-request-content-security-policy-report-only",
+        ),
+      ).toBeNull();
+      expect(response.headers.get("Cache-Control")).toBeNull();
+    },
+  );
+
+  it.each([
+    "/api",
+    "/favicon.ico",
+    "/opengraph-image",
+    "/opengraph-image/missing",
+  ])(
+    "protects actual document fallback %s with private nonce-bearing HTML caching",
+    (path) => {
+      const response = proxy(
+        new NextRequest(`https://website.example.test${path}`),
+      );
+      expect(response.headers.get("Content-Security-Policy")).toContain(
+        "'nonce-",
+      );
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    },
+  );
 
   it("applies preview indexing protection to metadata as well as documents", () => {
     vi.stubEnv("WEBSITE_INDEXING_ENABLED", "false");

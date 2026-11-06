@@ -13,10 +13,11 @@ these commands at an existing API or a developer database.
 
 Use the exact Node version in [.nvmrc](../.nvmrc) and its bundled npm.
 
-From the website root:
+From the website root, include the development tools required for validation and
+browser acceptance:
 
 ```sh
-npm ci
+npm ci --include=dev
 ```
 
 The [local HTTP fixture](api-fixture.md) is included in this repository and uses
@@ -175,3 +176,14 @@ own its API and website processes. Stop manually started launchers first:
 node node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e
 ```
+
+Before handing off a change, follow [exact-tree validation](validation.md) in a
+fresh disposable export and run every required check:
+
+```sh
+npm run validate -- full
+```
+
+The procedure covers the complete gate beyond the browser checks above, including
+fresh dependencies and source verification. Record the exact tree, actual results
+and remaining limits.

@@ -52,4 +52,4 @@ Before runnable merge, observe genuine current-head `check`, `build`, `e2e` and
 `visual` jobs and make the required contexts protected through an explicitly
 authorized policy change. Scanner execution, native Sonar quality gate and review
 are separate evidence under [branch protection](branch-protection.md) and the
-[CodeRabbit preflight](sonarqube.md#before-requesting-coderabbit).
+[CodeRabbit preflight](reviews.md#before-requesting-coderabbit).
