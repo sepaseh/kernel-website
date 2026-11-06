@@ -6,7 +6,7 @@ import en from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
 import fa from "@/i18n/catalog-data/locales/fa.json" with { type: "json" };
 import { profileNameMaxLength } from "@/shared/contracts";
 
-import { setSiteLanguage, websiteOrigin } from "./helpers";
+import { fixtureCode, setSiteLanguage, websiteOrigin } from "./helpers";
 
 const websiteMessages = { en, fa };
 
@@ -142,11 +142,67 @@ for (const language of ["en", "fa"] as const) {
           ),
         ).toBe(true);
         await page.goto("/register");
-        await expect(
-          page
-            .getByTestId("register-form")
-            .getByLabel(messages.firstName, { exact: true }),
-        ).toHaveAttribute("maxlength", String(profileNameMaxLength));
+        const registration = page.getByTestId("register-form");
+        const names = [messages.firstName, messages.lastName].map((label) =>
+          registration.getByLabel(label, { exact: true }),
+        );
+        const boundaryName = "😀".repeat(profileNameMaxLength / 2);
+        const paddedName = `  ${boundaryName}  `;
+        expect(boundaryName.length).toBe(profileNameMaxLength);
+        for (const name of names) {
+          await expect(name).not.toHaveAttribute("maxlength");
+          await name.fill(paddedName);
+        }
+        await registration
+          .getByLabel(messages.mobile, { exact: true })
+          .fill("09189999999");
+        await registration
+          .getByLabel(messages.otp, { exact: true })
+          .fill(fixtureCode);
+        const password = "  accessible-password  ";
+        for (const label of [messages.password, messages.confirmPassword])
+          await registration.getByLabel(label, { exact: true }).fill(password);
+        const endpoint = `${websiteOrigin}/api/auth/register`;
+        let registrationRequests = 0;
+        await page.route(endpoint, (route) => {
+          registrationRequests++;
+          return route.fulfill({
+            status: 422,
+            json: { message: "Owned registration validation probe." },
+          });
+        });
+        const submit = registration.getByRole("button", {
+          name: messages.register,
+          exact: true,
+        });
+        for (const name of names) {
+          const oversizedName = `  ${boundaryName}a  `;
+          await name.fill(oversizedName);
+          await submit.press("Enter");
+          await expect(registration.getByRole("alert")).toContainText(
+            messages.nameTooLong.replace("{max}", String(profileNameMaxLength)),
+          );
+          await expect(name).toHaveValue(oversizedName);
+          expect(registrationRequests).toBe(0);
+          await name.fill(paddedName);
+        }
+        const submitted = page.waitForResponse(
+          (response) =>
+            response.url() === endpoint &&
+            response.request().method() === "POST",
+        );
+        await submit.press("Enter");
+        const accepted = await submitted;
+        expect(accepted.status()).toBe(422);
+        expect(accepted.request().postDataJSON()).toEqual({
+          first_name: boundaryName,
+          last_name: boundaryName,
+          mobile: "09189999999",
+          otp: fixtureCode,
+          password,
+        });
+        expect(registrationRequests).toBe(1);
+        for (const name of names) await expect(name).toHaveValue(paddedName);
       });
     });
   }
