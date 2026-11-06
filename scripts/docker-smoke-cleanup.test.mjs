@@ -325,6 +325,93 @@ test("fixture inspection errors remain visible after independent Docker cleanup"
   await access(options.fixture);
 });
 
+test("fallback cleanup removes containers before draining independent network and volume work", async (context) => {
+  const { options } = await fixture(context);
+  await rm(options.fixture, { recursive: true });
+  const containerStarted = Promise.withResolvers();
+  const releaseContainer = Promise.withResolvers();
+  const networkStarted = Promise.withResolvers();
+  const releaseNetwork = Promise.withResolvers();
+  const releaseVolume = Promise.withResolvers();
+  let containersRemoved = false;
+  let volumeStarted = false;
+  let networkFinished = false;
+  let volumeFinished = false;
+  const operation = cleanupWebsiteDocker({
+    ...options,
+    images: [],
+    builderAttempted: false,
+    docker: async (args) => {
+      if (args[0] === "container") {
+        if (args[1] === "ls") return "a".repeat(12);
+        containerStarted.resolve();
+        await releaseContainer.promise;
+        containersRemoved = true;
+      } else if (args[0] === "network") {
+        assert.equal(containersRemoved, true);
+        networkStarted.resolve();
+        await releaseNetwork.promise;
+        networkFinished = true;
+      } else if (args[0] === "volume") {
+        assert.equal(containersRemoved, true);
+        volumeStarted = true;
+        await releaseVolume.promise;
+        volumeFinished = true;
+      }
+      return "";
+    },
+    compose() {
+      throw Error("An absent fixture must not be read through Compose.");
+    },
+  });
+  const completedTooEarly = operation.then(() => {
+    throw Error("Cleanup completed before the controlled resource transition.");
+  });
+  try {
+    await Promise.race([containerStarted.promise, completedTooEarly]);
+    assert.equal(volumeStarted, false);
+    releaseContainer.resolve();
+    await Promise.race([networkStarted.promise, completedTooEarly]);
+    assert.equal(volumeStarted, true);
+  } finally {
+    releaseContainer.resolve();
+    releaseNetwork.resolve();
+    releaseVolume.resolve();
+    await operation;
+  }
+  assert.equal(networkFinished, true);
+  assert.equal(volumeFinished, true);
+});
+
+test("fallback cleanup still attempts networks and volumes after a container failure", async (context) => {
+  const { options } = await fixture(context);
+  await rm(options.fixture, { recursive: true });
+  const failure = Error("owned container query failed");
+  const calls = [];
+  await assert.rejects(
+    cleanupWebsiteDocker({
+      ...options,
+      images: [],
+      builderAttempted: false,
+      docker: async (args) => {
+        calls.push(args[0]);
+        if (args[0] === "container") throw failure;
+        return "";
+      },
+      compose() {
+        throw Error("An absent fixture must not be read through Compose.");
+      },
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 1);
+      assert.equal(error.errors[0].cause, failure);
+      return true;
+    },
+  );
+  assert.deepEqual(calls, ["container", "network", "volume"]);
+});
+
 test("fixture replacement during resource cleanup is preserved and reported", async (context) => {
   const { options } = await fixture(context);
   const saved = `${options.fixture}-original`;

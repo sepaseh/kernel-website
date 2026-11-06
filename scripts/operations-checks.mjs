@@ -23,7 +23,7 @@ export async function prepareDastContext(root, environment) {
   );
   validateWorkflowTargets("dast", inputs);
   const origin = new URL(inputs.DAST_TARGET).origin;
-  const pattern = `(?i)^${origin.replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:/.*)?$`;
+  const pattern = `(?i)^${origin.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)}(?:/.*)?$`;
   const output = await ensureArtifactDirectory(
     path.join(directory, "test-results/dast"),
   );

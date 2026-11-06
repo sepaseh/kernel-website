@@ -457,9 +457,8 @@ async function assertFixtureVolumesAvailable(docker, project) {
   );
 }
 
-/** Verify disposable Docker resources without operator state or target traffic. */
-export async function runDockerSmoke(root = repository, options = {}) {
-  const directory = await readyRunnerRoot(root);
+/** Validate cancellation, explicit CLI selection and local fixture before allocation. */
+async function dockerSmokeInputs(directory, options) {
   const signal = options.signal;
   if (signal !== undefined && !(signal instanceof AbortSignal))
     throw new TypeError("Docker smoke cancellation requires an AbortSignal.");
@@ -467,21 +466,31 @@ export async function runDockerSmoke(root = repository, options = {}) {
   const inherited = options.inherited ?? process.env;
   if (inherited?.KERNEL_SYNTHETIC_ENV !== "1")
     throw new Error("Docker smoke requires KERNEL_SYNTHETIC_ENV=1.");
-  const selectedDocker =
+  const selected =
     options.dockerCli ?? inherited.WEBSITE_DOCKER_CLI ?? systemDocker;
   if (
-    typeof selectedDocker !== "string" ||
-    !path.isAbsolute(selectedDocker) ||
-    /^[\\/]{2}/.test(selectedDocker) ||
-    /[\0\r\n]/.test(selectedDocker)
+    typeof selected !== "string" ||
+    !path.isAbsolute(selected) ||
+    /^[\\/]{2}/.test(selected) ||
+    /[\0\r\n]/.test(selected)
   )
     throw new Error("Docker CLI must be an explicit absolute local file path.");
-  const dockerCli = await (options.dockerFile ?? artifactFile)(selectedDocker);
+  const dockerCli = await (options.dockerFile ?? artifactFile)(selected);
   const api = await (options.resolveApi ?? resolveApiFixture)(
     directory,
     inherited,
   );
   signal?.throwIfAborted();
+  return { signal, dockerCli, api };
+}
+
+/** Verify disposable Docker resources without operator state or target traffic. */
+export async function runDockerSmoke(root = repository, options = {}) {
+  const directory = await readyRunnerRoot(root);
+  const { signal, dockerCli, api } = await dockerSmokeInputs(
+    directory,
+    options,
+  );
   const parent = path.resolve(os.tmpdir());
   const fixture = await mkdtemp(path.join(parent, "kernel-website-docker-"));
   const project = `kernel-website-test-${randomBytes(6).toString("hex")}`;

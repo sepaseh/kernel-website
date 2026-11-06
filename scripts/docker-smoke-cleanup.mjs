@@ -137,8 +137,8 @@ export async function assertWebsiteResourcesAvailable(docker, project, images) {
 
 /** Remove labelled engine resources without reading a rejected Compose fixture. */
 async function removeProjectResources(docker, project, attempt) {
-  for (const kind of ["container", "network", "volume"]) {
-    await attempt(`the test ${kind} resources`, async () => {
+  const remove = (kind) =>
+    attempt(`the test ${kind} resources`, async () => {
       const output = await docker(
         [
           kind,
@@ -166,7 +166,11 @@ async function removeProjectResources(docker, project, attempt) {
           ...resources,
         ]);
     });
-  }
+
+  // Containers hold both networks and volumes; those two resource kinds become
+  // independent only after every owned container removal has completed.
+  await remove("container");
+  await Promise.all([remove("network"), remove("volume")]);
 }
 
 /**

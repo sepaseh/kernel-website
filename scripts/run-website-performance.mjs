@@ -367,11 +367,11 @@ export async function launchLighthouseBrowser(root, options = {}) {
   } catch (error) {
     try {
       await owned.stop();
-    } catch (cleanup) {
+    } catch (error_) {
       throw new AggregateError(
-        [error, cleanup],
+        [error, error_],
         "Lighthouse browser ownership and cleanup failed.",
-        { cause: cleanup },
+        { cause: error_ },
       );
     }
     throw error;
