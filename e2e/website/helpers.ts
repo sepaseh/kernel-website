@@ -2,7 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import type { LocaleCode } from "@/i18n/catalog-data/locales";
-import english from "@/i18n/catalog-data/locales/en.json";
+import english from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
 import type { PublicSettingsResponse } from "@/shared/settings/contracts";
 
 export const fixtureCode = "123456";

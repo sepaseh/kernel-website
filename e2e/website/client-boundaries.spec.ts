@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import english from "@/i18n/catalog-data/locales/en.json";
+import english from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
 
 import { registerAccount, setSiteLanguage, websiteOrigin } from "./helpers";
 

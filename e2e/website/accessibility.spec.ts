@@ -2,8 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import en from "@/i18n/catalog-data/locales/en.json";
-import fa from "@/i18n/catalog-data/locales/fa.json";
+import en from "@/i18n/catalog-data/locales/en.json" with { type: "json" };
+import fa from "@/i18n/catalog-data/locales/fa.json" with { type: "json" };
 import { profileNameMaxLength } from "@/shared/contracts";
 
 import { setSiteLanguage, websiteOrigin } from "./helpers";
