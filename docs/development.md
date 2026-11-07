@@ -174,12 +174,19 @@ own its API and website processes. Stop manually started launchers first:
 
 ```sh
 node node_modules/@playwright/test/cli.js install chromium
+npm run build
 npm run test:e2e
+npm run test:accessibility
+npm run test:seo
+npm run test:csp
+npm run test:visual
 ```
 
-The e2e command runs enforcing and report-only CSP modes against the current
-website build and local HTTP fixture. This verifies frontend behavior against
-synthetic responses, not compatibility with a deployed backend.
+These commands consume the same verified website build and local HTTP fixture.
+Application journeys, accessibility, SEO, CSP and visual comparison run separately;
+the CSP command exercises both enforcing and report-only modes. A source or build
+change requires a new build. This verifies frontend behavior against synthetic
+responses, not compatibility with a deployed backend.
 
 Before handing off a change, follow [exact-tree validation](validation.md) in a
 fresh disposable export and run every required check:

@@ -362,6 +362,8 @@ const reviewedAdditions = {
     "next-env.d.ts",
     "next.config.ts",
     "postcss.config.mjs",
+    "scripts/verification-build.mjs",
+    "scripts/verification-build.test.mjs",
     "src/app/(auth)/forgot-password/page.tsx",
     "src/app/(auth)/layout.tsx",
     "src/app/(auth)/login/page.tsx",

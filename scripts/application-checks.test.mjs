@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { runApplicationCheck } from "./application-checks.mjs";
+import { verifyVerificationBuild } from "./verification-build.mjs";
 
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());
@@ -28,7 +37,16 @@ async function fixture(t, ready = true) {
   await put(".github/bootstrap-policy.json", {
     schemaVersion: 1,
     applicationReady: ready,
+    allowedFiles: [
+      ".nvmrc",
+      "package.json",
+      "package-lock.json",
+      "performance-budget.json",
+      "public/logo.svg",
+    ],
   });
+  await put(".nvmrc", process.version.slice(1));
+  await put("public/logo.svg", "owned public bytes");
   const manifest = {
     name: "kernel-website",
     type: "module",
@@ -134,6 +152,26 @@ const measurements = () => ({
   routes: { "/": { javaScriptBytes: 10, javaScriptGzipBytes: 4, cssBytes: 3 } },
 });
 
+async function populateBuild(root) {
+  for (const [name, content] of [
+    [".next/BUILD_ID", "owned-build"],
+    [".next/static/chunk.js", "owned static bytes"],
+    [".next/standalone/server.js", "// Owned synthetic server.\n"],
+  ]) {
+    const filename = path.join(root, name);
+    await mkdir(path.dirname(filename), { recursive: true });
+    await writeFile(filename, content);
+  }
+}
+
+async function prepareBuild(root, environment) {
+  await runApplicationCheck(root, "build", {
+    environment,
+    execute: () => populateBuild(root),
+    measureBundle: measurements,
+  });
+}
+
 test("application checks gate readiness before mode, options or execution access", async (t) => {
   const { root } = await fixture(t, false);
   const poison = new Proxy(
@@ -149,6 +187,9 @@ test("application checks gate readiness before mode, options or execution access
     "types",
     "build",
     "e2e",
+    "accessibility",
+    "seo",
+    "csp",
     "visual",
     "unknown",
   ])
@@ -316,6 +357,7 @@ test("production build must finish before real budget evaluation and consumes on
         "build",
       ]);
       order.push("build");
+      await populateBuild(root);
     },
     measureBundle: async (directory) => {
       assert.equal(directory, path.join(root, ".next"));
@@ -324,10 +366,16 @@ test("production build must finish before real budget evaluation and consumes on
     },
   });
   assert.deepEqual(order, ["build", "measure"]);
+  await verifyVerificationBuild(root, { environment });
+  assert.equal(
+    await readFile(path.join(root, ".next/standalone/public/logo.svg"), "utf8"),
+    "owned public bytes",
+  );
 });
 
 test("build execution, measurement and budget failures remain required failures", async (t) => {
   const { root, environment } = await fixture(t);
+  await prepareBuild(root, environment);
   const buildFailure = new Error("owned build failed");
   let measured = false;
   await assert.rejects(
@@ -343,6 +391,10 @@ test("build execution, measurement and budget failures remain required failures"
     (error) => error === buildFailure,
   );
   assert.equal(measured, false);
+  await assert.rejects(
+    readFile(path.join(root, "coverage/verification-build.json")),
+    { code: "ENOENT" },
+  );
   const measurementFailure = new Error("owned bundle graph missing");
   await assert.rejects(
     runApplicationCheck(root, "build", {
@@ -364,49 +416,80 @@ test("build execution, measurement and budget failures remain required failures"
   );
 });
 
-test("e2e dispatch awaits enforce-mode browser completion before report-only CSP and forwards cancellation", async (t) => {
+test("browser groups select disjoint owned suites and forward cancellation without rebuilding", async (t) => {
   const { root, environment } = await fixture(t);
+  await prepareBuild(root, environment);
   environment.WEBSITE_TEST_CSP_MODE = "report-only";
   const controller = new AbortController();
-  const order = [];
-  const result = await runApplicationCheck(root, "e2e", {
-    environment,
-    signal: controller.signal,
-    execute: async (options) => {
-      order.push("enforce");
-      assert.deepEqual(options.args, [
-        path.join(root, "node_modules/@playwright/test/cli.js"),
-        "test",
-        `--config=${path.join(root, "playwright.website.config.ts")}`,
-      ]);
-      assert.equal(options.env.WEBSITE_CSP_MODE, "enforce");
-      assert.equal(options.env.WEBSITE_TEST_CSP_MODE, "enforce");
-      assert.equal(options.env.WEBSITE_SKIP_BUILD, "1");
-      assert.equal(options.env.PLAYWRIGHT_BROWSERS_PATH, "0");
-      assert.equal(Object.hasOwn(options.env, "TOKEN"), false);
-      assert.equal(options.signal, controller.signal);
-    },
-    reportOnly: async (directory, options) => {
-      order.push("report-only");
-      assert.equal(directory, root);
-      assert.equal(options.signal, controller.signal);
-      assert.equal(options.environment.WEBSITE_CSP_MODE, "enforce");
-      assert.equal(options.environment.WEBSITE_TEST_CSP_MODE, "enforce");
-      return "owned report-only result";
-    },
-  });
-  assert.deepEqual(order, ["enforce", "report-only"]);
-  assert.equal(result, "owned report-only result");
+  const selected = [];
+  for (const [mode, files] of Object.entries({
+    accessibility: ["accessibility"],
+    csp: ["csp"],
+    e2e: [
+      "client-boundaries",
+      "font-performance",
+      "performance",
+      "session-isolation",
+      "website",
+    ],
+    seo: ["seo"],
+  })) {
+    const order = [];
+    const result = await runApplicationCheck(root, mode, {
+      environment,
+      signal: controller.signal,
+      execute: async (options) => {
+        order.push("enforce");
+        const paths = files.map((file) => `e2e/website/${file}.spec.ts`);
+        selected.push(...paths);
+        assert.deepEqual(options.args, [
+          path.join(root, "node_modules/@playwright/test/cli.js"),
+          "test",
+          `--config=${path.join(root, "playwright.website.config.ts")}`,
+          ...paths,
+        ]);
+        assert.equal(options.env.WEBSITE_CSP_MODE, "enforce");
+        assert.equal(options.env.WEBSITE_TEST_CSP_MODE, "enforce");
+        assert.equal(options.env.WEBSITE_SKIP_BUILD, "1");
+        assert.equal(options.env.PLAYWRIGHT_BROWSERS_PATH, "0");
+        assert.equal(Object.hasOwn(options.env, "TOKEN"), false);
+        assert.equal(options.signal, controller.signal);
+      },
+      reportOnly: async (directory, options) => {
+        order.push("report-only");
+        assert.equal(directory, root);
+        assert.equal(options.signal, controller.signal);
+        assert.equal(options.environment.WEBSITE_CSP_MODE, "enforce");
+        return "owned report-only result";
+      },
+    });
+    assert.deepEqual(
+      order,
+      mode === "csp" ? ["enforce", "report-only"] : ["enforce"],
+    );
+    assert.equal(
+      result,
+      mode === "csp" ? "owned report-only result" : undefined,
+    );
+  }
+  assert.equal(new Set(selected).size, 8);
+  assert.equal(selected.length, 8);
+  const authored = (await readdir(new URL("../e2e/website/", import.meta.url)))
+    .filter((filename) => filename.endsWith(".spec.ts"))
+    .map((filename) => `e2e/website/${filename}`);
+  const compare = (left, right) => (left < right ? -1 : Number(left > right));
+  assert.deepEqual(selected.toSorted(compare), authored.toSorted(compare));
   assert.equal(environment.WEBSITE_TEST_CSP_MODE, "report-only");
   assert.equal(Object.hasOwn(environment, "WEBSITE_SKIP_BUILD"), false);
 });
 
-test("failed enforce e2e never proceeds to report-only and report-only failure propagates", async (t) => {
+test("failed enforce CSP never proceeds to report-only and report-only failure propagates", async (t) => {
   const { root, environment } = await fixture(t);
+  await prepareBuild(root, environment);
   const failure = new Error("owned enforce suite failed");
   let reportOnlyCalls = 0;
   await assert.rejects(
-    runApplicationCheck(root, "e2e", {
+    runApplicationCheck(root, "csp", {
       environment,
       execute: async () => {
         throw failure;
@@ -420,7 +503,7 @@ test("failed enforce e2e never proceeds to report-only and report-only failure p
   assert.equal(reportOnlyCalls, 0);
   const reportFailure = new Error("owned report-only suite failed");
   await assert.rejects(
-    runApplicationCheck(root, "e2e", {
+    runApplicationCheck(root, "csp", {
       environment,
       execute: async () => {},
       reportOnly: async () => {
@@ -431,8 +514,40 @@ test("failed enforce e2e never proceeds to report-only and report-only failure p
   );
 });
 
+test("all browser groups refuse missing, stale or changed build evidence before child execution", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  let executions = 0;
+  const rejectAll = async (selectedEnvironment = environment) => {
+    for (const mode of ["accessibility", "csp", "e2e", "seo", "visual"])
+      await assert.rejects(
+        runApplicationCheck(root, mode, {
+          environment: selectedEnvironment,
+          execute: async () => {
+            executions++;
+          },
+          visual: async () => {
+            executions++;
+          },
+          reportOnly: async () => {
+            executions++;
+          },
+        }),
+      );
+  };
+  await rejectAll();
+  await prepareBuild(root, environment);
+  await put("public/logo.svg", "changed admitted source");
+  await rejectAll();
+  await prepareBuild(root, environment);
+  await rejectAll({ ...environment, WEBSITE_INDEXING_ENABLED: "true" });
+  await put(".next/standalone/server.js", "changed output");
+  await rejectAll();
+  assert.equal(executions, 0);
+});
+
 test("visual dispatch uses its guarded owner and retains explicit API selection and failure", async (t) => {
   const { root, environment } = await fixture(t);
+  await prepareBuild(root, environment);
   const controller = new AbortController();
   let calls = 0;
   const result = await runApplicationCheck(root, "visual", {
@@ -445,6 +560,7 @@ test("visual dispatch uses its guarded owner and retains explicit API selection 
       calls++;
       assert.equal(directory, root);
       assert.equal(options.signal, controller.signal);
+      assert.equal(options.reuseBuild, true);
       assert.equal(options.environment.WEBSITE_SKIP_BUILD, "1");
       assert.equal(options.environment.WEBSITE_CSP_MODE, "enforce");
       assert.equal(options.environment.PLAYWRIGHT_BROWSERS_PATH, "0");

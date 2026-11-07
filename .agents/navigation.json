@@ -366,18 +366,19 @@
     },
     {
       "id": "browser-tooling",
-      "when": "Change guarded browser configuration, installed SDK identity, synthetic origins, visual capture ownership or typed authored scenarios. This false-readiness phase supplies no executed browser or visual acceptance.",
+      "when": "Change guarded browser configuration, installed SDK identity, disjoint acceptance suites, verified build reuse or visual capture ownership. Application acceptance requires current real-browser execution.",
       "owners": [
+        "playwright.smoke.config.ts",
+        "playwright.staging.config.ts",
+        "playwright.visual.config.ts",
+        "playwright.website.config.ts",
         "scripts/application-checks.mjs",
         "scripts/browser-inputs.mjs",
         "scripts/playwright-config.mjs",
         "scripts/run-visual.mjs",
         "scripts/test-csp-report-only.mjs",
         "scripts/validate-workflow-targets.mjs",
-        "playwright.website.config.ts",
-        "playwright.visual.config.ts",
-        "playwright.smoke.config.ts",
-        "playwright.staging.config.ts"
+        "scripts/verification-build.mjs"
       ],
       "contracts": [
         "docs/browser-foundation.md",
@@ -391,9 +392,21 @@
         "scripts/playwright-config.test.mjs",
         "scripts/run-visual.test.mjs",
         "scripts/test-csp-report-only.test.mjs",
-        "scripts/validate-workflow-targets.test.mjs"
+        "scripts/validate-workflow-targets.test.mjs",
+        "scripts/verification-build.test.mjs"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "governance-coverage"],
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "governance-coverage",
+        "build",
+        "e2e",
+        "accessibility",
+        "seo",
+        "csp",
+        "visual"
+      ],
       "rules": [".agents/rules/testing.md"]
     },
     {
@@ -638,6 +651,7 @@
       "owners": [
         "scripts/application-checks.mjs",
         "scripts/test-website-api.mjs",
+        "scripts/verification-build.mjs",
         "src/app/(auth)/forgot-password/page.tsx",
         "src/app/(auth)/layout.tsx",
         "src/app/(auth)/login/page.tsx",
@@ -683,12 +697,16 @@
         "dead-code",
         "build",
         "e2e",
+        "accessibility",
+        "seo",
+        "csp",
         "visual"
       ],
       "id": "application",
       "tests": [
         "scripts/application-checks.test.mjs",
         "scripts/test-website-api.test.mjs",
+        "scripts/verification-build.test.mjs",
         "src/app/[...rest]/page.test.tsx",
         "src/app/_components/HeaderAccountLink.test.tsx",
         "src/app/error.test.tsx",

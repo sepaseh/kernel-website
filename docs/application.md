@@ -27,9 +27,10 @@ and retain their exact import and coverage permissions.
 
 ## Exact-tree acceptance
 
-The [full profile](../.agents/validation.json) contains sixteen required checks,
-including dead-code analysis, production build/bundle, real browser journeys in
-enforcing and report-only CSP modes, and visual comparison. The inventory,
+The [full profile](../.agents/validation.json) contains every required check,
+including dead-code analysis, one verified production build/bundle, disjoint
+application, accessibility, SEO and CSP browser suites, and visual comparison.
+The CSP suite retains enforcing and report-only modes. The inventory,
 manifest, package scripts, import/type/lint/coverage configuration and CI policy
 must agree. Follow [validation](validation.md) for fresh installs, the isolated
 proposed tree and complete execution; focused checks do not replace that gate.
@@ -48,9 +49,10 @@ metadata. Keep baseline bytes and dates intact. Updating an image requires
 explicit authorization and actual visual review; capture failure leaves review
 pending. See [visual regression](visual-regression.md).
 
-Before runnable merge, observe genuine current-head `check`, `build`, `e2e` and
-`visual` jobs and make the required contexts protected through an explicitly
-authorized policy change. Scanner execution, native Sonar quality gate and review
+Before runnable merge, observe genuine current-head success from every required
+CI producer and the protected `check` aggregate. The aggregate must require the
+application build, each browser suite and visual comparison. Changes to protected
+contexts require explicit authorization. Scanner execution, native Sonar quality gate and review
 are separate evidence under [branch protection](branch-protection.md) and the
 [CodeRabbit preflight](reviews.md#before-requesting-coderabbit).
 

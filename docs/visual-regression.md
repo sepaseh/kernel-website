@@ -2,7 +2,7 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-The current `application` phase has `applicationReady: true`. The guarded
+The current `operations` phase has `applicationReady: true`. The guarded
 visual runner still rejects false or invalid markers before configuration,
 dependencies or browser startup.
 The retained Windows PNGs and capture metadata are historical evidence, not a
@@ -26,9 +26,10 @@ registration uses a full-page screenshot.
    images/metadata. A missing or incompatible baseline is a failure.
 3. Stop manually owned website/API launchers before the run. Keep build/browser
    work sequential; do not remove another process's Next or visual lock.
-4. Run the registered comparison command:
+4. Build the current source, then run the registered comparison command:
 
 ```sh
+npm run build
 npm run test:visual
 ```
 
@@ -44,7 +45,15 @@ retries remain excluded, even with different fixture ports. Confirm the owned
 process has stopped and inspect lock ownership before manually recovering that
 lock; a replacement owner's lock must be preserved.
 
-When readiness permits execution, the runner starts its owned website build/API
+Direct execution with `node scripts/run-visual.mjs` builds by default. The registered
+`npm run test:visual` command, canonical full gate
+and hosted visual job reuse the single verified production build. Reuse checks
+the admitted source fingerprint, semantic environment, exact Node/Next/platform
+identity and every non-cache `.next` file before capture, including under the
+visual lock. Hosted reuse also binds that build to its successful same-run
+producer attempt. A `BUILD_ID` alone does not authorize reuse. Baseline updates
+cannot reuse a build.
+When readiness permits execution, the runner starts its owned website/API
 processes through Playwright.
 The suite waits for local fonts, verifies language/theme/content and blocks
 unexpected external application requests before taking screenshots.
@@ -88,7 +97,8 @@ exercise process/cleanup behavior with synthetic programs. Neither substitutes
 for a real pixel comparison. Report actual comparison results and missing
 evidence separately from local helper passes.
 
-Future application acceptance runs build, browser/CSP and visual checks
-sequentially as described by [validation](validation.md). Screenshots complement
+Local full acceptance runs build and the disjoint browser profiles sequentially
+as described by [validation](validation.md). Hosted browser jobs use isolated
+copies of the same verified build. Screenshots complement
 [accessibility](accessibility.md) and behavior tests; they do not establish API
 authorization, deployed security or complete accessibility conformance.

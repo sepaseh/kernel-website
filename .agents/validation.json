@@ -98,7 +98,7 @@
       "id": "build",
       "command": "npm run build",
       "kind": "required",
-      "ciJobs": ["build", "e2e", "visual"],
+      "ciJobs": ["build"],
       "scopes": ["operations"]
     },
     {
@@ -106,6 +106,27 @@
       "command": "npm run test:e2e",
       "kind": "required",
       "ciJobs": ["e2e"],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "accessibility",
+      "command": "npm run test:accessibility",
+      "kind": "required",
+      "ciJobs": ["accessibility"],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "seo",
+      "command": "npm run test:seo",
+      "kind": "required",
+      "ciJobs": ["seo"],
+      "scopes": ["operations"]
+    },
+    {
+      "id": "csp",
+      "command": "npm run test:csp",
+      "kind": "required",
+      "ciJobs": ["csp"],
       "scopes": ["operations"]
     },
     {
@@ -168,6 +189,9 @@
       "dead-code",
       "build",
       "e2e",
+      "accessibility",
+      "seo",
+      "csp",
       "visual"
     ],
     "ci-quality": [
@@ -185,6 +209,9 @@
     "ci-governance": ["governance-coverage", "font-integrity"],
     "ci-build": ["dead-code", "build"],
     "ci-e2e": ["e2e"],
+    "ci-accessibility": ["accessibility"],
+    "ci-seo": ["seo"],
+    "ci-csp": ["csp"],
     "ci-visual": ["visual"]
   },
   "externalWorkflows": [

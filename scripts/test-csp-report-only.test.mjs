@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { abortOnFixtureFile } from "./runner.test-support.mjs";
 import { runCspReportOnly } from "./test-csp-report-only.mjs";
+import { recordVerificationBuild } from "./verification-build.mjs";
 
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());
@@ -38,10 +39,19 @@ async function fixture(t, ready = true) {
   await put(".github/bootstrap-policy.json", {
     schemaVersion: 1,
     applicationReady: ready,
+    allowedFiles: [
+      ".nvmrc",
+      "package.json",
+      "package-lock.json",
+      "public/logo.svg",
+    ],
   });
+  await put(".nvmrc", process.version.slice(1));
+  await put("public/logo.svg", "owned public source");
   await put("package.json", {
     name: "kernel-website",
     type: "module",
+    dependencies: { next: "16.4.3" },
     devDependencies: { "@playwright/test": "1.64.1" },
   });
   await put("package-lock.json", {
@@ -49,12 +59,14 @@ async function fixture(t, ready = true) {
     packages: {
       "": {
         name: "kernel-website",
+        dependencies: { next: "16.4.3" },
         devDependencies: { "@playwright/test": "1.64.1" },
       },
       "node_modules/@playwright/test": {
         version: "1.64.1",
         dependencies: { playwright: "1.64.1" },
       },
+      "node_modules/next": { version: "16.4.3" },
       "node_modules/playwright": {
         version: "1.64.1",
         dependencies: { "playwright-core": "1.64.1" },
@@ -68,6 +80,10 @@ async function fixture(t, ready = true) {
     type: "module",
     bin: { playwright: "cli.js" },
     dependencies: { playwright: "1.64.1" },
+  });
+  await put("node_modules/next/package.json", {
+    name: "next",
+    version: "16.4.3",
   });
   await put("node_modules/playwright/package.json", {
     name: "playwright",
@@ -113,7 +129,13 @@ async function fixture(t, ready = true) {
     NODE_OPTIONS: "--invalid-option",
     TOKEN: "synthetic-disallowed",
   };
-  return { root, put, environment };
+  const prepareBuild = async () => {
+    await put(".next/BUILD_ID", "owned-build");
+    await put(".next/static/chunk.js", "owned static output");
+    await put(".next/standalone/server.js", "// Owned prepared server.\n");
+    await recordVerificationBuild(root, { environment });
+  };
+  return { root, put, environment, prepareBuild };
 }
 
 test("CSP runner imports stay inert and its actual CLI refuses absent public inputs", async () => {
@@ -186,7 +208,8 @@ test("CSP wrapper rejects every extra argument before resolving the SDK", async 
 });
 
 test("CSP wrapper executes the exact owned CLI with public origins and forced report-only skip-build mode", async (t) => {
-  const { root, put, environment } = await fixture(t);
+  const { root, put, environment, prepareBuild } = await fixture(t);
+  await prepareBuild();
   await put(
     "node_modules/@playwright/test/cli.js",
     `import{writeFileSync}from'node:fs';writeFileSync('csp-execution.json',JSON.stringify({args:process.argv.slice(2),cwd:process.cwd(),environment:process.env}));`,
@@ -221,8 +244,24 @@ test("CSP wrapper executes the exact owned CLI with public origins and forced re
     assert.equal(Object.hasOwn(actual.environment, key), false);
 });
 
+test("CSP report-only acceptance refuses unverified or stale prepared builds before launching", async (t) => {
+  const { root, put, environment, prepareBuild } = await fixture(t);
+  await put(
+    "node_modules/@playwright/test/cli.js",
+    "import{writeFileSync}from'node:fs';writeFileSync('unexpected-csp-start', 'started');",
+  );
+  await assert.rejects(runCspReportOnly(root, { environment }));
+  await prepareBuild();
+  await put("public/logo.svg", "changed admitted source");
+  await assert.rejects(runCspReportOnly(root, { environment }));
+  await assert.rejects(readFile(path.join(root, "unexpected-csp-start")), {
+    code: "ENOENT",
+  });
+});
+
 test("CSP actual child failures and cancellation remain observable failures", async (t) => {
-  const { root, put, environment } = await fixture(t);
+  const { root, put, environment, prepareBuild } = await fixture(t);
+  await prepareBuild();
   await put("node_modules/@playwright/test/cli.js", "process.exitCode=7;\n");
   await assert.rejects(
     runCspReportOnly(root, { environment, stdio: "ignore" }),

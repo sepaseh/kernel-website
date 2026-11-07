@@ -22,6 +22,7 @@ import {
   abortOnFixtureFile,
   controlledStopTimers,
 } from "./runner.test-support.mjs";
+import { recordVerificationBuild } from "./verification-build.mjs";
 import { acquireVisualLock } from "./visual-environment.mjs";
 
 async function unusedPort() {
@@ -58,7 +59,14 @@ async function fixture(t, ready = true) {
   await put(".github/bootstrap-policy.json", {
     schemaVersion: 1,
     applicationReady: ready,
+    allowedFiles: [
+      ".nvmrc",
+      "package.json",
+      "package-lock.json",
+      "public/logo.svg",
+    ],
   });
+  await put(".nvmrc", process.version.slice(1));
   await put("package.json", {
     name: "kernel-website",
     type: "module",
@@ -165,7 +173,25 @@ async function fixture(t, ready = true) {
     },
   };
   await put(metadataPath, reviewed);
-  return { root, put, environment, metadataPath, reviewed };
+  const prepareBuild = async () => {
+    const manifest = await json(root, "package.json");
+    manifest.dependencies = { next: "16.4.3" };
+    await put("package.json", manifest);
+    const lock = await json(root, "package-lock.json");
+    lock.packages[""].dependencies = manifest.dependencies;
+    lock.packages["node_modules/next"] = { version: "16.4.3" };
+    await put("package-lock.json", lock);
+    await put("node_modules/next/package.json", {
+      name: "next",
+      version: "16.4.3",
+    });
+    await put("public/logo.svg", "owned public source");
+    await put(".next/BUILD_ID", "owned-build");
+    await put(".next/static/chunk.js", "owned static output");
+    await put(".next/standalone/server.js", "// Owned prepared server.\n");
+    await recordVerificationBuild(root, { environment });
+  };
+  return { root, put, environment, metadataPath, reviewed, prepareBuild };
 }
 
 const json = async (root, name) =>
@@ -304,6 +330,47 @@ test("comparison refuses missing or unreviewed metadata and mismatched browser w
     runVisual(root, { environment }),
     /Chromium does not match/,
   );
+  await noFile(root, "capture.json");
+  await lockReleased(root);
+});
+
+test("verified visual reuse preserves build bytes and uses skip-build without updating baselines", async (t) => {
+  const { root, environment, metadataPath, reviewed, prepareBuild } =
+    await fixture(t);
+  await prepareBuild();
+  const record = await readFile(
+    path.join(root, "coverage/verification-build.json"),
+  );
+  await runVisual(root, { environment, reuseBuild: true });
+  assert.equal(
+    (await json(root, "capture.json")).environment.WEBSITE_SKIP_BUILD,
+    "1",
+  );
+  assert.deepEqual(
+    await readFile(path.join(root, "coverage/verification-build.json")),
+    record,
+  );
+  assert.deepEqual(await json(root, metadataPath), reviewed);
+  await lockReleased(root);
+});
+
+test("visual reuse refuses invalid switches, updates and unverified output before probing", async (t) => {
+  const { root, put, environment, prepareBuild } = await fixture(t);
+  for (const reuseBuild of [null, "1", 1])
+    await assert.rejects(
+      runVisual(root, { environment, reuseBuild }),
+      /explicit boolean/,
+    );
+  await assert.rejects(
+    runVisual(root, { environment, reuseBuild: true, argv: ["--update"] }),
+    /fresh owned build/,
+  );
+  await assert.rejects(runVisual(root, { environment, reuseBuild: true }));
+  await noFile(root, "probe.json");
+  await prepareBuild();
+  await put(".next/static/chunk.js", "tampered output");
+  await assert.rejects(runVisual(root, { environment, reuseBuild: true }));
+  await noFile(root, "probe.json");
   await noFile(root, "capture.json");
   await lockReleased(root);
 });

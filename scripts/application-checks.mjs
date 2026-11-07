@@ -9,6 +9,7 @@ import {
   evaluateWebsiteBudget,
   measureWebsiteBundle,
 } from "./check-bundle-website.mjs";
+import { prepareStandalone } from "./prepare-standalone.mjs";
 import { artifactFile, readArtifactFile } from "./release-files.mjs";
 import { runVisual } from "./run-visual.mjs";
 import {
@@ -18,9 +19,33 @@ import {
 } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
 import { runCspReportOnly } from "./test-csp-report-only.mjs";
+import {
+  fingerprintBuildSource,
+  invalidateVerificationBuild,
+  recordVerificationBuild,
+  verifyVerificationBuild,
+} from "./verification-build.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
-const modes = new Set(["dead-code", "types", "build", "e2e", "visual"]);
+const browserSuites = {
+  accessibility: ["accessibility.spec.ts"],
+  csp: ["csp.spec.ts"],
+  e2e: [
+    "client-boundaries.spec.ts",
+    "font-performance.spec.ts",
+    "performance.spec.ts",
+    "session-isolation.spec.ts",
+    "website.spec.ts",
+  ],
+  seo: ["seo.spec.ts"],
+};
+const modes = new Set([
+  "dead-code",
+  "types",
+  "build",
+  ...Object.keys(browserSuites),
+  "visual",
+]);
 /** Read JSON only through the unlinked regular-file guard; preserve parse failures. */
 const readJson = async (filename) =>
   JSON.parse((await readArtifactFile(filename)).toString("utf8"));
@@ -52,14 +77,31 @@ async function knipCli(root) {
   return artifactFile(path.join(root, "node_modules/knip/bin/knip.js"));
 }
 
+/** Record only a completed, budget-checked and prepared production build. */
+async function buildWebsite(directory, inherited, run, measureBundle) {
+  await invalidateVerificationBuild(directory);
+  const source = await fingerprintBuildSource(directory);
+  await run([await resolveNextCli(directory), "build"]);
+  const bundle = await measureBundle(path.join(directory, ".next"));
+  const budget = await readJson(
+    path.join(directory, "performance-budget.json"),
+  );
+  const failures = evaluateWebsiteBudget(bundle, budget);
+  if (failures.length) throw new Error(failures.join("\n"));
+
+  await prepareStandalone(directory);
+  await recordVerificationBuild(directory, { environment: inherited, source });
+  console.log("Production build and bundle budgets passed.");
+}
+
 /**
  * Check readiness before options, synthetic inputs or installed tools are read.
- * Dispatch one owned check: build awaits budget measurement, while E2E awaits
+ * Dispatch one owned check: build awaits budget measurement, while CSP awaits
  * enforce-mode success before its report-only pass. Visual mode delegates to
  * the guarded capture owner; this entry does not establish application readiness.
  *
  * @param {string} root Website root with an explicit true readiness marker.
- * @param {string} mode One of dead-code, types, build, e2e or visual.
+ * @param {string} mode One of the declared static, build or browser checks.
  * @param {object} options Public environment, cancellation and execution hooks.
  * @returns {Promise<unknown>} The selected check's result after owned completion.
  * @throws On invalid input, cancellation, child failure or an exceeded budget.
@@ -90,19 +132,16 @@ export async function runApplicationCheck(root, mode, options = {}) {
   if (mode === "types")
     return run([await resolveNextCli(directory), "typegen"]);
   if (mode === "build") {
-    await run([await resolveNextCli(directory), "build"]);
-    const bundle = await (options.measureBundle ?? measureWebsiteBundle)(
-      path.join(directory, ".next"),
+    return buildWebsite(
+      directory,
+      inherited,
+      run,
+      options.measureBundle ?? measureWebsiteBundle,
     );
-    const budget = await readJson(
-      path.join(directory, "performance-budget.json"),
-    );
-    const failures = evaluateWebsiteBudget(bundle, budget);
-    if (failures.length) throw new Error(failures.join("\n"));
-    console.log("Production build and bundle budgets passed.");
-    return;
   }
   const browserInputs = await syntheticBrowserInputs(directory, inherited);
+  await verifyVerificationBuild(directory, { environment: inherited });
+  signal?.throwIfAborted();
   const browserEnvironment = {
     ...browserInputs.websiteEnvironment,
     WEBSITE_SKIP_BUILD: "1",
@@ -114,19 +153,22 @@ export async function runApplicationCheck(root, mode, options = {}) {
     return (options.visual ?? runVisual)(directory, {
       environment: browserEnvironment,
       signal,
+      reuseBuild: true,
     });
   await run(
     [
       await resolvePlaywrightCli(directory),
       "test",
       `--config=${path.join(directory, "playwright.website.config.ts")}`,
+      ...browserSuites[mode].map((filename) => `e2e/website/${filename}`),
     ],
     browserEnvironment,
   );
-  return (options.reportOnly ?? runCspReportOnly)(directory, {
-    environment: browserEnvironment,
-    signal,
-  });
+  if (mode === "csp")
+    return (options.reportOnly ?? runCspReportOnly)(directory, {
+      environment: browserEnvironment,
+      signal,
+    });
 }
 
 await runVerificationCli(import.meta.main, repository, ({ signal }) => {

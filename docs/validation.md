@@ -7,12 +7,13 @@ required check commands and their full-profile order.
 ## Local and hosted execution
 
 Local `full` validation still runs all required checks once. Hosted CI uses
-the static, audit, unit, governance and application runtime profiles as an exact partition of
-that gate. The static checks and test suites install their locked dependencies;
+the static, audit, unit, governance, build, functional E2E, accessibility, SEO,
+CSP and visual profiles as an exact partition of the complete required gate.
+The static checks and test suites install their locked dependencies;
 the dependency audit reads the lockfile without an installation.
 
 The static profile includes `npm run check:actions`, which runs pinned
-actionlint 1.7.12 against both admitted workflows. The runner verifies official
+actionlint 1.7.12 against the admitted workflows. The runner verifies official
 Windows/Linux x64 release archives by SHA-256 and keeps them under ignored
 `coverage/tools/actionlint/`. Each invocation extracts its own binary and cleans
 that owned extraction. Cached archives are checked and read through the same open
@@ -30,8 +31,17 @@ The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
 Unit and governance jobs each record and upload their measured coverage once;
 Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. The application phase also requires real dead-code, production build, browser/CSP
-and visual checks. Typechecking includes the authored suites through the
+own hosted security workflow. A single Windows build owns dead-code analysis,
+the production build and bundle budgets. Its immutable artifact contains the
+prepared `.next` output, excluding the known build caches and standalone runtime
+route cache, and source/environment/toolchain/output
+proofs. Every browser job verifies the original build producer's attempt and
+exact output before its own acceptance profile; no browser job builds again.
+Immutable server code and static assets remain fully hashed; the route cache
+may be populated by requests after verification.
+Artifact names include run and producer attempt, digest mismatches fail, and
+changed source, semantic environment, toolchain or output bytes reject reuse.
+Typechecking includes the authored suites through the
 [tooling project](../tsconfig.tooling.json); compilation alone supplies no browser execution evidence.
 
 ## Prepare an owned export
@@ -71,7 +81,8 @@ and Arm64 on glibc Linux and macOS. The installed Playwright SDK must also provi
 with `PLAYWRIGHT_BROWSERS_PATH=0` inside the disposable export.
 
 The full profile executes the real production build, browser/CSP journeys and
-current visual comparison sequentially under one writer. Supply explicit public
+current visual comparison sequentially under one writer, using one verified
+production build across the browser profiles. Supply explicit public
 loopback origins on distinct website/API ports, use this repository's synthetic
 HTTP fixture, and preserve reviewed baseline bytes and dates. Never toggle the
 source marker to bypass missing composition or use a real backend as a fixture.
