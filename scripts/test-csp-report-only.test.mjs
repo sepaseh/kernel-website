@@ -44,6 +44,9 @@ async function fixture(t, ready = true) {
       "package.json",
       "package-lock.json",
       "public/logo.svg",
+      "playwright.website.config.ts",
+      "e2e/website/csp.spec.ts",
+      "scripts/website-api-fixture.mjs",
     ],
   });
   await put(".nvmrc", process.version.slice(1));

@@ -60,6 +60,7 @@ async function fixture(t, scenario = {}) {
     ],
   });
   await put(".nvmrc", process.version.slice(1));
+  await mkdir(path.join(root, "coverage"));
   await put("package.json", {
     name: "kernel-website",
     dependencies: { next: "16.4.3" },
@@ -69,7 +70,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 if (fs.readFileSync(path.join(__dirname, 'public/logo.svg'), 'utf8') !== 'owned-public') throw new Error('public assets not prepared');
 if (fs.readFileSync(path.join(__dirname, '.next/static/chunk.js'), 'utf8') !== 'owned-static') throw new Error('static assets not prepared');
-fs.appendFileSync('trace.jsonl', JSON.stringify({kind:'server',csp:process.env.WEBSITE_CSP_MODE, nodeOptions:process.env.NODE_OPTIONS ?? null, database:process.env.DATABASE_URL ?? null})+'\\n');
+fs.appendFileSync('coverage/trace.jsonl', JSON.stringify({kind:'server',csp:process.env.WEBSITE_CSP_MODE, nodeOptions:process.env.NODE_OPTIONS ?? null, database:process.env.DATABASE_URL ?? null})+'\\n');
 ${scenario.server === "hold" ? "require('node:net').createServer().listen(0,'127.0.0.1');fs.writeFileSync('server-started.tmp','ready');fs.renameSync('server-started.tmp','server-started');" : scenario.server === "fail" ? "process.exitCode = 9;" : ""}
 `;
   const populateBuild = async () => {
@@ -95,7 +96,7 @@ ${scenario.server === "hold" ? "require('node:net').createServer().listen(0,'127
       `
 const fs = require('node:fs');
 const path = require('node:path');
-fs.appendFileSync('trace.jsonl', JSON.stringify({kind:'build',args:process.argv.slice(2), csp:process.env.WEBSITE_CSP_MODE,nodeOptions:process.env.NODE_OPTIONS ?? null,database:process.env.DATABASE_URL ?? null})+'\\n');
+fs.appendFileSync('coverage/trace.jsonl', JSON.stringify({kind:'build',args:process.argv.slice(2), csp:process.env.WEBSITE_CSP_MODE,nodeOptions:process.env.NODE_OPTIONS ?? null,database:process.env.DATABASE_URL ?? null})+'\\n');
 ${
   scenario.build === "fail"
     ? "process.exitCode=7;"
@@ -113,7 +114,7 @@ ${
   }
   const trace = async () => {
     try {
-      return (await readFile(path.join(root, "trace.jsonl"), "utf8"))
+      return (await readFile(path.join(root, "coverage/trace.jsonl"), "utf8"))
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line));

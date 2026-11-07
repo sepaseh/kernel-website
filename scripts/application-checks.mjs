@@ -10,7 +10,11 @@ import {
   measureWebsiteBundle,
 } from "./check-bundle-website.mjs";
 import { prepareStandalone } from "./prepare-standalone.mjs";
-import { artifactFile, readArtifactFile } from "./release-files.mjs";
+import {
+  artifactFile,
+  completeArtifactWork,
+  readArtifactFile,
+} from "./release-files.mjs";
 import { runVisual } from "./run-visual.mjs";
 import {
   readyRunnerRoot,
@@ -78,20 +82,42 @@ async function knipCli(root) {
 }
 
 /** Record only a completed, budget-checked and prepared production build. */
-async function buildWebsite(directory, inherited, run, measureBundle) {
+async function buildWebsite(
+  directory,
+  environment,
+  run,
+  measureBundle,
+  signal,
+) {
   await invalidateVerificationBuild(directory);
-  const source = await fingerprintBuildSource(directory);
-  await run([await resolveNextCli(directory), "build"]);
-  const bundle = await measureBundle(path.join(directory, ".next"));
-  const budget = await readJson(
-    path.join(directory, "performance-budget.json"),
-  );
-  const failures = evaluateWebsiteBudget(bundle, budget);
-  if (failures.length) throw new Error(failures.join("\n"));
+  try {
+    const source = await fingerprintBuildSource(directory, { signal });
+    const next = await resolveNextCli(directory);
+    signal?.throwIfAborted();
+    await run([next, "build"]);
+    signal?.throwIfAborted();
+    const bundle = await measureBundle(path.join(directory, ".next"));
+    signal?.throwIfAborted();
+    const budget = await readJson(
+      path.join(directory, "performance-budget.json"),
+    );
+    signal?.throwIfAborted();
+    const failures = evaluateWebsiteBudget(bundle, budget);
+    if (failures.length) throw new Error(failures.join("\n"));
 
-  await prepareStandalone(directory);
-  await recordVerificationBuild(directory, { environment: inherited, source });
-  console.log("Production build and bundle budgets passed.");
+    await prepareStandalone(directory);
+    signal?.throwIfAborted();
+    await recordVerificationBuild(directory, { environment, source, signal });
+    signal?.throwIfAborted();
+    console.log("Production build and bundle budgets passed.");
+  } catch (error) {
+    if (signal?.aborted)
+      await completeArtifactWork([
+        Promise.reject(error),
+        invalidateVerificationBuild(directory),
+      ]);
+    throw error;
+  }
 }
 
 /**
@@ -117,7 +143,7 @@ export async function runApplicationCheck(root, mode, options = {}) {
   signal?.throwIfAborted();
   const inherited = options.environment ?? process.env;
   const inputs = await syntheticRunnerInputs(directory, inherited);
-  const environment = inputs.websiteEnvironment;
+  const environment = Object.freeze(inputs.websiteEnvironment);
   const execute = options.execute ?? runOwnedProcess;
   const run = (args, env = environment) =>
     execute({
@@ -134,9 +160,10 @@ export async function runApplicationCheck(root, mode, options = {}) {
   if (mode === "build") {
     return buildWebsite(
       directory,
-      inherited,
+      environment,
       run,
       options.measureBundle ?? measureWebsiteBundle,
+      signal,
     );
   }
   const browserInputs = await syntheticBrowserInputs(directory, inherited);

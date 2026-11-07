@@ -68,7 +68,10 @@ npm run test:csp
 ```
 
 The CSP command runs the six enforcing scenarios and then the same scenarios in
-report-only mode against the verified production build. Preserve the first failure;
+report-only mode against the verified production build. HTML reports and failure
+artifacts remain separate under `playwright-report/website/enforce`,
+`playwright-report/website/report-only` and their matching `test-results` paths.
+Preserve the first failure;
 [troubleshooting](troubleshooting.md) covers setup failures.
 
 Gateway and TLS wiring, remote origins and collectors require separate

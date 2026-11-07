@@ -64,6 +64,18 @@ async function fixture(t, ready = true) {
       "package.json",
       "package-lock.json",
       "public/logo.svg",
+      "playwright.visual.config.ts",
+      "e2e/visual/website.spec.ts",
+      "e2e/visual/readiness.ts",
+      `e2e/visual/baselines/${process.platform}/metadata.json`,
+      "src/app/globals.css",
+      "src/features/home/Home.tsx",
+      "src/app/_components/Header.tsx",
+      "src/features/auth/login/Login.tsx",
+      "src/features/auth/register/Register.tsx",
+      "src/shared/fonts/manifest.json",
+      "src/shared/fonts/vazirmatn.css",
+      "scripts/website-api-fixture.mjs",
     ],
   });
   await put(".nvmrc", process.version.slice(1));

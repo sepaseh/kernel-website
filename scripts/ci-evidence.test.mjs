@@ -125,6 +125,7 @@ const buildFixture = async (context) => {
         ".nvmrc",
         "package.json",
         "package-lock.json",
+        "scripts/subset-website-fonts.py",
         "src/example.ts",
       ],
     }),

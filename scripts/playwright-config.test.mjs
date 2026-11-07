@@ -483,6 +483,53 @@ test("website configuration refuses missing or non-loopback fixture inputs", asy
   assert.equal(config.forbidOnly, true);
 });
 
+test("CSP modes keep separate reports and failure artifacts when the next run clears its output", async (t) => {
+  const { put, root } = await fixture(t);
+  const environment = await synthetic(t, put, root);
+  const enforcing = await createPlaywrightConfig(root, "website", {
+    environment: { ...environment, WEBSITE_TEST_CSP_MODE: "enforce" },
+  });
+  const reportOnly = await createPlaywrightConfig(root, "website", {
+    environment: {
+      ...environment,
+      WEBSITE_CSP_MODE: "report-only",
+      WEBSITE_TEST_CSP_MODE: "report-only",
+    },
+  });
+  const reportFolder = (config) =>
+    config.reporter.find(([name]) => name === "html")[1].outputFolder;
+  for (const [mode, config] of [
+    ["enforce", enforcing],
+    ["report-only", reportOnly],
+  ]) {
+    assert.equal(
+      config.outputDir,
+      path.join(root, "test-results", "website", mode),
+    );
+    assert.equal(
+      reportFolder(config),
+      path.join(root, "playwright-report", "website", mode),
+    );
+  }
+
+  for (const directory of [reportFolder(enforcing), enforcing.outputDir]) {
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "enforcing-evidence"), "retained");
+  }
+  for (const directory of [reportFolder(reportOnly), reportOnly.outputDir]) {
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "previous-run"), "replaced");
+    await rm(directory, { recursive: true });
+    await mkdir(directory);
+    await writeFile(path.join(directory, "report-only-evidence"), "current");
+  }
+  for (const directory of [reportFolder(enforcing), enforcing.outputDir])
+    assert.equal(
+      await readFile(path.join(directory, "enforcing-evidence"), "utf8"),
+      "retained",
+    );
+});
+
 test("visual data preserves exact thresholds and denies CI updates and unguarded loading", async (t) => {
   const { put, root } = await fixture(t);
   const environment = await synthetic(t, put, root);

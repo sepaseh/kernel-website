@@ -344,8 +344,10 @@ jobs:
         with:
           name: csp-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            playwright-report
-            test-results
+            playwright-report/website/enforce
+            playwright-report/website/report-only
+            test-results/website/enforce
+            test-results/website/report-only
           if-no-files-found: error
           retention-days: 14
           overwrite: false

@@ -161,7 +161,7 @@ test("standalone route-cache writes reuse the proof while neighboring code, stat
   const cacheDirectory = path.join(root, cache);
   assert.ok(path.relative(root, cacheDirectory).startsWith(`.next${path.sep}`));
   await rm(cacheDirectory, { recursive: true });
-  const target = path.join(root, "owned-empty-cache");
+  const target = path.join(root, "coverage/owned-empty-cache");
   await mkdir(target);
   await symlink(
     target,
@@ -248,6 +248,7 @@ test("readiness precedes options and private source paths are rejected before re
   for (const operation of [recordVerificationBuild, verifyVerificationBuild])
     await assert.rejects(operation(root, poison), /non-runnable/);
   await assert.rejects(fingerprintBuildSource(root), /non-runnable/);
+  await assert.rejects(fingerprintBuildSource(root, poison), /non-runnable/);
   await assert.rejects(invalidateVerificationBuild(root), /non-runnable/);
   policy.applicationReady = true;
   for (const filename of [
@@ -264,10 +265,224 @@ test("readiness precedes options and private source paths are rejected before re
   }
 });
 
+test("unadmitted public inputs and private names fail before their contents are opened", async (context) => {
+  const { root, put } = await fixture(context);
+  const original = fsPromises.open;
+  const opened = [];
+  const reader = context.mock.method(fsPromises, "open", (...args) => {
+    opened.push(args[0]);
+    return original(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    for (const relative of [
+      "src/app/probe/page.tsx",
+      "public/unadmitted.txt",
+      "next.config.ts",
+      "src/.next/not-a-cache.ts",
+      "src/private.key",
+    ]) {
+      await put(relative, "unadmitted input must never be read");
+      opened.length = 0;
+      await assert.rejects(
+        fingerprintBuildSource(root),
+        /Unadmitted verification source|Private or generated/,
+      );
+      assert.equal(opened.includes(path.join(root, relative)), false);
+      await rm(path.join(root, relative));
+      if (relative === "src/app/probe/page.tsx") {
+        await fsPromises.rmdir(path.join(root, "src/app/probe"));
+        await fsPromises.rmdir(path.join(root, "src/app"));
+      }
+      if (relative === "src/.next/not-a-cache.ts")
+        await fsPromises.rmdir(path.join(root, "src/.next"));
+    }
+  } finally {
+    reader.mock.restore();
+    syncBuiltinESMExports();
+  }
+});
+
+test("verification validates cancellation after readiness and preserves a pre-aborted reason", async (context) => {
+  const { root, options } = await fixture(context);
+  const controller = new AbortController();
+  const reason = new Error("synthetic pre-aborted verification");
+  controller.abort(reason);
+  for (const operation of [fingerprintBuildSource, recordVerificationBuild]) {
+    await assert.rejects(
+      operation(root, { ...options, signal: {} }),
+      /AbortSignal/,
+    );
+    await assert.rejects(
+      operation(root, { ...options, signal: controller.signal }),
+      (error) => error === reason,
+    );
+  }
+});
+
+test("cancelling a bounded read closes the input handle and preserves the cancellation reason", async (context) => {
+  const { root } = await fixture(context);
+  const controller = new AbortController();
+  const reason = new Error("synthetic bounded-read cancellation");
+  const probe = await open(path.join(root, ".next/BUILD_ID"), "r");
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const original = prototype.readFile;
+  const reader = context.mock.method(
+    prototype,
+    "readFile",
+    function (settings) {
+      controller.abort(reason);
+      return original.call(this, settings);
+    },
+  );
+  try {
+    await assert.rejects(
+      fingerprintBuildSource(root, { signal: controller.signal }),
+      (error) => error === reason,
+    );
+    assert.equal(reader.mock.calls[0].this.fd, -1);
+  } finally {
+    reader.mock.restore();
+  }
+});
+
+test("cancellation drains every started hash and closes its handles before rejecting with the original reason", async (context) => {
+  const { root, options } = await fixture(context);
+  for (const operation of [fingerprintBuildSource, recordVerificationBuild]) {
+    await recordVerificationBuild(root, options);
+    const controller = new AbortController();
+    const reason = new Error("synthetic hashing cancellation");
+    const probe = await open(path.join(root, ".next/BUILD_ID"), "r");
+    const prototype = Object.getPrototypeOf(probe);
+    await probe.close();
+    const original = prototype.createReadStream;
+    const handles = [];
+    const streams = [];
+    const reader = context.mock.method(
+      prototype,
+      "createReadStream",
+      function (settings) {
+        const stream = original.call(this, settings);
+        handles.push(this);
+        streams.push(stream);
+        if (streams.length === 1)
+          stream.once("data", () => controller.abort(reason));
+        return stream;
+      },
+    );
+    try {
+      await assert.rejects(
+        operation(root, { ...options, signal: controller.signal }),
+        (error) => error === reason,
+      );
+      assert.ok(streams.length > 0);
+      assert.ok(streams.every((stream) => stream.destroyed));
+      assert.ok(handles.every((handle) => handle.fd === -1));
+    } finally {
+      reader.mock.restore();
+    }
+    if (operation === recordVerificationBuild)
+      await assert.rejects(
+        lstat(path.join(root, "coverage/verification-build.json")),
+        /ENOENT/,
+      );
+  }
+});
+
+test("publication cancellation waits for the owned write and removes both prior and staged proofs", async (context) => {
+  const { root, options } = await fixture(context);
+  await recordVerificationBuild(root, options);
+  const controller = new AbortController();
+  const reason = new Error("synthetic publication cancellation");
+  const started = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const probe = await open(path.join(root, ".next/BUILD_ID"), "r");
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const original = prototype.writeFile;
+  const writer = context.mock.method(
+    prototype,
+    "writeFile",
+    async function (...args) {
+      await original.apply(this, args);
+      started.resolve();
+      await release.promise;
+    },
+  );
+  const settled = recordVerificationBuild(root, {
+    ...options,
+    signal: controller.signal,
+  }).then(
+    () => undefined,
+    (error) => error,
+  );
+  try {
+    assert.equal(
+      await Promise.race([
+        started.promise.then(() => "writing"),
+        settled.then(() => "settled"),
+      ]),
+      "writing",
+    );
+    controller.abort(reason);
+    release.resolve();
+    assert.equal(await settled, reason);
+    assert.equal(writer.mock.calls[0].this.fd, -1);
+    assert.deepEqual(await readdir(path.join(root, "coverage")), []);
+  } finally {
+    release.resolve();
+    await settled;
+    writer.mock.restore();
+  }
+});
+
+test("an abort after rename removes the published proof and retains cleanup failures", async (context) => {
+  const { root, options } = await fixture(context);
+  await recordVerificationBuild(root, options);
+  const controller = new AbortController();
+  const reason = new Error("synthetic post-rename cancellation");
+  const cleanup = new Error("synthetic cancelled-stage cleanup failure");
+  const rename = fsPromises.rename;
+  const removeParent = fsPromises.rmdir;
+  let stage;
+  const publisher = context.mock.method(
+    fsPromises,
+    "rename",
+    async (...args) => {
+      stage = path.dirname(args[0]);
+      await rename(...args);
+      controller.abort(reason);
+    },
+  );
+  const parent = context.mock.method(fsPromises, "rmdir", async (filename) => {
+    assert.equal(filename, stage);
+    await removeParent(filename);
+    throw cleanup;
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(
+      recordVerificationBuild(root, { ...options, signal: controller.signal }),
+      (error) => {
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.cause, reason);
+        assert.deepEqual(error.errors, [reason, cleanup]);
+        return true;
+      },
+    );
+    assert.deepEqual(await readdir(path.join(root, "coverage")), []);
+  } finally {
+    publisher.mock.restore();
+    parent.mock.restore();
+    syncBuiltinESMExports();
+  }
+});
+
 test("linked output and prior-record paths fail without touching linked targets", async (context) => {
   const { root, put, options } = await fixture(context);
   await recordVerificationBuild(root, options);
-  const target = path.join(root, "owned-empty");
+  const target = path.join(root, "coverage/owned-empty");
   await mkdir(target);
   await symlink(
     target,

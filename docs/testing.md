@@ -12,10 +12,10 @@ governance helpers with 80% thresholds. Add no suppressions or source/rule/cover
 exclusions, fabricated coverage or metric-only wrappers.
 
 CI displays unit, governance, application E2E, accessibility, SEO, CSP and visual
-suites independently. Their manifest profiles partition the required
-checks; `check` aggregates job outcomes and Sonar
-consumes each suite's measured artifact without repeating tests. Dependency
-audit and static checks run independently of those suites.
+suites independently. Their manifest profiles partition the required checks.
+The `check` job aggregates their outcomes; Sonar consumes only the measured unit
+and governance coverage artifacts without repeating tests. Dependency audit and
+static checks run independently of those suites.
 
 Use colocated `*.test.mjs` owner suites and explicitly named integration cases
 for agreement across owners. Fixtures use synthetic public data and disposable

@@ -14,6 +14,7 @@ import { test } from "node:test";
 
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { runApplicationCheck } from "./application-checks.mjs";
+import { runOwnedProcess } from "./runner-process.mjs";
 import { verifyVerificationBuild } from "./verification-build.mjs";
 
 async function fixture(t, ready = true) {
@@ -43,6 +44,7 @@ async function fixture(t, ready = true) {
       "package-lock.json",
       "performance-budget.json",
       "public/logo.svg",
+      "scripts/website-api-fixture.mjs",
     ],
   });
   await put(".nvmrc", process.version.slice(1));
@@ -413,6 +415,139 @@ test("build execution, measurement and budget failures remain required failures"
       measureBundle: async () => ({ ...measurements(), javaScriptBytes: 101 }),
     }),
     /All browser JavaScript: 101 bytes exceeds 100/,
+  );
+});
+
+test("build evidence retains the environment used by its actual child when inherited settings change", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  const originalEnvironment = { ...environment };
+  await put(
+    "node_modules/next/dist/bin/next",
+    `import {mkdir, writeFile} from 'node:fs/promises';
+await Promise.all(['.next/static', '.next/standalone', 'coverage'].map(directory => mkdir(directory, {recursive:true})));
+await Promise.all([
+  writeFile('.next/BUILD_ID', 'owned-build'),
+  writeFile('.next/static/chunk.js', 'owned static bytes'),
+  writeFile('.next/standalone/server.js', '// Owned synthetic server.\\n'),
+  writeFile('coverage/build-environment.json', JSON.stringify(process.env)),
+]);`,
+  );
+  const childCompleted = Promise.withResolvers();
+  const releaseBuild = Promise.withResolvers();
+  const settled = runApplicationCheck(root, "build", {
+    environment,
+    execute: async (options) => {
+      assert.equal(Object.isFrozen(options.env), true);
+      await runOwnedProcess({ ...options, stdio: "ignore" });
+      childCompleted.resolve();
+      await releaseBuild.promise;
+    },
+    measureBundle: measurements,
+  }).then(
+    () => undefined,
+    (error) => error,
+  );
+  try {
+    const first = await Promise.race([
+      childCompleted.promise.then(() => "child completed"),
+      settled.then(() => "operation settled"),
+    ]);
+    assert.equal(first, "child completed");
+    Object.assign(environment, {
+      API_BASE_URL: "http://127.0.0.1:43103",
+      PORT: "43104",
+      WEBSITE_URL: "http://127.0.0.1:43104",
+    });
+    releaseBuild.resolve();
+    assert.equal(await settled, undefined);
+    const child = JSON.parse(
+      await readFile(
+        path.join(root, "coverage/build-environment.json"),
+        "utf8",
+      ),
+    );
+    const record = await verifyVerificationBuild(root, {
+      environment: originalEnvironment,
+    });
+    for (const [key, value] of Object.entries(record.environment))
+      if (key !== "WEBSITE_CSP_MODE") assert.equal(value, child[key]);
+    assert.equal(Object.hasOwn(child, "TOKEN"), false);
+    assert.equal(Object.hasOwn(child, "NODE_OPTIONS"), false);
+    await assert.rejects(
+      verifyVerificationBuild(root, { environment }),
+      /does not match/,
+    );
+  } finally {
+    releaseBuild.resolve();
+    await settled;
+  }
+});
+
+test("cancellation during bundle measurement drains measurement and cannot publish or retain build evidence", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  await prepareBuild(root, environment);
+  await put("public/logo.svg", "new source asset");
+  const controller = new AbortController();
+  const failure = new Error("owned bundle measurement cancelled");
+  const measurementStarted = Promise.withResolvers();
+  const releaseMeasurement = Promise.withResolvers();
+  const settled = runApplicationCheck(root, "build", {
+    environment,
+    signal: controller.signal,
+    execute: () => populateBuild(root),
+    measureBundle: async () => {
+      measurementStarted.resolve();
+      await releaseMeasurement.promise;
+      return measurements();
+    },
+  }).then(
+    () => undefined,
+    (error) => error,
+  );
+  try {
+    const first = await Promise.race([
+      measurementStarted.promise.then(() => "measurement started"),
+      settled.then(() => "operation settled"),
+    ]);
+    assert.equal(first, "measurement started");
+    controller.abort(failure);
+    releaseMeasurement.resolve();
+    assert.equal(await settled, failure);
+    await assert.rejects(
+      readFile(path.join(root, "coverage/verification-build.json")),
+      { code: "ENOENT" },
+    );
+    assert.equal(
+      await readFile(
+        path.join(root, ".next/standalone/public/logo.svg"),
+        "utf8",
+      ),
+      "owned public bytes",
+    );
+  } finally {
+    releaseMeasurement.resolve();
+    await settled;
+  }
+});
+
+test("an unadmitted route cannot reach build execution or produce verification evidence", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  await put("src/app/probe/page.tsx", "export default function Probe() {}\n");
+  let executions = 0;
+  await assert.rejects(
+    runApplicationCheck(root, "build", {
+      environment,
+      execute: async () => {
+        executions++;
+      },
+      measureBundle: measurements,
+    }),
+    /Unadmitted verification source/,
+  );
+  assert.equal(executions, 0);
+  await assert.rejects(
+    readFile(path.join(root, "coverage/verification-build.json")),
+    { code: "ENOENT" },
   );
 });
 

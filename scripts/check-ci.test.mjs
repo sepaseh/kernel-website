@@ -420,6 +420,25 @@ test("application jobs require one exact-source build, installed Chromium and re
   }
 });
 
+test("CSP evidence retains reports and failure artifacts from both enforcement modes", () => {
+  const paths = [
+    "playwright-report/website/enforce",
+    "playwright-report/website/report-only",
+    "test-results/website/enforce",
+    "test-results/website/report-only",
+  ];
+  assert.deepEqual(
+    ci.jobs.csp.steps.at(-1).with.path.trim().split("\n"),
+    paths,
+  );
+  for (const missing of paths) {
+    const value = structuredClone(ci);
+    value.jobs.csp.steps.at(-1).with.path =
+      paths.filter((entry) => entry !== missing).join("\n") + "\n";
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
+});
+
 test("font coverage uses pinned Python and dependencies before measuring and sharing the same producer artifact", () => {
   for (const change of [
     (value) => {

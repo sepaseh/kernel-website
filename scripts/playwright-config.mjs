@@ -312,10 +312,16 @@ export async function createPlaywrightConfig(root, mode, options = {}) {
       inputs,
     );
 
+  const reportMode = path.join(
+    "website",
+    inputs.websiteEnvironment.WEBSITE_TEST_CSP_MODE ??
+      inputs.websiteEnvironment.WEBSITE_CSP_MODE ??
+      "report-only",
+  );
   return {
     forbidOnly: Boolean(inputs.websiteEnvironment.CI),
     fullyParallel: false,
-    outputDir: path.join(directory, "test-results", "website"),
+    outputDir: path.join(directory, "test-results", reportMode),
     projects: [
       {
         name: "website-chromium",
@@ -325,7 +331,7 @@ export async function createPlaywrightConfig(root, mode, options = {}) {
         },
       },
     ],
-    reporter: reporters(directory, "website"),
+    reporter: reporters(directory, reportMode),
     retries: 0,
     testDir: path.join(directory, "e2e", "website"),
     use: {

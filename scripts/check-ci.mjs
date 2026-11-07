@@ -247,7 +247,10 @@ function validateBrowserEvidence(job, mode) {
   assert.deepEqual(evidence.with, {
     name:
       `${mode}-evidence-` + "${{ github.run_id }}-${{ github.run_attempt }}",
-    path: "playwright-report\ntest-results\n",
+    path:
+      mode === "csp"
+        ? "playwright-report/website/enforce\nplaywright-report/website/report-only\ntest-results/website/enforce\ntest-results/website/report-only\n"
+        : "playwright-report\ntest-results\n",
     "if-no-files-found": "error",
     "retention-days": 14,
     overwrite: false,

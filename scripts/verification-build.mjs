@@ -15,7 +15,6 @@ import { isDeepStrictEqual } from "node:util";
 import {
   artifactDirectory,
   artifactFile,
-  completeArtifactWork,
   ensureArtifactDirectory,
 } from "./release-files.mjs";
 import { readyRunnerRoot, syntheticRunnerInputs } from "./runner-inputs.mjs";
@@ -48,6 +47,16 @@ const privateSegments = new Set([
   "test-results",
   "secrets",
 ]);
+const generatedRoots = new Set([
+  ".git",
+  "node_modules",
+  "coverage",
+  ".next",
+  "playwright-report",
+  "test-results",
+  "dist",
+  ".lighthouseci",
+]);
 const compareStrings = (left, right) => {
   if (left < right) return -1;
   if (left > right) return 1;
@@ -56,6 +65,44 @@ const compareStrings = (left, right) => {
 const insist = (condition, message) => {
   if (!condition) throw new Error(message);
 };
+const cancellationSignal = (options) => {
+  const signal = options.signal;
+  if (signal !== undefined && !(signal instanceof AbortSignal))
+    throw new TypeError("Verification cancellation requires an AbortSignal.");
+  signal?.throwIfAborted();
+  return signal;
+};
+const cancellationFailure = (error, signal) =>
+  signal?.aborted && error?.name === "AbortError" && error.code === "ABORT_ERR"
+    ? signal.reason
+    : error;
+
+async function completeWork(operations, signal) {
+  const results = await Promise.allSettled(operations);
+  const failures = [
+    ...new Set(
+      results
+        .filter((result) => result.status === "rejected")
+        .map((result) => result.reason),
+    ),
+  ];
+  if (
+    signal?.aborted &&
+    !failures.some(
+      (failure) =>
+        failure === signal.reason ||
+        (failure instanceof AggregateError &&
+          failure.errors.includes(signal.reason)),
+    )
+  )
+    failures.unshift(signal.reason);
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1)
+    throw new AggregateError(failures, "Verification work failed", {
+      cause: failures[0],
+    });
+  return results.map((result) => result.value);
+}
 const relativePath = (value) => {
   insist(
     typeof value === "string" &&
@@ -86,14 +133,15 @@ const sameFile = (left, right) =>
     (key) => left[key] === right[key],
   );
 
-async function fileState(directory, relative, file, maximum) {
+async function fileState(directory, relative, file, maximum, signal) {
+  signal?.throwIfAborted();
   const filename = await artifactFile(
     path.join(directory, relativePath(relative)),
   );
-  const [entry, current] = await completeArtifactWork([
-    lstat(filename),
-    file.stat(),
-  ]);
+  const [entry, current] = await completeWork(
+    [lstat(filename), file.stat()],
+    signal,
+  );
   insist(
     current.isFile() &&
       Number.isSafeInteger(current.size) &&
@@ -105,14 +153,26 @@ async function fileState(directory, relative, file, maximum) {
   return current;
 }
 
-async function readSmall(directory, relative) {
+async function readSmall(directory, relative, signal) {
+  signal?.throwIfAborted();
   await using file = await open(
     await artifactFile(path.join(directory, relativePath(relative))),
     "r",
   );
-  const before = await fileState(directory, relative, file, sourceLimit);
-  const bytes = await file.readFile();
-  const after = await fileState(directory, relative, file, sourceLimit);
+  const before = await fileState(
+    directory,
+    relative,
+    file,
+    sourceLimit,
+    signal,
+  );
+  let bytes;
+  try {
+    bytes = await file.readFile({ signal });
+  } catch (error) {
+    throw cancellationFailure(error, signal);
+  }
+  const after = await fileState(directory, relative, file, sourceLimit, signal);
   insist(
     bytes.length === before.size && sameFile(before, after),
     "Verification input changed while reading.",
@@ -120,12 +180,13 @@ async function readSmall(directory, relative) {
   return bytes;
 }
 
-async function hashFile(directory, relative, maximum, budget) {
+async function hashFile(directory, relative, maximum, budget, signal) {
+  signal?.throwIfAborted();
   await using file = await open(
     await artifactFile(path.join(directory, relativePath(relative))),
     "r",
   );
-  const before = await fileState(directory, relative, file, maximum);
+  const before = await fileState(directory, relative, file, maximum, signal);
   budget.bytes += before.size;
   insist(
     budget.bytes <= totalLimit,
@@ -133,12 +194,20 @@ async function hashFile(directory, relative, maximum, budget) {
   );
   const digest = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of file.createReadStream({ autoClose: false })) {
-    bytes += chunk.length;
-    insist(bytes <= before.size, "Verification input grew while hashing.");
-    digest.update(chunk);
+  try {
+    for await (const chunk of file.createReadStream({
+      autoClose: false,
+      signal,
+    })) {
+      signal?.throwIfAborted();
+      bytes += chunk.length;
+      insist(bytes <= before.size, "Verification input grew while hashing.");
+      digest.update(chunk);
+    }
+  } catch (error) {
+    throw cancellationFailure(error, signal);
   }
-  const after = await fileState(directory, relative, file, maximum);
+  const after = await fileState(directory, relative, file, maximum, signal);
   insist(
     bytes === before.size && sameFile(before, after),
     "Verification input changed while hashing.",
@@ -146,24 +215,74 @@ async function hashFile(directory, relative, maximum, budget) {
   return { path: relative, bytes, sha256: digest.digest("hex") };
 }
 
-async function hashFiles(directory, paths, maximum) {
+async function hashFiles(directory, paths, maximum, signal) {
   const budget = { bytes: 0 };
   const files = [];
   // Batches bound open handles while preserving deterministic input ordering.
   for (let index = 0; index < paths.length; index += 32) {
+    signal?.throwIfAborted();
     files.push(
-      ...(await completeArtifactWork(
+      ...(await completeWork(
         paths
           .slice(index, index + 32)
-          .map((relative) => hashFile(directory, relative, maximum, budget)),
+          .map((relative) =>
+            hashFile(directory, relative, maximum, budget, signal),
+          ),
+        signal,
       )),
     );
   }
   return files;
 }
 
-async function sourceSnapshot(directory) {
-  const policyBytes = await readSmall(directory, sourcePolicy);
+async function inspectSource(directory, relative, inventory, budget, signal) {
+  signal?.throwIfAborted();
+  const entries = await readdir(path.join(directory, relative), {
+    withFileTypes: true,
+  });
+  signal?.throwIfAborted();
+  budget.entries += entries.length;
+  insist(
+    budget.entries <= entryLimit,
+    "Verification source exceeds its entry budget.",
+  );
+  await completeWork(
+    entries.map(async (entry) => {
+      signal?.throwIfAborted();
+      const filename = relative ? `${relative}/${entry.name}` : entry.name;
+      if (!relative && generatedRoots.has(filename)) {
+        insist(
+          entry.isDirectory() && !entry.isSymbolicLink(),
+          "Generated verification roots must be ordinary directories.",
+        );
+        return;
+      }
+      if (!inventory.has(filename)) {
+        // Reject private state by name before descending or reading its content.
+        publicSourcePath(filename);
+      }
+      insist(
+        !entry.isSymbolicLink(),
+        "Verification source must not contain links.",
+      );
+      if (entry.isDirectory()) {
+        insist(
+          [...inventory].some((name) => name.startsWith(`${filename}/`)),
+          `Unadmitted verification source directory: ${filename}`,
+        );
+        return inspectSource(directory, filename, inventory, budget, signal);
+      }
+      insist(
+        entry.isFile() && inventory.has(filename),
+        `Unadmitted verification source file: ${filename}`,
+      );
+    }),
+    signal,
+  );
+}
+
+async function sourceSnapshot(directory, signal) {
+  const policyBytes = await readSmall(directory, sourcePolicy, signal);
   const policy = JSON.parse(policyBytes);
   insist(
     Array.isArray(policy.allowedFiles) &&
@@ -180,15 +299,22 @@ async function sourceSnapshot(directory) {
         .map(publicSourcePath),
     ]),
   ].sort(compareStrings);
+  await inspectSource(
+    directory,
+    "",
+    new Set([sourcePolicy, ...policy.allowedFiles]),
+    { entries: 0 },
+    signal,
+  );
   insist(
     [".nvmrc", "package.json", "package-lock.json"].every((filename) =>
       sourceInputs.includes(filename),
     ),
     "Verification inventory must admit the pinned toolchain inputs.",
   );
-  const files = await hashFiles(directory, sourceInputs, sourceLimit);
+  const files = await hashFiles(directory, sourceInputs, sourceLimit, signal);
   insist(
-    policyBytes.equals(await readSmall(directory, sourcePolicy)),
+    policyBytes.equals(await readSmall(directory, sourcePolicy, signal)),
     "Source inventory changed while hashing.",
   );
   const fingerprint = createHash("sha256");
@@ -203,9 +329,10 @@ async function sourceSnapshot(directory) {
   return { sourceFingerprint: fingerprint.digest("hex"), sourceInputs };
 }
 
-/** Fingerprint admitted public source without reading reviewed dotenv examples or runtime state. */
-export async function fingerprintBuildSource(root = repository) {
-  return sourceSnapshot(await readyRunnerRoot(root));
+/** Check actual public input names, then fingerprint admitted bytes without private/generated reads. */
+export async function fingerprintBuildSource(root = repository, options = {}) {
+  const directory = await readyRunnerRoot(root);
+  return sourceSnapshot(directory, cancellationSignal(options));
 }
 
 async function buildEnvironment(directory, inherited) {
@@ -230,14 +357,16 @@ async function buildEnvironment(directory, inherited) {
   };
 }
 
-async function toolchain(directory) {
-  const [pin, manifestBytes, lockBytes, installedBytes] =
-    await completeArtifactWork([
-      readSmall(directory, ".nvmrc"),
-      readSmall(directory, "package.json"),
-      readSmall(directory, "package-lock.json"),
-      readSmall(directory, "node_modules/next/package.json"),
-    ]);
+async function toolchain(directory, signal) {
+  const [pin, manifestBytes, lockBytes, installedBytes] = await completeWork(
+    [
+      readSmall(directory, ".nvmrc", signal),
+      readSmall(directory, "package.json", signal),
+      readSmall(directory, "package-lock.json", signal),
+      readSmall(directory, "node_modules/next/package.json", signal),
+    ],
+    signal,
+  );
   const manifest = JSON.parse(manifestBytes);
   const lock = JSON.parse(lockBytes);
   const installed = JSON.parse(installedBytes);
@@ -266,7 +395,8 @@ async function toolchain(directory) {
   };
 }
 
-async function outputPaths(directory, relative, budget) {
+async function outputPaths(directory, relative, budget, signal) {
+  signal?.throwIfAborted();
   await artifactDirectory(path.join(directory, relative));
   const entries = await readdir(path.join(directory, relative), {
     withFileTypes: true,
@@ -276,8 +406,9 @@ async function outputPaths(directory, relative, budget) {
     budget.entries <= entryLimit,
     "Verification output exceeds its entry budget.",
   );
-  const groups = await completeArtifactWork(
+  const groups = await completeWork(
     entries.map(async (entry) => {
+      signal?.throwIfAborted();
       const filename = relativePath(`${relative}/${entry.name}`);
       insist(
         !entry.isSymbolicLink(),
@@ -291,7 +422,8 @@ async function outputPaths(directory, relative, budget) {
         await artifactDirectory(path.join(directory, filename));
         return [];
       }
-      if (entry.isDirectory()) return outputPaths(directory, filename, budget);
+      if (entry.isDirectory())
+        return outputPaths(directory, filename, budget, signal);
       insist(
         entry.isFile(),
         "Verification output must contain only ordinary files and directories.",
@@ -303,15 +435,16 @@ async function outputPaths(directory, relative, budget) {
       );
       return [filename];
     }),
+    signal,
   );
   return groups.flat();
 }
 
-async function buildFiles(directory) {
-  const paths = (await outputPaths(directory, ".next", { entries: 0 })).sort(
-    compareStrings,
-  );
-  const files = await hashFiles(directory, paths, outputLimit);
+async function buildFiles(directory, signal) {
+  const paths = (
+    await outputPaths(directory, ".next", { entries: 0 }, signal)
+  ).sort(compareStrings);
+  const files = await hashFiles(directory, paths, outputLimit, signal);
   insist(
     [".next/BUILD_ID", ".next/standalone/server.js"].every((filename) =>
       files.some((file) => file.path === filename && file.bytes > 0),
@@ -324,20 +457,23 @@ async function buildFiles(directory) {
   return files;
 }
 
-async function buildSnapshot(directory, environment, source) {
-  const before = await sourceSnapshot(directory);
+async function buildSnapshot(directory, environment, source, signal) {
+  const before = await sourceSnapshot(directory, signal);
   if (source !== undefined)
     insist(
       isDeepStrictEqual(source, before),
       "Source changed after the verified build began.",
     );
-  const [settings, runtime, files] = await completeArtifactWork([
-    buildEnvironment(directory, environment),
-    toolchain(directory),
-    buildFiles(directory),
-  ]);
+  const [settings, runtime, files] = await completeWork(
+    [
+      buildEnvironment(directory, environment),
+      toolchain(directory, signal),
+      buildFiles(directory, signal),
+    ],
+    signal,
+  );
   insist(
-    isDeepStrictEqual(before, await sourceSnapshot(directory)),
+    isDeepStrictEqual(before, await sourceSnapshot(directory, signal)),
     "Source changed while verifying the build.",
   );
   return {
@@ -358,7 +494,8 @@ async function existingRecord(directory) {
   }
 }
 
-async function writeRecord(directory, record) {
+async function writeRecord(directory, record, signal) {
+  signal?.throwIfAborted();
   const content = JSON.stringify(record, null, 2) + "\n";
   insist(
     Buffer.byteLength(content) <= sourceLimit,
@@ -372,14 +509,18 @@ async function writeRecord(directory, record) {
   const filename = path.join(stage, "record.json");
   let failure;
   try {
+    signal?.throwIfAborted();
     {
       await using file = await open(filename, "wx", 0o600);
-      await file.writeFile(content, "utf8");
+      await file.writeFile(content, { encoding: "utf8", signal });
     }
+    signal?.throwIfAborted();
     await existingRecord(directory);
+    signal?.throwIfAborted();
     await rename(filename, path.join(directory, recordPath));
+    signal?.throwIfAborted();
   } catch (error) {
-    failure = error;
+    failure = cancellationFailure(error, signal);
   }
   const failures = failure === undefined ? [] : [failure];
   try {
@@ -409,16 +550,36 @@ export async function invalidateVerificationBuild(root = repository) {
   if (filename !== undefined) await rm(filename);
 }
 
-/** Record only after the caller's successful build, budget check and standalone preparation. */
+/**
+ * Record a completed, budget-checked build. Cancellation drains owned I/O and
+ * removes the owned proof, including an abort immediately after atomic publication.
+ */
 export async function recordVerificationBuild(root = repository, options = {}) {
   const directory = await readyRunnerRoot(root);
-  const record = await buildSnapshot(
-    directory,
-    options.environment ?? process.env,
-    options.source,
-  );
-  await writeRecord(directory, record);
-  return record;
+  const signal = cancellationSignal(options);
+  try {
+    const record = await buildSnapshot(
+      directory,
+      options.environment ?? process.env,
+      options.source,
+      signal,
+    );
+    await writeRecord(directory, record, signal);
+    signal?.throwIfAborted();
+    return record;
+  } catch (error) {
+    if (!signal?.aborted) throw error;
+    await completeWork(
+      [
+        Promise.reject(error),
+        (async () => {
+          const filename = await existingRecord(directory);
+          if (filename !== undefined) await rm(filename);
+        })(),
+      ],
+      signal,
+    );
+  }
 }
 
 /** Verify source, semantic inputs, toolchain and all non-cache output without running code. */
