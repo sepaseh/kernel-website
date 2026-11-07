@@ -2,9 +2,14 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
+Use this reference when changing launcher inputs, process ownership or analysis
+output. [Development](development.md) owns the local run procedure;
+[validation](validation.md) owns full checking; [API fixtures](api-fixture.md)
+describe the same-repository test-only HTTP responder.
+
 ## Readiness and imports
 
-The phase is `application` with `applicationReady: true`. Application
+The phase is `operations` with `applicationReady: true`. Application
 startup, test-server, fixture-launcher and analyzer entry points reject false
 or invalid markers before reading operation configuration, resolving installed tools,
 writing output or starting children. Imports perform none of those operations.
@@ -38,6 +43,16 @@ verification. [The fixture contract](api-fixture.md) defines its synthetic scope
 
 ## Inputs and process ownership
 
+Website inputs supply production `NODE_ENV`, `API_BASE_URL`, `HOSTNAME` and
+`PORT`, plus the applicable public website/indexing/CSP settings. Child
+environments contain only declared public values and allowlisted runtime
+essentials; credentials, `NODE_OPTIONS` and unrelated ambient values are omitted.
+Synthetic inputs require distinct `http://127.0.0.1:PORT` origins, matching website
+host/port and explicitly disabled indexing. There is no default API or dotenv
+fallback. The API launcher derives its child port while retaining website-origin
+parent settings; [browser configuration](browser-foundation.md) adds the SDK
+parent-environment boundary.
+
 The analyzer's `--export` mode owns an exclusive `graph.jsonl`, limits it to
 64 MiB and removes its claimed output on failure. The default `--output` mode
 delegates output creation to Next; this wrapper does not bound or clean those
@@ -62,3 +77,7 @@ The [manifest](../.agents/validation.json) remains the command authority for the
 full gate and split CI profiles. These owner suites extend its governance check;
 they do not replace unit coverage, font verification or the other required
 checks. See [testing](testing.md) and [exact-tree validation](validation.md).
+
+Real browser journeys and visual comparison need current-tree execution. Docker,
+Lighthouse and external targets have separate
+[operational acceptance](release-operations.md).

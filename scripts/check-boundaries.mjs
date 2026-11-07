@@ -731,6 +731,10 @@ const packageOwners = {
   "scripts/check-boundaries.mjs": new Set(["typescript"]),
   "scripts/check-ci.mjs": new Set(["yaml"]),
   "scripts/check-guidance.mjs": new Set(["prettier", "yaml"]),
+  "scripts/run-website-performance.mjs": new Set([
+    "lighthouse",
+    "@playwright/test",
+  ]),
 };
 
 export function validateStandalonePackage(pkg, lock) {

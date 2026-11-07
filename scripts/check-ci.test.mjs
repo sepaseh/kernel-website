@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
   aggregateCommand,
   ciProfiles,
+  dastPreflightCommand,
   inspectCi,
   installCommand,
   validateAdditionalWorkflow,
@@ -15,6 +18,7 @@ import {
   validateSonarWorkflow,
   workflowDocument,
 } from "./check-ci.mjs";
+import { completePublicationWork } from "./validate-bootstrap.mjs";
 
 const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
@@ -23,6 +27,38 @@ const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 test("CI executes all sixteen application checks through real runtime jobs and separate coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
+});
+
+test("CI inspection reports every missing operational workflow after independent reads finish", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "kernel-ci-workflows-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await completePublicationWork(
+    [
+      ".agents/validation.json",
+      ".github/bootstrap-policy.json",
+      ".github/dependabot.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/codeql.yml",
+    ].map(async (filename) => {
+      const destination = path.join(root, filename);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await writeFile(destination, await read(filename));
+    }),
+  );
+  await assert.rejects(inspectCi(root), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(
+      error.errors.map((failure) => path.basename(failure.path)),
+      [
+        "dast.yml",
+        "deployment-smoke.yml",
+        "package-release.yml",
+        "release.yml",
+        "staging.yml",
+      ],
+    );
+    return true;
+  });
 });
 
 test("CI profiles form an exact partition and cannot drop, duplicate or soften a required check", () => {
@@ -57,6 +93,136 @@ test("CI profiles form an exact partition and cannot drop, duplicate or soften a
     const value = structuredClone(manifest);
     change(value);
     assert.throws(() => validateCheckManifest(value));
+  }
+});
+
+test("operations retain all required checks and cannot promote manual work into CI", () => {
+  validateCheckManifest(manifest);
+  for (const change of [
+    (value) => value.checks.pop(),
+    (value) => {
+      value.checks.at(-1).kind = "manual";
+    },
+    (value) => {
+      value.checks.at(-2).ciJobs = ["build"];
+    },
+    (value) => value.profiles.full.push("docker"),
+    (value) => {
+      value.checks.at(-1).command = "npm run build";
+    },
+    (value) =>
+      value.externalWorkflows.push({
+        path: ".github/workflows/automatic-deploy.yml",
+        mode: "manual",
+      }),
+  ]) {
+    const value = structuredClone(manifest);
+    change(value);
+    assert.throws(() => validateCheckManifest(value));
+  }
+  const application = structuredClone(manifest);
+  application.phase = "application";
+  application.checks = application.checks.filter(
+    (check) => check.kind === "required",
+  );
+  application.checks.forEach((check) => {
+    check.scopes = ["application"];
+  });
+  application.externalWorkflows = application.externalWorkflows.filter(
+    (workflow) => workflow.mode !== "manual",
+  );
+  validateCheckManifest(application);
+});
+
+test("operational publication cannot silently dispatch targets or extend write privileges", async () => {
+  for (const name of [
+    "dast",
+    "deployment-smoke",
+    "package-release",
+    "release",
+    "staging",
+  ]) {
+    const original = workflowDocument(
+      await read(`.github/workflows/${name}.yml`),
+    );
+    validateAdditionalWorkflow(name, JSON.stringify(original));
+    for (const change of [
+      (value) => {
+        value.on.push = { branches: ["main"] };
+      },
+      (value) => {
+        Object.values(value.jobs)[0].if = "true";
+      },
+      (value) => {
+        value.permissions.contents = "write";
+      },
+      (value) => {
+        Object.values(value.jobs)[0].permissions = { contents: "write" };
+      },
+    ]) {
+      const value = structuredClone(original);
+      change(value);
+      assert.throws(() =>
+        validateAdditionalWorkflow(name, JSON.stringify(value)),
+      );
+    }
+  }
+  for (const [name, mode] of [
+    ["dast", "dast"],
+    ["deployment-smoke", "smoke"],
+    ["staging", "staging"],
+  ]) {
+    const value = workflowDocument(await read(`.github/workflows/${name}.yml`));
+    const steps = Object.values(value.jobs)[0].steps;
+    const index = steps.findIndex(
+      (step) =>
+        step.run ===
+        (name === "dast"
+          ? dastPreflightCommand
+          : `node scripts/validate-workflow-targets.mjs ${mode}`),
+    );
+    for (const field of ["if", "continue-on-error"]) {
+      const changed = structuredClone(value);
+      Object.values(changed.jobs)[0].steps[index][field] =
+        field === "if" ? "false" : true;
+      assert.throws(() =>
+        validateAdditionalWorkflow(name, JSON.stringify(changed)),
+      );
+    }
+    const reordered = structuredClone(value);
+    const reorderedSteps = Object.values(reordered.jobs)[0].steps;
+    reorderedSteps.splice(index, 0, reorderedSteps.splice(index + 1, 1)[0]);
+    assert.throws(() =>
+      validateAdditionalWorkflow(name, JSON.stringify(reordered)),
+    );
+    steps.splice(index, 1);
+    assert.throws(() =>
+      validateAdditionalWorkflow(name, JSON.stringify(value)),
+    );
+  }
+});
+
+test("DAST cannot validate a different target or omit the exact-origin context", async () => {
+  const original = workflowDocument(await read(".github/workflows/dast.yml"));
+  for (const change of [
+    (job) => {
+      job.steps[2].env = { DAST_TARGET: "https://other.example.com" };
+    },
+    (job) => {
+      job.steps[3].env = { DAST_TARGET: "https://other.example.com" };
+    },
+    (job) => {
+      job.steps[3].with.target = "https://other.example.com";
+    },
+    (job) => {
+      job.steps[3].with.cmd_options = "-a";
+    },
+  ]) {
+    const value = structuredClone(original);
+    change(value.jobs.zap);
+    assert.throws(() =>
+      validateAdditionalWorkflow("dast", JSON.stringify(value)),
+    );
   }
 });
 

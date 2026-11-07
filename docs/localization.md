@@ -30,8 +30,8 @@ Its checked return type and exact-shape type assertions require each resource to
 match the canonical keys and string values.
 
 Use the explicit `.json` extension in imports. TypeScript's current Bundler
-resolution does not resolve an extensionless catalog path to JSON. When updating
-later application stages, change their direct English/Persian imports accordingly.
+resolution does not resolve an extensionless catalog path to JSON. Retain explicit
+JSON import attributes in authored browser suites that run under Node.
 
 ## Edit a message
 
@@ -66,3 +66,32 @@ settings without visitor cookies or language headers, with no-store, redirect
 rejection and a five-second timeout. It validates supported codes and accepts the
 API's explicit direction even when it differs from a code-based expectation.
 Malformed, unavailable or unsupported settings produce explicit errors.
+
+[`getWebsiteLanguage`](../src/shared/settings/server.ts) deduplicates that read
+only within a server render; it does not persist settings across requests.
+The [next-intl adapter](../src/i18n/request.ts) loads the chosen catalog.
+The [root layout](../src/app/layout.tsx) sets `html lang`/`dir` and selects root
+messages; the auth layout and account page select their respective subsets.
+Nested client providers replace message sets, so every selected set must include
+the strings its descendants actually use.
+
+There is no visitor language control, language cookie, local-storage locale or
+browser negotiation. The permanent `/en` and `/fa`
+[redirects](../next.config.ts) are legacy aliases to unprefixed URLs, not separate
+language versions. See [SEO](seo.md#page-and-language-contracts) for canonical and
+sitemap behavior.
+
+## Verify rendered content
+
+Feature tests use the real next-intl provider and explicit auth/account selections
+through [the session fixture](../src/test/feature-session.tsx). Framework tests
+exercise request/root integration; browser checks additionally exercise settings
+changes/failures, actual `lang`/`dir` and rendered pages against the
+[local synthetic HTTP fixture](api-fixture.md).
+
+Review both directions, long translations and form feedback in the actual page.
+[Accessibility](accessibility.md), [fonts](fonts.md) and
+[visual comparison](visual-regression.md) cover their respective rendered
+boundaries. Follow [validation](validation.md) for the complete publication gate;
+documentation language remains English while all ten product catalogs stay
+complete.

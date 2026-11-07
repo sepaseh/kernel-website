@@ -2106,3 +2106,39 @@ test("governance imports use the actual phase rather than unpublished future loc
     publicationInventories.application,
   );
 });
+
+test("the optional lab owner may import its declared literal SDKs without computed imports", () => {
+  const declared = {
+    ...pkg,
+    devDependencies: {
+      ...pkg.devDependencies,
+      lighthouse: "13.6.0",
+      "@playwright/test": "1.64.1",
+    },
+  };
+  for (const specifier of [
+    "lighthouse",
+    "@playwright/test",
+    "lighthouse/core/config/lr-desktop-config.js",
+  ]) {
+    const source = `await import(${JSON.stringify(specifier)});`;
+    validateModuleImports(
+      "scripts/run-website-performance.mjs",
+      source,
+      declared,
+    );
+    assert.throws(
+      () => validateModuleImports("scripts/validate.mjs", source, declared),
+      /not permitted for this owner/,
+    );
+  }
+  assert.throws(
+    () =>
+      validateModuleImports(
+        "scripts/run-website-performance.mjs",
+        "await import(installation.lighthouse);",
+        pkg,
+      ),
+    /Computed imports are forbidden/,
+  );
+});

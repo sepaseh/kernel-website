@@ -1,7 +1,13 @@
 # Verify the document CSP policy
 
-The [application phase](bootstrap.md) includes pure policy helpers and a request
+The [published application](bootstrap.md) includes pure policy helpers and a request
 proxy that generates trusted nonces and applies enforcing or report-only headers.
+
+The server-only [nonce adapter](../src/shared/security/nonce.ts) awaits trusted
+request headers. The [root layout](../src/app/layout.tsx) passes its nonce through
+the application providers to the theme provider. The [home page](../src/app/page.tsx)
+separately reads the same request nonce for escaped JSON-LD output. See the
+[document-security trace](server-boundary.md#document-security) for that boundary.
 
 ## Pure policy contract
 
@@ -51,6 +57,19 @@ browser runs. Verify that enforced violations are blocked and report-only
 violations are observed. Exercise script and style violations in actual
 responses alongside known allowed cases. Record the headers, nonce uniqueness,
 spoof rejection, theme and motion behavior, cache behavior and failures.
+
+After preparing [local synthetic inputs](development.md#set-explicit-local-inputs)
+and project-local Chromium, stop manually owned launchers and run:
+
+```sh
+node node_modules/vitest/vitest.mjs run src/shared/security/csp.test.ts src/shared/runtime-adapters.test.ts src/proxy.test.ts
+npm run build
+npm run test:e2e
+```
+
+The e2e command runs enforcing journeys and then the report-only suite against
+the production build. Preserve the first failure;
+[troubleshooting](troubleshooting.md) covers setup failures.
 
 Gateway and TLS wiring, remote origins and collectors require separate
 authorization and validation. Record unit results, browser behavior and

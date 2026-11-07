@@ -2,22 +2,23 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-[`scripts/website-api-fixture.mjs`](../scripts/website-api-fixture.mjs) is a
-test-only Node HTTP responder maintained in this repository. It supplies
-deterministic settings and auth/account responses with fresh in-memory state.
-Its owner tests exercise local HTTP requests. Authored browser suites consume
-this fixture contract, but the current phase delivers no runnable website or
-completed browser acceptance. It is not a production authentication service or
-evidence of external backend compatibility.
+Website browser checks run the real website against
+[`scripts/website-api-fixture.mjs`](../scripts/website-api-fixture.mjs), a test-only
+Node HTTP responder maintained in this repository. It supplies deterministic
+settings and auth/account responses with fresh in-memory state. It is not a
+production authentication service or evidence of external backend compatibility.
 
-## Understand the launcher boundary
+## Start the fixture
 
-The application-facing launcher is
-[`test-website-api.mjs`](../scripts/test-website-api.mjs). Running
-`node scripts/test-website-api.mjs` in this publication fails on the false
-readiness marker before environment resolution or child startup. Its owner
-tests use explicitly ready synthetic roots; do not enable the source marker
-to bypass that boundary.
+Install this website's declared dependencies with `npm ci --include=dev`, then set the
+[explicit local inputs](development.md#set-explicit-local-inputs). Use distinct
+free IPv4 loopback ports for the website and fixture, with indexing disabled.
+No separate source checkout, dependency installation, database or credentials
+is needed for the fixture.
+
+```sh
+node scripts/test-website-api.mjs
+```
 
 The launcher resolves the fixture from the website root. Its parent `PORT` stays
 at the website port; the child port is derived from `API_BASE_URL`. The child
@@ -48,6 +49,12 @@ paths. Never use production accounts, an existing backend, secrets or operator
 state as fixture data.
 
 ## Evidence boundaries
+
+The [application contract](application.md) requires exact-tree production
+build/bundle checks, real browser journeys against this local responder in both
+CSP modes and compatible Windows visual comparison. The fixture supports frontend
+acceptance; it does not verify production authentication, OTP delivery, persistence
+or a developer-selected backend. Downstream integrations are application decisions.
 
 Before authorized commit, push or handoff, freshly install Node and pinned Python
 dependencies and pass the complete isolated

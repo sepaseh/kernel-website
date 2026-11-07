@@ -177,6 +177,10 @@ node node_modules/@playwright/test/cli.js install chromium
 npm run test:e2e
 ```
 
+The e2e command runs enforcing and report-only CSP modes against the current
+website build and local HTTP fixture. This verifies frontend behavior against
+synthetic responses, not compatibility with a deployed backend.
+
 Before handing off a change, follow [exact-tree validation](validation.md) in a
 fresh disposable export and run every required check:
 
@@ -187,3 +191,5 @@ npm run validate -- full
 The procedure covers the complete gate beyond the browser checks above, including
 fresh dependencies and source verification. Record the exact tree, actual results
 and remaining limits.
+
+See [troubleshooting](troubleshooting.md) for failed setup checks.

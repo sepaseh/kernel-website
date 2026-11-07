@@ -18,6 +18,16 @@ registration uses a full-page screenshot.
 
 ## Prepare and compare
 
+1. Install the toolchain and project-local Chromium, then select explicit inputs
+   for the same-repository [local HTTP fixture](api-fixture.md) using
+   [development](development.md) and [validation](validation.md).
+2. Use a platform with compatible reviewed baselines. The checked-in images are
+   Windows-specific; Linux is a supported runner mode but needs its own reviewed
+   images/metadata. A missing or incompatible baseline is a failure.
+3. Stop manually owned website/API launchers before the run. Keep build/browser
+   work sequential; do not remove another process's Next or visual lock.
+4. Run the registered comparison command:
+
 ```sh
 npm run test:visual
 ```

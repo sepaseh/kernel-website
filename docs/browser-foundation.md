@@ -2,7 +2,13 @@
 
 Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-The `application` phase delivers website composition with `applicationReady: true`.
+Use this reference when changing browser inputs, configuration or visual/CSP
+orchestration. Start with [development](development.md) to provision and run the
+application, [API fixtures](api-fixture.md) for the local HTTP responder, and
+[validation](validation.md) for complete checking. Authored suites and installed
+SDK types are source; only actual execution establishes a browser result.
+
+The `operations` phase delivers website composition with `applicationReady: true`.
 The tooling still rejects false or invalid markers before reading operation
 inputs or starting a browser. Never change a marker merely to enter an operation;
 actual build, browser/CSP and visual acceptance require the delivered composition,
@@ -56,6 +62,12 @@ values. Direct SDK execution needs an explicitly filtered parent, as supplied by
 the owned launchers; `createPlaywrightConfig` is a guarded data factory, not this
 executable parent boundary.
 
+Smoke/staging inputs additionally require explicit allowed application/API hosts
+and targets; smoke checks matching selected/expected deployment IDs. The factory
+places validated targets in configuration metadata. This grants no authority to
+contact an operator environment; follow [operations](release-operations.md) and
+[staging](staging.md).
+
 ## Authored scenarios and visual evidence
 
 The website scenarios cover authentication/account behavior,
@@ -86,3 +98,11 @@ owned cleanup. They launch no real browser, Next application or
 Docker engine. Strict compilation similarly establishes type compatibility only.
 A false-marker gate does not execute authored browser cases or count them as
 skipped successes.
+
+Current-tree build/browser/CSP/visual results belong to the complete
+[validation procedure](validation.md) and [application acceptance](application.md).
+The actual browser suites exercise the real website against synthetic HTTP
+responses; they do not establish compatibility with an external backend. Real
+hosted jobs and protected merge requirements remain separate from local results. [Runner limits](runner-foundation.md) apply, including direct-child
+ownership without descendant supervision; Docker/Lighthouse operations do not
+replace application acceptance.

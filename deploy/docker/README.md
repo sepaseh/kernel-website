@@ -7,12 +7,12 @@ configuration examples. Review and execute the procedures below only for an
 authorized local engine or operator target. Source inspection and injected tests
 record no successful container build, TLS deployment or cleanup.
 
-The current `runners-foundation` phase has `applicationReady: false`; the website
-image build and startup reject that marker. The Dockerfile also references
-application configuration and build inputs that are not admitted in this phase.
-These are foundation templates, not a buildable website release. The procedures
-below require delivered runnable composition and application acceptance first.
-Do not change the marker to bypass those prerequisites.
+The operations phase retains the delivered website composition with
+`applicationReady: true`. The website image build and startup reject false or
+invalid markers; the independent gateway image build does not check them.
+Complete exact-tree application acceptance before the separately
+authorized container procedure below; a source marker does not prove an image
+built or a stack passed. Never change the marker to bypass a prerequisite.
 
 ## Prepare the normal website stack
 
@@ -92,13 +92,55 @@ docker compose --env-file /absolute/path/website-compose.env -f deploy/docker/co
 Keep the previous images available and repeat edge acceptance.
 Website rollback does not migrate a separately configured HTTP service.
 
-## Establish container acceptance separately
+## Run the separate disposable smoke exercise
 
-No Docker smoke runner or completed container exercise is delivered in this
-phase. The [HTTP fixture](../../docs/api-fixture.md) has an explicit synthetic
-container mode, but that contract does not start a stack or verify its TLS and
-website behavior. A future acceptance procedure must select an authorized
-engine, own its temporary resources and verify cleanup on success, failure and
-cancellation. Preserve certificate/hostname verification and test the actual
-edge behavior described above; do not substitute source inspection or a release
-marker for those results.
+Use this website checkout and its installed tools; no other repository or
+service installation is required. Stop manually started local launchers first.
+With a reviewed local engine and explicit authorization for disposable container
+work, enable the synthetic test marker:
+
+```sh
+KERNEL_SYNTHETIC_ENV=1 npm run test:docker
+```
+
+The default Docker executable is `/usr/bin/docker` on non-Windows hosts or
+`C:\Program Files\Docker\Docker\resources\bin\docker.exe` on Windows. For another
+installation, set the public `WEBSITE_DOCKER_CLI` input to its absolute, unlinked
+executable path. For example, with an ordinary installation at that path:
+
+```sh
+WEBSITE_DOCKER_CLI=/usr/local/bin/docker KERNEL_SYNTHETIC_ENV=1 npm run test:docker
+```
+
+Selecting the executable does not select an ambient Docker context or
+configuration. The runner retains its fixed local engine socket, empty owned
+Docker configuration and unique project/image/builder names.
+Its HTTP fixture build context contains only
+[`website-api-fixture.mjs`](../../scripts/website-api-fixture.mjs) and a generated
+Node image recipe. It copies no dependency manifests, source tree, migrations,
+database, operator state or authentication secrets. The responder keeps synthetic
+accounts/settings in memory and requires the test marker plus its explicit
+container-only binding mode. The production website image excludes this fixture.
+
+The certificate helper runs networkless as root only to generate an owned Linux
+TLS volume and its group/modes. Its private key remains in that volume; only the
+public certificate is captured for host-side verification. The gateway remains
+nonroot, and certificate/hostname verification stays enabled.
+
+Expected success prints the unique ignored
+`test-results/deployment/docker-<release>.json` result path. The actual exercise
+checks redirect, static/font assets, both CSP modes, noindex, website proxy cookies
+against the owned HTTP fixture and the release marker. The result identifies the
+local fixture source and its copied SHA256; it makes no external-service
+compatibility claim. It attempts all owned cleanup after success, failure or
+cancellation: certificate container, Compose resources/volumes, builder/cache,
+unique images and temporary files. Ctrl+C cancels the operation and drains owned
+children before cleanup. Cleanup errors remain failures; inspect the named
+retained resources instead of using global removal.
+
+A real smoke result certifies only its recorded source/engine/fixture run.
+[Injected owner tests](../../scripts/run-docker-smoke.test.mjs) and
+[cleanup tests](../../scripts/docker-smoke-cleanup.test.mjs) exercise contracts
+without an engine. This page records no executed smoke or deployed stack. See
+[deployment](../../docs/deployment.md), [operations](../../docs/release-operations.md)
+and [external smoke/staging](../../docs/staging.md).

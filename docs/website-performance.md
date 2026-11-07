@@ -1,41 +1,126 @@
-# Verify performance helpers
+# Measure bundles and run an advisory local performance lab
 
-The [features phase](bootstrap.md) publishes font selection, client message
-scopes, reveal behavior and an opt-in Web Vitals callback. Its local tests cover
-these helpers. Application builds, bundle analysis and browser performance labs
-require a later application integration.
+Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
 
-## Check the published behavior
+Use this guide to inspect an actual local build and collect optional Lighthouse
+samples. Production bundle budgets remain required; lab scores are advisory and
+outside the [full validation profile](validation.md). These procedures establish
+only the measurements actually run, not a field dataset or deployment result.
 
-- Font preload selection includes the Latin subset and adds the Arabic subset
-  for Persian and Arabic. The focused test checks selected bytes against the
-  preload budget and verifies the generated assets. [Font tests](../src/shared/fonts/preloads.test.ts)
-- Client message selection provides explicit key sets for the root,
-  authentication and account scopes. It fails when a required string is missing.
-  [Client message tests](../src/i18n/client-messages.test.ts)
-- Reveal keeps content visible in static markup and removes the initial offset
-  for reduced motion. [Reveal tests](../src/features/home/Reveal.test.ts)
+## Prepare the local fixture
 
-## Keep field delivery opt-in
+Follow [development setup](development.md): pinned Node/npm, `npm ci`, the
+same-repository [HTTP fixture](api-fixture.md), explicit loopback inputs and
+project-local Chromium. In the same shell, keep `PLAYWRIGHT_BROWSERS_PATH=0` before:
 
-`WebVitals` registers a stable framework callback. The delivery helper accepts
-finite values and deltas for CLS, INP, LCP, FCP and TTFB. It sends only the metric
-name, value, delta, rating and unit to explicit subscribers. There is no default
-transport, storage or replay, and a failing subscriber cannot interrupt other
-deliveries. Preserve the framework's values and units for successive reports.
-[Callback test](../src/shared/performance/WebVitals.test.ts) and
-[delivery tests](../src/shared/performance/web-vitals.test.ts).
+```sh
+node node_modules/@playwright/test/cli.js install chromium
+```
 
-## Measure an integrated application
+Use an owned clean source tree without runtime dotenv files. Stop manually
+started website/API launchers; the lab requires the selected ports to be free
+and starts its own fresh synthetic services. Do not point it at an existing API,
+operator data or external application URL. No authentication secret or database
+path is supplied: the HTTP fixture keeps its test-only state in memory.
 
-Once a phase publishes the build and measurement tools, record bundle budgets
-from the exact production build and keep browser lab samples separate from field
-metrics. A reachable bundle graph describes possible code, and summed gzip
-sizes estimate compression per file. Measure actual transfer and executed code
-in the browser when those are the quantities under review. Lab results describe
-the tested routes and device profiles. Field percentiles require actual field
-data and an explicitly authorized collection path.
+## Inspect the required build budget
 
-Use an owned synthetic fixture for local measurements and record the executed
-revision, inputs and outcomes. Follow the phase's required validation separately.
-[Validation](validation.md).
+With the explicit development inputs set:
+
+```sh
+npm run build
+```
+
+The command builds production output and evaluates
+[performance-budget.json](../performance-budget.json). Success prints
+`Production build and bundle budgets passed.`. The
+[bundle helper](../scripts/check-bundle-website.mjs) measures emitted browser
+JS/CSS and each page's reachable client graph from supported Next manifests.
+It treats manifests as data and rejects missing/unsafe/unsupported inputs.
+
+A reachable graph includes shared runtime, polyfills and possible boundary chunks;
+it is not initial network transfer or executed JavaScript. Gzip figures sum
+individually compressed files rather than measuring a host's actual encoding.
+Budget limits are regression ceilings. Do not change them merely to hide a
+failure or treat synthetic helper tests as an actual build measurement.
+
+## Collect twelve owned Lighthouse samples
+
+The runner checks exact installed Lighthouse `13.6.0`, Playwright `1.64.1` and its
+reviewed Chromium identity before execution. Set `PLAYWRIGHT_BROWSERS_PATH=0`
+before invoking the runner so the SDK selects its project-local installation.
+The parent validates and forces that exact executable; cached global or custom
+browser selections are rejected before launch. It owns the build and local
+API/website processes. For each sample, the parent runner owns the browser and
+retains shutdown control while a worker runs Lighthouse through its CDP connection.
+The parent stops and drains that browser after the sample, including failure or
+cancellation; cleanup failures remain failures:
+
+```sh
+npm run perf:website
+```
+
+Expected success prints the exclusive `test-results/website-performance/lab-*` directory.
+It contains twelve HTML/JSON sample pairs: `/` and `/login`, mobile and desktop,
+three runs each; `summary.json` records individual results and median score,
+FCP, LCP, CLS, TBT and Speed Index for each route/profile. `pending.json` records
+the required sample count before work starts; it can remain with a successful
+summary and is not itself a failure verdict. Only a successful completed run
+supplies its final summary.
+
+To reuse a compatible existing production build from this same tree:
+
+```sh
+npm run perf:website -- --skip-build
+```
+
+This retains fixture, browser, port, budget and ownership checks. Scores remain
+advisory; malformed samples, missing metrics, external application requests,
+process failures and cleanup failures fail execution. These simulated lab
+results do not measure field INP, RUM or p75.
+
+Press Ctrl+C to cancel and wait for owned children to drain. Cleanup stops only
+the direct children created by the run and removes the API's owned temporary
+state; generated lab artifacts remain for inspection, including partial evidence
+when a run fails. Keep first failures and inspect cleanup errors. Remove only
+an explicitly selected run directory you own when its results are no longer
+needed; do not prune shared state or overwrite another run.
+
+## Export an analyzer graph when needed
+
+Use a fresh owned source/export directory with the same synthetic inputs. First
+capture the named analysis, then export that saved graph:
+
+```sh
+node scripts/analyze-website-performance.mjs
+node scripts/analyze-website-performance.mjs --export
+```
+
+The first command runs the selected installed Next analyzer in disk-output mode
+and saves a snapshot named `website`, without starting an analyzer server or
+producing an application build. Next can replace an existing analysis with that
+name, which is why this procedure uses a fresh owned directory. The export needs
+that saved snapshot; an ordinary production build alone does not supply it.
+
+The second command exclusively creates `.lighthouseci/website/graph.jsonl`,
+bounded to 64 MiB. An existing graph fails rather than being overwritten; use a
+fresh owned source/export directory or review the exact old output before an
+authorized cleanup. A graph is diagnostic build data, not a browser transfer or
+field-performance measurement.
+
+## Keep field delivery separate
+
+[WebVitals](../src/shared/performance/WebVitals.tsx) supplies the framework hook
+callback. Its [delivery helper](../src/shared/performance/web-vitals.ts) exposes
+permitted numeric fields to explicit subscribers, with no default transport,
+storage or replay; one consumer's failure cannot corrupt another delivery.
+Do not sum successive metric values or substitute zero for a missing interaction.
+
+[Scoped messages](../src/i18n/client-messages.ts) and [font integrity](fonts.md)
+reduce/verify their own source resources. Their tests do not prove browser
+transfer, shaping, computed CSS or page speed. Preserve actual session behavior
+and visible content while investigating a budget or lab result. Do not delay
+work beyond an audit window or refresh visual baselines to improve a score.
+Record exact source/build, tool/browser versions, sample settings, failures and
+owned cleanup in the task. See [browser quality](visual-regression.md) and
+[testing](testing.md) for the separate evidence layers.

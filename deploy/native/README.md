@@ -96,3 +96,10 @@ Expected success is exit zero for a 200 HTML response. Check the actual running
 build as well as `/_kernel/release`; the marker alone does not identify all
 website bytes. Inspect the service's journal for the selected release without
 exposing private values.
+
+For authorized rollback, atomically reselect the previous verified artifact,
+restore its matching public edge/configuration and cache ownership, restart via
+the normal service manager and repeat readiness/edge acceptance. Website
+rollback does not migrate or recover API state. Retain rollback artifacts; clean
+only explicitly owned retired releases after review. See
+[operations](../../docs/release-operations.md) and [security review](../../docs/reviews.md).

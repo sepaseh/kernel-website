@@ -1,6 +1,6 @@
 # Kernel Website assistant instructions
 
-The publication phase is **application** and `applicationReady` is **true**.
+The publication phase is **operations** and `applicationReady` is **true**.
 This stage delivers framework routes, providers and website composition together
 with the existing contracts, forms, policies and guarded tooling. The marker
 describes admitted source; actual build, browser/CSP and visual acceptance require
@@ -77,3 +77,12 @@ visual or external backend compatibility. Runnable acceptance requires delivered
 application composition, this repository's HTTP fixture and a verified browser.
 Keep baseline bytes and review dates until an explicitly authorized update has
 actual visual review; updates are forbidden in CI. See [visual regression](docs/visual-regression.md).
+
+Operational source adds manual package/smoke/staging wrappers, disposable Docker
+smoke and advisory Lighthouse sampling. Keep every required application check in
+the canonical full profile; manual operations and advisory measurements remain
+separate. Preserve installed SDK identities, filtered public environments, owned
+resources and cleanup. Source and injected tests do not establish an actual
+container, lab, release, hosted scan or remote-target result. Follow
+[operations](docs/release-operations.md), [releasing](docs/releasing.md) and
+[staging](docs/staging.md) with authorization for the actual effect.
