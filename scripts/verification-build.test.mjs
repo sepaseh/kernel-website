@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import {
+import fsPromises, {
   lstat,
   mkdir,
   mkdtemp,
@@ -12,6 +12,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -336,7 +337,7 @@ test("a partial proof write closes its handle and preserves the previous record"
   await recordVerificationBuild(root, options);
   const filename = path.join(root, "coverage/verification-build.json");
   const previous = await readFile(filename);
-  const probe = await open(filename, "r");
+  const probe = await open(path.join(root, ".next/BUILD_ID"), "r");
   const prototype = Object.getPrototypeOf(probe);
   await probe.close();
   const write = prototype.writeFile;
@@ -359,4 +360,88 @@ test("a partial proof write closes its handle and preserves the previous record"
   assert.deepEqual(await readdir(path.join(root, "coverage")), [
     "verification-build.json",
   ]);
+});
+
+test("failed publication drains file cleanup before attempting its parent and preserves every failure", async (context) => {
+  const { root, options } = await fixture(context);
+  await recordVerificationBuild(root, options);
+  const coverage = path.join(root, "coverage");
+  const filename = path.join(coverage, "verification-build.json");
+  const previous = await readFile(filename);
+  const publicationFailure = new Error("synthetic publication failure");
+  const fileFailure = new Error("synthetic file cleanup failure");
+  const parentFailure = new Error("synthetic parent cleanup failure");
+  const fileStarted = Promise.withResolvers();
+  const releaseFile = Promise.withResolvers();
+  const calls = [];
+  let stage;
+  const publish = context.mock.method(
+    fsPromises,
+    "rename",
+    async (source, target) => {
+      stage = path.dirname(source);
+      assert.equal(path.dirname(stage), coverage);
+      assert.match(path.basename(stage), /^\.verification-build-/);
+      assert.equal(path.basename(source), "record.json");
+      assert.equal(target, filename);
+      throw publicationFailure;
+    },
+  );
+  const removeFile = context.mock.method(
+    fsPromises,
+    "rm",
+    async (target, settings) => {
+      assert.equal(target, path.join(stage, "record.json"));
+      assert.deepEqual(settings, { force: true });
+      calls.push("file");
+      fileStarted.resolve();
+      await releaseFile.promise;
+      calls.push("file rejected");
+      throw fileFailure;
+    },
+  );
+  const removeParent = context.mock.method(
+    fsPromises,
+    "rmdir",
+    async (target) => {
+      assert.equal(target, stage);
+      calls.push("parent");
+      throw parentFailure;
+    },
+  );
+  syncBuiltinESMExports();
+  const settled = recordVerificationBuild(root, options).then(
+    () => undefined,
+    (error) => error,
+  );
+  try {
+    const first = await Promise.race([
+      fileStarted.promise.then(() => "file cleanup"),
+      settled.then(() => "operation settled"),
+    ]);
+    assert.equal(first, "file cleanup");
+    assert.deepEqual(calls, ["file"]);
+    assert.equal((await lstat(path.join(stage, "record.json"))).isFile(), true);
+    assert.deepEqual(await readFile(filename), previous);
+    releaseFile.resolve();
+    const failure = await settled;
+    assert.ok(failure instanceof AggregateError);
+    assert.equal(failure.cause, publicationFailure);
+    assert.equal(failure.errors.length, 3);
+    for (const [index, expected] of [
+      publicationFailure,
+      fileFailure,
+      parentFailure,
+    ].entries())
+      assert.equal(failure.errors[index], expected);
+    assert.deepEqual(calls, ["file", "file rejected", "parent"]);
+    assert.deepEqual(await readFile(filename), previous);
+  } finally {
+    releaseFile.resolve();
+    await settled;
+    publish.mock.restore();
+    removeFile.mock.restore();
+    removeParent.mock.restore();
+    syncBuiltinESMExports();
+  }
 });

@@ -382,16 +382,16 @@ async function writeRecord(directory, record) {
     failure = error;
   }
   const failures = failure === undefined ? [] : [failure];
-  // Parent removal follows the file attempt even when that cleanup fails.
-  for (const cleanup of [
-    () => rm(filename, { force: true }),
-    () => rmdir(stage),
-  ]) {
-    try {
-      await cleanup();
-    } catch (error) {
-      failures.push(error);
-    }
+  try {
+    await rm(filename, { force: true });
+  } catch (error) {
+    failures.push(error);
+  }
+  // Attempt the parent only after its file, including a failed file cleanup.
+  try {
+    await rmdir(stage);
+  } catch (error) {
+    failures.push(error);
   }
   if (failures.length === 1) throw failures[0];
   if (failures.length > 1)
