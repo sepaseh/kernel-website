@@ -64,11 +64,14 @@ and project-local Chromium, stop manually owned launchers and run:
 ```sh
 node node_modules/vitest/vitest.mjs run src/shared/security/csp.test.ts src/shared/runtime-adapters.test.ts src/proxy.test.ts
 npm run build
-npm run test:e2e
+npm run test:csp
 ```
 
-The e2e command runs enforcing journeys and then the report-only suite against
-the production build. Preserve the first failure;
+The CSP command runs the six enforcing scenarios and then the same scenarios in
+report-only mode against the verified production build. HTML reports and failure
+artifacts remain separate under `playwright-report/website/enforce`,
+`playwright-report/website/report-only` and their matching `test-results` paths.
+Preserve the first failure;
 [troubleshooting](troubleshooting.md) covers setup failures.
 
 Gateway and TLS wiring, remote origins and collectors require separate

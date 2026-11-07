@@ -11,16 +11,16 @@ Require one approving review, dismiss stale approvals, resolve conversations,
 keep strict up-to-date checks, enforce for administrators and require linear
 history. Allow neither force pushes nor branch deletion. Add no bypass actors.
 
-| Required check             | Expected GitHub App              |
-| -------------------------- | -------------------------------- |
-| `check`                    | GitHub Actions `15368`           |
-| `CodeQL`                   | GitHub Advanced Security `57789` |
-| `SonarQube Cloud analysis` | GitHub Actions `15368`           |
-| `SonarCloud Code Analysis` | SonarQube Cloud `12526`          |
-| `CodeRabbit`               | CodeRabbit `347564`              |
-| `build`                    | GitHub Actions `15368`           |
-| `e2e`                      | GitHub Actions `15368`           |
-| `visual`                   | GitHub Actions `15368`           |
+| Required check                 | Expected GitHub App              |
+| ------------------------------ | -------------------------------- |
+| `check`                        | GitHub Actions `15368`           |
+| `CodeQL`                       | GitHub Advanced Security `57789` |
+| `SonarQube Cloud analysis`     | GitHub Actions `15368`           |
+| `SonarCloud Code Analysis`     | SonarQube Cloud `12526`          |
+| `CodeRabbit`                   | CodeRabbit `347564`              |
+| `Application build and bundle` | GitHub Actions `15368`           |
+| `Application E2E tests`        | GitHub Actions `15368`           |
+| `Visual comparison`            | GitHub Actions `15368`           |
 
 The native `CodeQL` security result is required separately from its Actions
 analysis job. A successful scanner job alone is not the native result.
@@ -47,12 +47,13 @@ Inspect actual provider evidence before claiming approval.
 There is no separate approval publisher, review-signal check or PR file-limit gate.
 PR scope guidance is advisory and reviewed before opening a PR.
 
-CI displays static checks, dependency audit, unit tests and governance tests as
-separate jobs. The required `check` job aggregates their outcomes without
-installing dependencies or rerunning checks. It fails for a failed, skipped,
-cancelled or missing producer.
+CI displays static checks, dependency audit, unit and governance tests, the
+application build, and separate application E2E, accessibility, SEO, CSP and
+visual comparison jobs. The required `check` job aggregates every producer's
+outcome without installing dependencies or rerunning checks. It fails for a
+failed, skipped, cancelled or missing producer.
 
-Each test suite measures its own coverage once and publishes an immutable
+Unit and governance each measure coverage once and publish an immutable
 suite/run/attempt artifact. Analysis downloads and verifies both artifacts against
 the repository, PR head, base, tested commit/tree, workflow and measured LCOV bytes.
 Each artifact retains its successful producer attempt when only failed jobs or

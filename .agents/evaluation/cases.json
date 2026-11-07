@@ -238,7 +238,7 @@
         "docs/release-operations.md"
       ],
       "mustExplain": [
-        "The complete application gate retains sixteen required checks; optional manual/advisory operational commands cannot enter full or weaken existing coverage.",
+        "The complete application gate partitions required checks into independent jobs without repeating tests or builds; optional manual/advisory operational commands cannot enter full or weaken existing coverage.",
         "Readiness precedes configuration, dependencies or operations. Explicit target allowlists and filtered SDK environments do not prove a remote target is non-production or authorize dispatch.",
         "Real Docker/lab runs require current owned execution evidence. Lighthouse measures twelve local samples and medians, not field INP; reports and summaries must preserve failures and owned cleanup."
       ],

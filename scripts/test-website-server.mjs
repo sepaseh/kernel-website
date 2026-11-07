@@ -1,15 +1,15 @@
-import { stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { prepareStandalone } from "./prepare-standalone.mjs";
-import { artifactFile, readArtifactFile } from "./release-files.mjs";
+import { artifactFile } from "./release-files.mjs";
 import {
   readyRunnerRoot,
   resolveNextCli,
   syntheticRunnerInputs,
 } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
+import { verifyVerificationBuild } from "./verification-build.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
@@ -31,23 +31,9 @@ function skipBuildOption(options, inherited) {
 }
 
 /**
- * Allow skip-build mode only when an unlinked, bounded BUILD_ID contains a
- * nonempty public value before assets are prepared or a server is started.
- */
-async function requireCompletedBuild(root) {
-  const filename = await artifactFile(path.join(root, ".next/BUILD_ID"));
-  const entry = await stat(filename);
-  if (entry.size < 1 || entry.size > 1024)
-    throw new Error("Skipping a build requires a bounded, nonempty BUILD_ID.");
-  const value = (await readArtifactFile(filename)).toString("utf8");
-  if (!value.trim() || value.includes("\0"))
-    throw new Error("Skipping a build requires a nonempty public BUILD_ID.");
-}
-
-/**
  * Validate readiness and isolated inputs before resolving tools or starting work.
- * Await a successful build or validate an existing build marker, then prepare
- * assets and await the owned server with explicit synthetic settings.
+ * Await a successful fresh build and prepare its assets, or verify the exact
+ * existing source/output/environment before starting its prepared server.
  */
 export async function runTestWebsiteServer(root = repository, options = {}) {
   const directory = await readyRunnerRoot(root);
@@ -65,8 +51,13 @@ export async function runTestWebsiteServer(root = repository, options = {}) {
   const skipBuild = skipBuildOption(options, inherited);
   signal?.throwIfAborted();
 
-  if (skipBuild) await requireCompletedBuild(directory);
-  else {
+  let server;
+  if (skipBuild) {
+    await verifyVerificationBuild(directory, { environment: inherited });
+    server = await artifactFile(
+      path.join(directory, ".next/standalone/server.js"),
+    );
+  } else {
     const next = await resolveNextCli(directory);
     await runOwnedProcess({
       command: process.execPath,
@@ -75,9 +66,9 @@ export async function runTestWebsiteServer(root = repository, options = {}) {
       env: environment,
       signal,
     });
+    signal?.throwIfAborted();
+    server = await prepareStandalone(directory);
   }
-  signal?.throwIfAborted();
-  const server = await prepareStandalone(directory);
   signal?.throwIfAborted();
   return runOwnedProcess({
     command: process.execPath,

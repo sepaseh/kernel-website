@@ -14,8 +14,10 @@ import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
+import { prepareStandalone } from "./prepare-standalone.mjs";
 import { abortOnFixtureFile } from "./runner.test-support.mjs";
 import { runTestWebsiteServer } from "./test-website-server.mjs";
+import { recordVerificationBuild } from "./verification-build.mjs";
 
 const environment = () => ({
   NODE_ENV: "production",
@@ -50,7 +52,15 @@ async function fixture(t, scenario = {}) {
   await put(".github/bootstrap-policy.json", {
     schemaVersion: 1,
     applicationReady: scenario.ready ?? true,
+    allowedFiles: [
+      ".nvmrc",
+      "package.json",
+      "package-lock.json",
+      "public/logo.svg",
+    ],
   });
+  await put(".nvmrc", process.version.slice(1));
+  await mkdir(path.join(root, "coverage"));
   await put("package.json", {
     name: "kernel-website",
     dependencies: { next: "16.4.3" },
@@ -60,7 +70,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 if (fs.readFileSync(path.join(__dirname, 'public/logo.svg'), 'utf8') !== 'owned-public') throw new Error('public assets not prepared');
 if (fs.readFileSync(path.join(__dirname, '.next/static/chunk.js'), 'utf8') !== 'owned-static') throw new Error('static assets not prepared');
-fs.appendFileSync('trace.jsonl', JSON.stringify({kind:'server',csp:process.env.WEBSITE_CSP_MODE, nodeOptions:process.env.NODE_OPTIONS ?? null, database:process.env.DATABASE_URL ?? null})+'\\n');
+fs.appendFileSync('coverage/trace.jsonl', JSON.stringify({kind:'server',csp:process.env.WEBSITE_CSP_MODE, nodeOptions:process.env.NODE_OPTIONS ?? null, database:process.env.DATABASE_URL ?? null})+'\\n');
 ${scenario.server === "hold" ? "require('node:net').createServer().listen(0,'127.0.0.1');fs.writeFileSync('server-started.tmp','ready');fs.renameSync('server-started.tmp','server-started');" : scenario.server === "fail" ? "process.exitCode = 9;" : ""}
 `;
   const populateBuild = async () => {
@@ -86,7 +96,7 @@ ${scenario.server === "hold" ? "require('node:net').createServer().listen(0,'127
       `
 const fs = require('node:fs');
 const path = require('node:path');
-fs.appendFileSync('trace.jsonl', JSON.stringify({kind:'build',args:process.argv.slice(2), csp:process.env.WEBSITE_CSP_MODE,nodeOptions:process.env.NODE_OPTIONS ?? null,database:process.env.DATABASE_URL ?? null})+'\\n');
+fs.appendFileSync('coverage/trace.jsonl', JSON.stringify({kind:'build',args:process.argv.slice(2), csp:process.env.WEBSITE_CSP_MODE,nodeOptions:process.env.NODE_OPTIONS ?? null,database:process.env.DATABASE_URL ?? null})+'\\n');
 ${
   scenario.build === "fail"
     ? "process.exitCode=7;"
@@ -104,7 +114,7 @@ ${
   }
   const trace = async () => {
     try {
-      return (await readFile(path.join(root, "trace.jsonl"), "utf8"))
+      return (await readFile(path.join(root, "coverage/trace.jsonl"), "utf8"))
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line));
@@ -125,6 +135,7 @@ async function copyCli(put) {
     "release-files.mjs",
     "validate-deployment-env.mjs",
     "website-performance-environment.mjs",
+    "verification-build.mjs",
   ])
     await put(
       `scripts/${name}`,
@@ -261,19 +272,27 @@ test("failed or cancelled owned builds never prepare or start a server", async (
   });
 });
 
-test("skip-build requires bounded public BUILD_ID and does not resolve an unused Next CLI", async (t) => {
-  const { root, put, populateBuild, trace } = await fixture(t, { next: false });
-  for (const value of [null, "", " \n", "bad\0id", "a".repeat(1025)]) {
-    if (value !== null) await put(".next/BUILD_ID", value);
-    await assert.rejects(
-      runTestWebsiteServer(root, {
-        environment: environment(),
-        skipBuild: true,
-      }),
-    );
-    assert.deepEqual(await trace(), []);
-  }
+test("skip-build requires verified prepared bytes and does not resolve an unused Next CLI", async (t) => {
+  const { root, put, populateBuild, trace } = await fixture(t);
   await populateBuild();
+  await assert.rejects(
+    runTestWebsiteServer(root, { environment: environment(), skipBuild: true }),
+  );
+  assert.deepEqual(await trace(), []);
+  await prepareStandalone(root);
+  await recordVerificationBuild(root, { environment: environment() });
+  await put(
+    ".next/standalone/server.js",
+    "// Tampered build must not execute.\n",
+  );
+  await assert.rejects(
+    runTestWebsiteServer(root, { environment: environment(), skipBuild: true }),
+  );
+  assert.deepEqual(await trace(), []);
+  await populateBuild();
+  await prepareStandalone(root);
+  await recordVerificationBuild(root, { environment: environment() });
+  await rm(path.join(root, "node_modules/next/dist/bin/next"));
   await runTestWebsiteServer(root, {
     environment: { ...environment(), WEBSITE_SKIP_BUILD: "1" },
   });
@@ -281,6 +300,11 @@ test("skip-build requires bounded public BUILD_ID and does not resolve an unused
     (await trace()).map(({ kind }) => kind),
     ["server"],
   );
+  await put("public/logo.svg", "changed source");
+  await assert.rejects(
+    runTestWebsiteServer(root, { environment: environment(), skipBuild: true }),
+  );
+  assert.equal((await trace()).length, 1);
 });
 
 test("invalid build switches and CSP modes fail without spawning", async (t) => {

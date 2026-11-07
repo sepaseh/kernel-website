@@ -474,6 +474,26 @@ test("the font manifest belongs only to its preload helper", () => {
   assert.ok(check("./manifest.json", manifest, owner, true));
 });
 
+test("Reveal's observer ref admits only its exact installed React runtime edge", () => {
+  const reveal = path.join(root, "src/features/home/Reveal.tsx");
+  const card = path.join(root, "src/shared/ui/card.tsx");
+  const react = path.join(root, "node_modules/@types/react/index.d.ts");
+  assert.equal(check("react", react, reveal, false, "@types/react"), undefined);
+  assert.ok(check("react", react, reveal, true, "@types/react"));
+  assert.ok(check("react/jsx-runtime", react, reveal, false, "@types/react"));
+  assert.ok(
+    check(
+      "react",
+      path.resolve(root, "../other/node_modules/@types/react/index.d.ts"),
+      reveal,
+      false,
+      "@types/react",
+    ),
+  );
+  assert.ok(check("react", react, card, false, "@types/react"));
+  assert.equal(check("react", react, card, true, "@types/react"), undefined);
+});
+
 test("runtime adapters have exact server, client and installed package permissions", () => {
   const nonce = path.join(root, "src/shared/security/nonce.ts");
   const serverLanguage = path.join(root, "src/shared/settings/server.ts");

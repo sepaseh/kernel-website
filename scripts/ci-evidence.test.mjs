@@ -19,11 +19,13 @@ import { fileURLToPath } from "node:url";
 
 import {
   evidenceManifest,
+  gitExecutable,
   maximumCoverageBytes,
   readCoverage,
   runEvidence,
   sourceIdentity,
 } from "./ci-evidence.mjs";
+import { recordVerificationBuild } from "./verification-build.mjs";
 
 const commit = "a".repeat(40);
 const tree = "b".repeat(40);
@@ -101,6 +103,131 @@ const putManifest = (root, value) =>
     path.join(root, "coverage/unit/ci-evidence.json"),
     JSON.stringify(value),
   );
+
+const buildFixture = async (context) => {
+  const options = await fixture(context);
+  Object.assign(options.environment, {
+    NODE_ENV: "production",
+    HOSTNAME: "127.0.0.1",
+    PORT: "43102",
+    WEBSITE_URL: "http://127.0.0.1:43102",
+    API_BASE_URL: "http://127.0.0.1:43101",
+    WEBSITE_INDEXING_ENABLED: "false",
+    KERNEL_SYNTHETIC_ENV: "1",
+    WEBSITE_CSP_MODE: "enforce",
+  });
+  const manifest = { name: "kernel-website", dependencies: { next: "16.4.3" } };
+  const files = {
+    ".github/bootstrap-policy.json": JSON.stringify({
+      schemaVersion: 1,
+      applicationReady: true,
+      allowedFiles: [
+        ".nvmrc",
+        "package.json",
+        "package-lock.json",
+        "scripts/subset-website-fonts.py",
+        "src/example.ts",
+      ],
+    }),
+    ".nvmrc": process.version.slice(1),
+    "package.json": JSON.stringify(manifest),
+    "package-lock.json": JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        "": manifest,
+        "node_modules/next": { version: "16.4.3" },
+      },
+    }),
+    "node_modules/next/package.json": JSON.stringify({
+      name: "next",
+      version: "16.4.3",
+    }),
+    ".next/BUILD_ID": "synthetic-build-id",
+    ".next/standalone/server.js": "synthetic server; never executed",
+    ".next/static/chunk.js": "synthetic chunk; never executed",
+  };
+  for (const [filename, bytes] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(options.root, filename)), {
+      recursive: true,
+    });
+    await writeFile(path.join(options.root, filename), bytes);
+  }
+  await recordVerificationBuild(options.root, {
+    environment: options.environment,
+  });
+  return options;
+};
+
+test("build evidence binds a fully verified output to the original successful attempt", async (context) => {
+  const options = await buildFixture(context);
+  await runEvidence("--record-build", options);
+  assert.deepEqual(options.outputs, [
+    { artifact: "verification-build-123-1", attempt: "1" },
+  ]);
+  options.environment.GITHUB_RUN_ATTEMPT = "3";
+  await runEvidence("--verify-build", options);
+  assert.equal(options.outputs.length, 1);
+  const filename = path.join(options.root, "coverage/ci-build-evidence.json");
+  const original = JSON.parse(await readFile(filename, "utf8"));
+  assert.equal(original.identity.attempt, "1");
+  for (const key of Object.keys(original.identity)) {
+    const changed = structuredClone(original);
+    changed.identity[key] = "foreign";
+    await writeFile(filename, JSON.stringify(changed));
+    await assert.rejects(
+      runEvidence("--verify-build", options),
+      /does not match/,
+    );
+  }
+  await writeFile(filename, JSON.stringify(original));
+  options.environment.CI_EVIDENCE_PRODUCER_ATTEMPT = "3";
+  await assert.rejects(
+    runEvidence("--verify-build", options),
+    /does not match/,
+  );
+  delete options.environment.CI_EVIDENCE_PRODUCER_ATTEMPT;
+  await assert.rejects(
+    runEvidence("--verify-build", options),
+    /producer attempt/,
+  );
+});
+
+test("build record and verification both reject changed source, environment, output or proof bytes", async (context) => {
+  const options = await buildFixture(context);
+  await runEvidence("--record-build", options);
+  for (const filename of ["src/example.ts", ".next/static/chunk.js"]) {
+    const target = path.join(options.root, filename);
+    const original = await readFile(target);
+    await writeFile(target, Buffer.concat([original, Buffer.from(" ")]));
+    for (const mode of ["--record-build", "--verify-build"])
+      await assert.rejects(runEvidence(mode, options), /does not match/);
+    await writeFile(target, original);
+  }
+  const proofPath = path.join(options.root, "coverage/verification-build.json");
+  const proof = await readFile(proofPath);
+  const forgedProof = JSON.parse(proof);
+  forgedProof.schemaVersion = 2;
+  await writeFile(proofPath, JSON.stringify(forgedProof));
+  for (const mode of ["--record-build", "--verify-build"])
+    await assert.rejects(runEvidence(mode, options), /does not match/);
+  await writeFile(proofPath, proof);
+  options.environment.PORT = "43103";
+  options.environment.WEBSITE_URL = "http://127.0.0.1:43103";
+  await assert.rejects(
+    runEvidence("--verify-build", options),
+    /does not match/,
+  );
+  options.environment.PORT = "43102";
+  options.environment.WEBSITE_URL = "http://127.0.0.1:43102";
+  const filename = path.join(options.root, "coverage/ci-build-evidence.json");
+  const changed = JSON.parse(await readFile(filename, "utf8"));
+  changed.build.sha256 = "0".repeat(64);
+  await writeFile(filename, JSON.stringify(changed));
+  await assert.rejects(
+    runEvidence("--verify-build", options),
+    /does not match/,
+  );
+});
 
 test("records measured bytes and verifies the exact same-run source identity", async (context) => {
   const options = await fixture(context);
@@ -593,9 +720,9 @@ test("CLI handler publishes the artifact and rejects tampering in an isolated su
 test(
   "direct CLI records and verifies evidence from a real synthetic Git checkout",
   {
-    skip: existsSync("/usr/bin/git")
+    skip: existsSync(gitExecutable)
       ? false
-      : "The Ubuntu CI evidence CLI requires /usr/bin/git, which is unavailable on this host.",
+      : "The fixed native Git executable is unavailable on this host.",
   },
   async (context) => {
     const { root } = await fixture(context);
@@ -606,11 +733,15 @@ test(
     );
     const scriptPath = path.join(root, "scripts/ci-evidence.mjs");
     await copyFile(new URL("./ci-evidence.mjs", import.meta.url), scriptPath);
+    const gitConfig = path.join(root, "empty-git-config");
+    const hooks = path.join(root, "empty-hooks");
+    await writeFile(gitConfig, "");
+    await mkdir(hooks);
     const git = (...args) => {
-      const result = spawnSync("/usr/bin/git", args, {
+      const result = spawnSync(gitExecutable, args, {
         cwd: root,
         encoding: "utf8",
-        env: { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" },
+        env: { GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: "1" },
         windowsHide: true,
       });
       assert.equal(result.status, 0, result.stderr);
@@ -620,7 +751,7 @@ test(
     git("config", "user.name", "Synthetic CI Fixture");
     git("config", "user.email", "ci-fixture@example.invalid");
     git("config", "commit.gpgSign", "false");
-    git("config", "core.hooksPath", "/dev/null");
+    git("config", "core.hooksPath", hooks);
     git(
       "add",
       ".github/workflows/ci.yml",
@@ -646,7 +777,7 @@ test(
     const environment = {
       CI_EVIDENCE_PRODUCER_ATTEMPT: "2",
       CI_EVIDENCE_SUITE: "unit",
-      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_GLOBAL: gitConfig,
       GIT_CONFIG_NOSYSTEM: "1",
       GITHUB_EVENT_NAME: "pull_request",
       GITHUB_EVENT_PATH: eventPath,

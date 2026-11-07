@@ -31,7 +31,7 @@ Prepare the clean local inputs, matching Chromium and
 launchers, then run:
 
 ```sh
-npm run test:e2e
+npm run test:accessibility
 ```
 
 The accessibility suite scans home, login, registration, recovery and a connected
@@ -41,8 +41,8 @@ Keyboard cases check the skip link/main target, retained theme-toggle focus,
 visible outlines, login focus order and native invalid-input focus.
 
 Inspect incomplete findings rather than treating an empty violations list as a
-complete assessment. The e2e wrapper also exercises the other browser journeys in
-both CSP modes; [validation](validation.md) defines the complete publication gate.
+complete assessment. Application journeys and the two CSP modes have their own
+commands; [validation](validation.md) defines the complete publication gate.
 
 ## Review representative states manually
 

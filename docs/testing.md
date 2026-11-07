@@ -11,10 +11,11 @@ Unit coverage remains 90% for all metrics. Node owner tests measure executable
 governance helpers with 80% thresholds. Add no suppressions or source/rule/coverage
 exclusions, fabricated coverage or metric-only wrappers.
 
-CI displays unit and governance suites independently. Their manifest profiles
-partition the complete local gate; `check` aggregates job outcomes and Sonar
-consumes each suite's measured artifact without repeating tests. Dependency
-audit and static checks run independently of those suites.
+CI displays unit, governance, application E2E, accessibility, SEO, CSP and visual
+suites independently. Their manifest profiles partition the required checks.
+The `check` job aggregates their outcomes; Sonar consumes only the measured unit
+and governance coverage artifacts without repeating tests. Dependency audit and
+static checks run independently of those suites.
 
 Use colocated `*.test.mjs` owner suites and explicitly named integration cases
 for agreement across owners. Fixtures use synthetic public data and disposable
@@ -40,8 +41,15 @@ completed browser/visual comparison nor Docker or installed-service acceptance.
 Retained baseline images describe historical captures.
 
 Application acceptance must exercise the delivered website with this
-repository's HTTP fixture and a verified browser. Build, browser/CSP and visual
-operations share outputs and must run sequentially. False-marker guard tests
+repository's HTTP fixture and a verified browser. A single Windows build checks
+unused source and bundle budgets, prepares standalone output and records its
+admitted source inputs, synthetic environment, exact toolchain and output hashes.
+Hosted browser jobs consume the immutable artifact from that successful build
+attempt and verify it before running their disjoint profiles: 21 functional E2E,
+8 accessibility, 17 SEO, 12 CSP and 4 visual scenarios. CSP retains six scenarios
+in each of enforce and report-only mode. Font integrity remains in governance.
+Local `full` runs the same checks sequentially under one writer and reuses that
+verified build. False-marker guard tests
 reject operations before configuration, dependencies or child startup; they do
 not turn authored scenarios into passing or skipped browser results.
 See [visual regression](visual-regression.md) for baseline review and update rules.

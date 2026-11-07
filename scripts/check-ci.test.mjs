@@ -24,7 +24,7 @@ const read = (name) => readFile(new URL(`../${name}`, import.meta.url), "utf8");
 const manifest = JSON.parse(await read(".agents/validation.json"));
 const ci = workflowDocument(await read(".github/workflows/ci.yml"));
 
-test("CI executes all sixteen application checks through real runtime jobs and separate coverage producers", async () => {
+test("CI executes all nineteen application checks through real runtime jobs and separate coverage producers", async () => {
   await inspectCi();
   validateCheckManifest(manifest);
 });
@@ -308,6 +308,9 @@ test("application typechecking, measured fonts and runtime acceptance cannot be 
     "dead-code",
     "build",
     "e2e",
+    "accessibility",
+    "seo",
+    "csp",
     "visual",
   ]) {
     for (const change of [
@@ -334,29 +337,31 @@ test("application typechecking, measured fonts and runtime acceptance cannot be 
   }
 });
 
-test("application jobs require isolated exact-source builds, installed Chromium and retained browser evidence", () => {
+test("application jobs require one exact-source build, installed Chromium and retained browser evidence", () => {
   for (const change of [
-    ...["build", "e2e", "visual"].flatMap((mode) => [
-      (value) => {
-        value.jobs[mode]["runs-on"] = "ubuntu-latest";
-      },
-      (value) => {
-        value.jobs[mode].steps[0].with.ref = "main";
-      },
-      (value) => {
-        value.jobs[mode].steps[1].with["node-version"] = "latest";
-      },
-      (value) => {
-        value.jobs[mode].env = { WEBSITE_URL: "https://production.test" };
-      },
-      (value) => {
-        value.jobs[mode].steps[2].run = "npm ci";
-      },
-      (value) => {
-        value.jobs[mode].steps[3].if = "false";
-      },
-    ]),
-    ...["e2e", "visual"].flatMap((mode) => [
+    ...["build", "e2e", "accessibility", "seo", "csp", "visual"].flatMap(
+      (mode) => [
+        (value) => {
+          value.jobs[mode]["runs-on"] = "ubuntu-latest";
+        },
+        (value) => {
+          value.jobs[mode].steps[0].with.ref = "main";
+        },
+        (value) => {
+          value.jobs[mode].steps[1].with["node-version"] = "latest";
+        },
+        (value) => {
+          value.jobs[mode].env = { WEBSITE_URL: "https://production.test" };
+        },
+        (value) => {
+          value.jobs[mode].steps[2].run = "npm ci";
+        },
+        (value) => {
+          value.jobs[mode].steps[3].if = "false";
+        },
+      ],
+    ),
+    ...["e2e", "accessibility", "seo", "csp", "visual"].flatMap((mode) => [
       (value) => {
         value.jobs[mode].needs = [];
       },
@@ -415,6 +420,25 @@ test("application jobs require isolated exact-source builds, installed Chromium 
   }
 });
 
+test("CSP evidence retains reports and failure artifacts from both enforcement modes", () => {
+  const paths = [
+    "playwright-report/website/enforce",
+    "playwright-report/website/report-only",
+    "test-results/website/enforce",
+    "test-results/website/report-only",
+  ];
+  assert.deepEqual(
+    ci.jobs.csp.steps.at(-1).with.path.trim().split("\n"),
+    paths,
+  );
+  for (const missing of paths) {
+    const value = structuredClone(ci);
+    value.jobs.csp.steps.at(-1).with.path =
+      paths.filter((entry) => entry !== missing).join("\n") + "\n";
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
+});
+
 test("font coverage uses pinned Python and dependencies before measuring and sharing the same producer artifact", () => {
   for (const change of [
     (value) => {
@@ -455,6 +479,81 @@ test("font coverage uses pinned Python and dependencies before measuring and sha
     (value) => {
       value.jobs.analysis.steps.splice(-1, 0, { run: "npm run check:fonts" });
     },
+  ]) {
+    const value = structuredClone(ci);
+    change(value);
+    assert.throws(() => validateCiWorkflow(JSON.stringify(value), manifest));
+  }
+});
+
+test("the single build and every browser group require immutable same-producer output evidence", () => {
+  const consumers = ["e2e", "accessibility", "seo", "csp", "visual"];
+  assert.deepEqual(
+    consumers.map((mode) => ci.jobs[mode].steps[6].run),
+    consumers.map((mode) => `npm run validate -- ci-${mode}`),
+  );
+  assert.equal(
+    Object.values(ci.jobs)
+      .flatMap((job) => job.steps)
+      .filter((step) => step.run === "npm run validate -- ci-build").length,
+    1,
+  );
+  for (const change of [
+    (value) => {
+      delete value.jobs.build.outputs.attempt;
+    },
+    (value) => {
+      value.jobs.build.steps[4].run = "echo unverified-build";
+    },
+    (value) => {
+      value.jobs.build.steps.at(-1).with["include-hidden-files"] = false;
+    },
+    (value) => {
+      value.jobs.build.steps.at(-1).with.path = ".next/\n";
+    },
+    (value) => {
+      value.jobs.build.steps.at(-1).with.path = value.jobs.build.steps
+        .at(-1)
+        .with.path.replace(
+          "!.next/standalone/.next/server/route-cache/**\n",
+          "",
+        );
+    },
+    (value) => {
+      value.jobs.build.steps.at(-1).with.path +=
+        "!.next/standalone/.next/server/**\n";
+    },
+    (value) => {
+      value.jobs.build.steps.at(-1).with.overwrite = true;
+    },
+    ...consumers.flatMap((mode) => [
+      (value) => {
+        value.jobs[mode].steps[4].with.name = "foreign-build";
+      },
+      (value) => {
+        value.jobs[mode].steps[4].with.path = "another-root";
+      },
+      (value) => {
+        value.jobs[mode].steps[4].with["digest-mismatch"] = "warn";
+      },
+      (value) => {
+        value.jobs[mode].steps[5].env.CI_EVIDENCE_PRODUCER_ATTEMPT =
+          "${{ github.run_attempt }}";
+      },
+      (value) => {
+        value.jobs[mode].steps[5].run = "echo skip-proof";
+      },
+      (value) => {
+        value.jobs[mode].steps[6].run = "npm run build";
+      },
+      (value) => {
+        value.jobs[mode].steps.splice(
+          4,
+          2,
+          ...value.jobs[mode].steps.slice(4, 6).reverse(),
+        );
+      },
+    ]),
   ]) {
     const value = structuredClone(ci);
     change(value);

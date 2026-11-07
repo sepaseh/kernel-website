@@ -7,6 +7,7 @@ import {
 import { artifactFile } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
+import { verifyVerificationBuild } from "./verification-build.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
@@ -29,10 +30,10 @@ export async function runCspReportOnly(root = repository, options = {}) {
   const argv = options.argv ?? [];
   if (!Array.isArray(argv) || argv.length)
     throw new Error("The CSP report-only runner accepts no extra arguments.");
-  const inputs = await syntheticBrowserInputs(
-    directory,
-    options.environment ?? process.env,
-  );
+  const inherited = options.environment ?? process.env;
+  const inputs = await syntheticBrowserInputs(directory, inherited);
+  await verifyVerificationBuild(directory, { environment: inherited });
+  signal?.throwIfAborted();
   const cli = await resolvePlaywrightCli(directory);
   const config = await artifactFile(
     `${directory}/playwright.website.config.ts`,

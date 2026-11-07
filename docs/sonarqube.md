@@ -27,6 +27,10 @@ successful producer attempt, including analysis-only reruns. A missing or
 mismatched report blocks analysis; the scanner does not rerun tests to replace
 missing evidence.
 
+The separate build artifact serves browser acceptance only. Its provenance
+checks do not replace measured coverage, change the unit/governance thresholds
+or cause analysis to rebuild the website or rerun browser suites.
+
 Each LCOV source record must declare one valid `LF` count matching its distinct
 `DA` entries. A source with no executable lines declares `LF:0` and needs no `DA`
 entries.

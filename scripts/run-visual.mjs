@@ -16,6 +16,7 @@ import {
 } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
 import { runVerificationCli, startOwnedProcess } from "./runner-process.mjs";
+import { verifyVerificationBuild } from "./verification-build.mjs";
 import {
   acquireVisualLock,
   assertReviewedVisualBaseline,
@@ -254,10 +255,13 @@ export async function runVisual(root = repository, options = {}) {
   )
     throw new Error("Visual runs accept only one optional --update argument.");
   const update = argv.length === 1;
-  const inputs = await syntheticBrowserInputs(
-    directory,
-    options.environment ?? process.env,
-  );
+  const reuseBuild = options.reuseBuild;
+  if (reuseBuild !== undefined && typeof reuseBuild !== "boolean")
+    throw new TypeError("Visual build reuse requires an explicit boolean.");
+  if (update && reuseBuild)
+    throw new Error("Visual baseline updates require a fresh owned build.");
+  const inherited = options.environment ?? process.env;
+  const inputs = await syntheticBrowserInputs(directory, inherited);
   const platform = process.platform;
   assertVisualMode({
     update,
@@ -284,6 +288,8 @@ export async function runVisual(root = repository, options = {}) {
       });
     }
     await requireNoNextLock(directory);
+    if (reuseBuild)
+      await verifyVerificationBuild(directory, { environment: inherited });
     await assertVisualPortsAvailable([
       Number(new URL(inputs.websiteOrigin).port),
       Number(new URL(inputs.apiOrigin).port),
@@ -292,7 +298,7 @@ export async function runVisual(root = repository, options = {}) {
     const environment = {
       ...inputs.websiteEnvironment,
       KERNEL_VISUAL_RUNNER: "1",
-      WEBSITE_SKIP_BUILD: "0",
+      WEBSITE_SKIP_BUILD: reuseBuild ? "1" : "0",
       PLAYWRIGHT_BROWSERS_PATH: "0",
     };
     const browserVersion = await probeBrowser(

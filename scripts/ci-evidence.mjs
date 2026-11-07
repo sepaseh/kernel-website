@@ -7,6 +7,10 @@ import { isDeepStrictEqual } from "node:util";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const suites = new Set(["unit", "governance"]);
+export const gitExecutable =
+  process.platform === "win32"
+    ? String.raw`C:\Program Files\Git\cmd\git.exe`
+    : "/usr/bin/git";
 export const maximumCoverageBytes = 32 * 1024 * 1024;
 const sha = (value) =>
   typeof value === "string" &&
@@ -231,22 +235,100 @@ export const evidenceManifest = (identity, reports, suite) => ({
   })),
 });
 
+const verifyManifest = async (root, manifestPath, expected) => {
+  const { filename, info } = await regularFile(root, manifestPath);
+  if (info.size > 16 * 1024)
+    throw new Error("CI evidence manifest is too large");
+  if (
+    !isDeepStrictEqual(JSON.parse(await readFile(filename, "utf8")), expected)
+  )
+    throw new Error(
+      "CI evidence does not match the exact source, workflow, producer or measured bytes",
+    );
+};
+
+const publishEvidence = async (
+  root,
+  manifestPath,
+  expected,
+  values,
+  environment,
+  output,
+) => {
+  const { filename } = await regularFile(root, manifestPath, true);
+  await writeFile(filename, JSON.stringify(expected, null, 2) + "\n", "utf8");
+  if (output) await output(values);
+  else
+    await appendFile(
+      environment.GITHUB_OUTPUT,
+      `artifact=${values.artifact}\nattempt=${values.attempt}\n`,
+    );
+};
+
+const buildEvidence = async ({
+  root,
+  environment,
+  identity,
+  verifying,
+  output,
+}) => {
+  // Coverage verification stays dependency-free; build consumers install the exact
+  // locked Next version before verifying its runtime and platform identity.
+  const { verifyVerificationBuild } = await import("./verification-build.mjs");
+  await verifyVerificationBuild(root, { environment });
+  const reportPath = "coverage/verification-build.json";
+  const bytes = await readMeasuredReport(root, reportPath, "build record");
+  const expected = {
+    schemaVersion: 1,
+    identity,
+    build: {
+      path: reportPath,
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    },
+  };
+  const manifestPath = "coverage/ci-build-evidence.json";
+  if (verifying) await verifyManifest(root, manifestPath, expected);
+  else
+    await publishEvidence(
+      root,
+      manifestPath,
+      expected,
+      {
+        artifact: `verification-build-${identity.runId}-${identity.attempt}`,
+        attempt: identity.attempt,
+      },
+      environment,
+      output,
+    );
+};
+
 export const runEvidence = async (
   mode,
   { root = repository, environment = process.env, event, git, output } = {},
 ) => {
-  if (!["--record", "--verify-coverage"].includes(mode))
-    throw new Error("Usage: ci-evidence.mjs --record|--verify-coverage");
+  if (
+    ![
+      "--record",
+      "--verify-coverage",
+      "--record-build",
+      "--verify-build",
+    ].includes(mode)
+  )
+    throw new Error(
+      "Usage: ci-evidence.mjs --record|--verify-coverage|--record-build|--verify-build",
+    );
+  const build = mode === "--record-build" || mode === "--verify-build";
   const suite = environment.CI_EVIDENCE_SUITE;
-  if (!suites.has(suite))
+  if (!build && !suites.has(suite))
     throw new Error("CI evidence requires a declared unit or governance suite");
   const reportPath = `coverage/${suite}/lcov.info`;
   const manifestPath = `coverage/${suite}/ci-evidence.json`;
   const readGit =
     git ??
     ((args) =>
-      // The evidence CLI runs on Ubuntu; never resolve Git through a writable PATH.
-      execFileSync("/usr/bin/git", args, {
+      // Never resolve Git through a writable PATH on hosted Linux or Windows.
+      execFileSync(gitExecutable, args, {
         cwd: root,
         encoding: "utf8",
         windowsHide: true,
@@ -254,7 +336,7 @@ export const runEvidence = async (
       }));
   const payload =
     event ?? JSON.parse(await readFile(environment.GITHUB_EVENT_PATH, "utf8"));
-  const verifying = mode === "--verify-coverage";
+  const verifying = mode === "--verify-coverage" || mode === "--verify-build";
   if (verifying && !positive(environment.CI_EVIDENCE_PRODUCER_ATTEMPT))
     throw new Error("Analysis requires the successful producer attempt output");
   if (!verifying && !output && !environment.GITHUB_OUTPUT)
@@ -267,6 +349,10 @@ export const runEvidence = async (
       ? environment.CI_EVIDENCE_PRODUCER_ATTEMPT
       : undefined,
   });
+  if (build) {
+    await buildEvidence({ root, environment, identity, verifying, output });
+    return identity;
+  }
   const reports = [{ reportPath, bytes: await readCoverage(root, reportPath) }];
   if (suite === "governance")
     reports.push({
@@ -274,31 +360,22 @@ export const runEvidence = async (
       bytes: await readFontCoverage(root),
     });
   const expected = evidenceManifest(identity, reports, suite);
-  const { filename, info } = await regularFile(root, manifestPath, !verifying);
   if (verifying) {
-    if (info.size > 16 * 1024)
-      throw new Error("CI evidence manifest is too large");
-    if (
-      !isDeepStrictEqual(JSON.parse(await readFile(filename, "utf8")), expected)
-    )
-      throw new Error(
-        "Coverage evidence does not match the exact source, workflow, producer or measured bytes",
-      );
+    await verifyManifest(root, manifestPath, expected);
     return identity;
   }
-
-  await writeFile(filename, JSON.stringify(expected, null, 2) + "\n", "utf8");
   const values = {
     artifact: `coverage-${suite}-${identity.runId}-${identity.attempt}`,
     attempt: identity.attempt,
   };
-  if (output) await output(values);
-  else {
-    await appendFile(
-      environment.GITHUB_OUTPUT,
-      `artifact=${values.artifact}\nattempt=${values.attempt}\n`,
-    );
-  }
+  await publishEvidence(
+    root,
+    manifestPath,
+    expected,
+    values,
+    environment,
+    output,
+  );
   return identity;
 };
 

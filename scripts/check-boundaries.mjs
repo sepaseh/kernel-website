@@ -256,7 +256,7 @@ const ownerPackages = new Map([
   [
     "src/features/home/Reveal.tsx",
     [
-      { specifier: "react", package: "@types/react", typeOnly: true },
+      reactRuntimeImport,
       { specifier: "motion/react", package: "motion", typeOnly: false },
       { specifier: "motion/react-m", package: "motion", typeOnly: false },
     ],

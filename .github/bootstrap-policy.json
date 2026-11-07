@@ -227,6 +227,8 @@
     "scripts/validate.mjs",
     "scripts/validate.test.mjs",
     "scripts/validation.integration.test.mjs",
+    "scripts/verification-build.mjs",
+    "scripts/verification-build.test.mjs",
     "scripts/visual-environment.mjs",
     "scripts/visual-environment.test.mjs",
     "scripts/website-api-fixture.mjs",

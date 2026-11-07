@@ -25,9 +25,12 @@ export const ciProfiles = Object.freeze({
   governance: ["governance-coverage", "font-integrity"],
   build: ["dead-code", "build"],
   e2e: ["e2e"],
+  accessibility: ["accessibility"],
+  seo: ["seo"],
+  csp: ["csp"],
   visual: ["visual"],
 });
-export const aggregateCommand = `node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance', 'build', 'e2e', 'visual']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"`;
+export const aggregateCommand = `node -e "const needs = JSON.parse(process.env.CI_NEEDS); const required = ['quality', 'audit', 'unit', 'governance', 'build', 'e2e', 'accessibility', 'seo', 'csp', 'visual']; if (required.some(id => needs[id]?.result !== 'success')) process.exit(1);"`;
 export const requiredChecks = Object.freeze([
   "snapshot",
   "ci-policy",
@@ -44,6 +47,9 @@ export const requiredChecks = Object.freeze([
   "dead-code",
   "build",
   "e2e",
+  "accessibility",
+  "seo",
+  "csp",
   "visual",
 ]);
 const commands = [
@@ -62,6 +68,9 @@ const commands = [
   "check:unused",
   "build",
   "test:e2e",
+  "test:accessibility",
+  "test:seo",
+  "test:csp",
   "test:visual",
 ];
 const manualWorkflows = [
@@ -142,7 +151,7 @@ export function validateCheckManifest(manifest) {
   assert.deepEqual(
     manifest.profiles?.full,
     requiredChecks,
-    "All sixteen real checks run once.",
+    "All nineteen real checks run once.",
   );
   assert.deepEqual(
     manifest.checks
@@ -161,17 +170,9 @@ export function validateCheckManifest(manifest) {
     assert.equal(check.kind, "required");
     assert.equal(check.command, `npm run ${commands[index]}`);
     assert.deepEqual(check.scopes, [manifest.phase]);
-    // Browser jobs build their own fresh outputs before their runtime profile.
-    assert.deepEqual(
-      check.ciJobs,
-      check.id === "build"
-        ? ["build", "e2e", "visual"]
-        : [
-            Object.keys(ciProfiles).find((job) =>
-              ciProfiles[job].includes(check.id),
-            ),
-          ],
-    );
+    assert.deepEqual(check.ciJobs, [
+      Object.keys(ciProfiles).find((job) => ciProfiles[job].includes(check.id)),
+    ]);
   }
   for (const [job, ids] of Object.entries(ciProfiles))
     assert.deepEqual(manifest.profiles[`ci-${job}`], ids);
@@ -199,7 +200,65 @@ export function validateCheckManifest(manifest) {
   ]);
 }
 
-/** Verify real isolated runtime jobs, including their own build and browser. */
+const applicationLabels = Object.freeze({
+  build: "Application build and bundle",
+  e2e: "Application E2E tests",
+  accessibility: "Accessibility tests",
+  seo: "SEO tests",
+  csp: "CSP tests",
+  visual: "Visual comparison",
+});
+export const buildArtifactPaths =
+  ".next/\n!.next/cache/**\n!.next/standalone/.next/cache/**\n!.next/standalone/.next/server/route-cache/**\ncoverage/verification-build.json\ncoverage/ci-build-evidence.json\n";
+
+function validateBuildEvidence(job) {
+  assert.deepEqual(job.outputs, {
+    artifact: "${{ steps.evidence.outputs.artifact }}",
+    attempt: "${{ steps.evidence.outputs.attempt }}",
+  });
+  const evidence = job.steps.at(-2);
+  assert.equal(evidence.id, "evidence");
+  assert.equal(evidence.env, undefined);
+  assert.deepEqual(job.steps.at(-1).with, {
+    name: "${{ steps.evidence.outputs.artifact }}",
+    path: buildArtifactPaths,
+    "if-no-files-found": "error",
+    "retention-days": 3,
+    overwrite: false,
+    "include-hidden-files": true,
+  });
+}
+
+function validateBrowserEvidence(job, mode) {
+  assert.equal(job.outputs, undefined);
+  assert.deepEqual(job.steps[4].with, {
+    name: "${{ needs.build.outputs.artifact }}",
+    path: ".",
+    "digest-mismatch": "error",
+  });
+  assert.deepEqual(job.steps[5].env, {
+    CI_EVIDENCE_PRODUCER_ATTEMPT: "${{ needs.build.outputs.attempt }}",
+  });
+  const evidence = job.steps.at(-1);
+  assert.equal(evidence.if, "${{ !cancelled() }}");
+  assert.equal(evidence["continue-on-error"], undefined);
+  assert.equal(evidence.env, undefined);
+  assert.equal(evidence.shell, undefined);
+  assert.deepEqual(evidence.with, {
+    name:
+      `${mode}-evidence-` + "${{ github.run_id }}-${{ github.run_attempt }}",
+    path:
+      mode === "csp"
+        ? "playwright-report/website/enforce\nplaywright-report/website/report-only\ntest-results/website/enforce\ntest-results/website/report-only\n"
+        : "playwright-report\ntest-results\n",
+    "if-no-files-found": "error",
+    "retention-days": 14,
+    overwrite: false,
+    "include-hidden-files": false,
+  });
+}
+
+/** Verify one build producer and isolated consumers of its exact attested output. */
 function validateApplicationJob(job, mode) {
   unconditional(job);
   assert.equal(
@@ -212,13 +271,12 @@ function validateApplicationJob(job, mode) {
     false,
     "Verification jobs must inherit workflow permissions.",
   );
-  assert.equal(job.name, mode);
+  assert.equal(job.name, applicationLabels[mode]);
   assert.equal(job.env, undefined);
   assert.equal(job.strategy, undefined);
   assert.deepEqual(job.needs, mode === "build" ? undefined : ["build"]);
   assert.equal(job["runs-on"], "windows-latest");
   assert.equal(job["timeout-minutes"], mode === "build" ? 30 : 60);
-  assert.equal(job.outputs, undefined);
   pinnedActions(job);
   assert.deepEqual(job.steps[0].with, {
     ref: "${{ github.sha }}",
@@ -229,31 +287,34 @@ function validateApplicationJob(job, mode) {
     cache: "npm",
   });
   const expected = [checkoutAction, nodeAction, installCommand];
-  if (mode !== "build") expected.push(browserInstallCommand, "npm run build");
-  expected.push(`npm run validate -- ci-${mode}`);
-  if (mode !== "build") expected.push(uploadAction);
+  if (mode === "build") {
+    expected.push(
+      "npm run validate -- ci-build",
+      "node scripts/ci-evidence.mjs --record-build",
+      uploadAction,
+    );
+    validateBuildEvidence(job);
+  } else {
+    expected.push(
+      browserInstallCommand,
+      downloadAction,
+      "node scripts/ci-evidence.mjs --verify-build",
+      `npm run validate -- ci-${mode}`,
+      uploadAction,
+    );
+    validateBrowserEvidence(job, mode);
+  }
   assert.deepEqual(
     job.steps.map((step) => step.uses ?? step.run),
     expected,
   );
-  for (const step of mode === "build" ? job.steps : job.steps.slice(0, -1)) {
+  for (const [index, step] of (mode === "build"
+    ? job.steps
+    : job.steps.slice(0, -1)
+  ).entries()) {
     unconditional(step);
-    assert.equal(step.env, undefined);
+    if (mode === "build" || index !== 5) assert.equal(step.env, undefined);
     assert.equal(step.shell, undefined);
-  }
-  if (mode !== "build") {
-    const evidence = job.steps.at(-1);
-    assert.equal(evidence.if, "${{ !cancelled() }}");
-    assert.equal(evidence["continue-on-error"], undefined);
-    assert.deepEqual(evidence.with, {
-      name:
-        `${mode}-evidence-` + "${{ github.run_id }}-${{ github.run_attempt }}",
-      path: "playwright-report\ntest-results\n",
-      "if-no-files-found": "error",
-      "retention-days": 14,
-      overwrite: false,
-      "include-hidden-files": false,
-    });
   }
 }
 
@@ -401,6 +462,9 @@ export function validateCiWorkflow(content, manifest) {
     "governance",
     "build",
     "e2e",
+    "accessibility",
+    "seo",
+    "csp",
     "visual",
     "check",
     "analysis",
@@ -429,7 +493,7 @@ export function validateCiWorkflow(content, manifest) {
   };
   for (const [name, label] of Object.entries(labels))
     validateProducerJob(workflow.jobs[name], name, label);
-  for (const mode of ["build", "e2e", "visual"])
+  for (const mode of Object.keys(applicationLabels))
     validateApplicationJob(workflow.jobs[mode], mode);
 
   const check = workflow.jobs.check;

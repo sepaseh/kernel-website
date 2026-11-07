@@ -79,6 +79,13 @@ lifecycle contracts. [Smoke](../e2e/operations/smoke.spec.ts) and
 [staging](../e2e/operations/staging.spec.ts) are separately authorized operational
 scenarios.
 
+Application, accessibility, SEO and CSP acceptance are disjoint named suites in
+the [manifest](../.agents/validation.json). Each consumes the same source-bound
+production build through [build verification](../scripts/verification-build.mjs).
+CSP runs its scenarios once in enforce mode and once in report-only mode;
+font/resource assertions remain with application journeys and do not measure a
+Lighthouse score. Manual smoke and staging keep their own target boundaries.
+
 [Visual scenes](../e2e/visual/website.spec.ts) and
 [font readiness](../e2e/visual/readiness.ts) use explicit viewport, reduced motion,
 browser/channel, snapshot names and pixel tolerances. Comparison enforces
