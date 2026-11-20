@@ -1,12 +1,9 @@
 # Local synthetic HTTP fixture
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 Website browser checks run the real website against
-[`scripts/website-api-fixture.mjs`](../scripts/website-api-fixture.mjs), a test-only
-Node HTTP responder maintained in this repository. It supplies deterministic
-settings and auth/account responses with fresh in-memory state. It is not a
-production authentication service or evidence of external backend compatibility.
+the [synthetic HTTP responder](../scripts/website-api-fixture.mjs). Each run
+starts with fresh in-memory settings, accounts, sessions, blog posts and FAQs.
+Contact submissions are stored in memory for the lifetime of that run.
 
 ## Start the fixture
 
@@ -20,7 +17,8 @@ is needed for the fixture.
 node scripts/test-website-api.mjs
 ```
 
-The launcher resolves the fixture from the website root. Its parent `PORT` stays
+Wait for `Owned website HTTP test fixture is listening.` before requesting the
+website. The launcher resolves the fixture from the website root. Its parent `PORT` stays
 at the website port; the child port is derived from `API_BASE_URL`. The child
 receives `NODE_ENV=test`, `KERNEL_SYNTHETIC_ENV=1`, its selected `PORT` and
 `WEBSITE_URL`, with only approved runtime environment values. Supply no real
@@ -38,8 +36,8 @@ explicit creation/startup requires `NODE_ENV=test`, `KERNEL_SYNTHETIC_ENV=1`, a
 canonical nonzero TCP port and a synthetic website origin. Default binding is
 `127.0.0.1` with an explicit HTTP loopback website port. The opt-in
 `WEBSITE_FIXTURE_CONTAINER=1` mode binds `0.0.0.0` and requires the exact HTTPS
-hostname `www.kernel.test` with an explicit port. That mode is a source contract,
-not evidence of container execution or a delivered smoke runner.
+hostname `www.kernel.test` with an explicit port. The
+[disposable Docker smoke runner](../scripts/run-docker-smoke.mjs) owns that setup.
 
 The fixture does not read the application's readiness marker. Tests may start
 it independently under its explicit synthetic inputs and must close the server
@@ -50,22 +48,26 @@ state as fixture data.
 
 ## Feature data and test operations
 
+The FAQ fixture seeds twenty-one active plain-text questions and one inactive
+record. Public queries allow only bounded offset/size and return four-field active
+projections ordered by sort and UUID. Administrator-only edits support public
+visibility, atomic-invalid-edit and long-token browser checks; they do not replace
+the real API's independent permission and database contracts. See [FAQ](faq.md).
+
 The blog fixture seeds thirteen published articles and an unpublished working
 draft. It provides public offset pagination, category reads, sitemap projections,
 and administrator-only preview capabilities and publish/unpublish operations.
 Capabilities expire after five minutes and require the issuing session to remain
-live. See [Blog and preview](blog.md) for the website's expectations.
+live. These are synthetic frontend acceptance contracts, not a production CMS.
 
-## Evidence boundaries
+The anonymous contact responder accepts exactly three required plain-text fields,
+normalizes Iranian mobile digits, and models UUID-keyed 24-hour replay, conflict
+and bounded quotas. Its receipt excludes personal input. An administrator-only
+in-memory inbox read lets the browser assert that an uncertain retry created one
+message. These disposable records do not establish real API persistence or its
+management permissions; see the [contact contract](contact.md).
 
-The [application contract](application.md) requires exact-tree production
-build/bundle checks, real browser journeys against this local responder in both
-CSP modes and compatible Windows visual comparison. The fixture supports frontend
-acceptance; it does not verify production authentication, OTP delivery, persistence
-or a developer-selected backend. Downstream integrations are application decisions.
-
-Before authorized commit, push or handoff, freshly install Node and pinned Python
-dependencies and pass the complete isolated
-[validation procedure](validation.md). Source markers and historical images
-cannot replace execution. Operational targets and production deployment require
-separate authorization.
+Run the fixture through the normal browser runner when checking the real website,
+and use the [exact-tree validation procedure](validation.md) for publication
+evidence. Verify production authentication, OTP delivery and persistence against
+the selected backend in a separately authorized integration environment.

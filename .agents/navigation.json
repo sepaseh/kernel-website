@@ -2,6 +2,103 @@
   "schemaVersion": 1,
   "tasks": [
     {
+      "id": "public-faq",
+      "when": "Change active FAQ reads, native disclosures, public pagination, metadata or discovery.",
+      "owners": [
+        "src/app/faq/[[...path]]/page.tsx",
+        "src/features/faq/Faq.tsx",
+        "src/features/faq/api.ts",
+        "src/features/faq/paths.ts",
+        "src/features/faq/server.ts"
+      ],
+      "contracts": ["src/features/faq/types.ts", "docs/faq.md"],
+      "tests": [
+        "src/features/faq/api.test.ts",
+        "src/features/faq/paths.test.ts",
+        "src/features/faq/faq.test.tsx",
+        "e2e/website/faq.spec.ts",
+        "scripts/website-api-fixture.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "guidance",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "format",
+        "unit-coverage",
+        "governance-coverage",
+        "font-integrity",
+        "dead-code",
+        "build",
+        "e2e",
+        "accessibility",
+        "seo",
+        "csp",
+        "visual"
+      ],
+      "rules": [
+        ".agents/rules/api-collection.md",
+        ".agents/rules/imports.md",
+        ".agents/rules/localization.md",
+        ".agents/rules/testing.md",
+        ".agents/rules/website.md"
+      ]
+    },
+    {
+      "id": "public-contact",
+      "when": "Change the anonymous contact page, three required fields, idempotent retry or credential isolation.",
+      "owners": [
+        "src/features/contact/ContactForm.tsx",
+        "src/features/contact/api.ts",
+        "src/features/contact/values.ts",
+        "src/app/contact/page.tsx",
+        "src/app/contact/layout.tsx",
+        "src/shared/api/client.ts",
+        "src/shared/api/proxy.ts"
+      ],
+      "contracts": [
+        "src/features/contact/types.ts",
+        "src/shared/contracts/index.ts",
+        "docs/contact.md"
+      ],
+      "tests": [
+        "src/features/contact/ContactForm.test.tsx",
+        "src/features/contact/api.test.ts",
+        "src/features/contact/values.test.ts",
+        "src/features/contact/page.test.tsx",
+        "src/shared/api/client.test.ts",
+        "src/shared/api/proxy.test.ts",
+        "e2e/website/contact.spec.ts",
+        "scripts/website-api-fixture.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "guidance",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "format",
+        "unit-coverage",
+        "governance-coverage",
+        "font-integrity",
+        "dead-code",
+        "build",
+        "e2e",
+        "accessibility",
+        "seo",
+        "csp",
+        "visual"
+      ],
+      "rules": [
+        ".agents/rules/api-collection.md",
+        ".agents/rules/imports.md",
+        ".agents/rules/localization.md",
+        ".agents/rules/testing.md",
+        ".agents/rules/website.md"
+      ]
+    },
+    {
       "id": "public-blog",
       "when": "Change published article/archive routes, canonical IDs, safe HTML/media, sitemap or scoped working-copy preview.",
       "owners": [

@@ -324,7 +324,9 @@ test("publishes home and current article URLs in discovery files and serves a va
       }, xml),
     ).toEqual([
       canonicalHome,
+      `${canonicalOrigin}/contact`,
       `${canonicalOrigin}/blog`,
+      `${canonicalOrigin}/faq`,
       ...Array.from(
         { length: 13 },
         (_, index) =>

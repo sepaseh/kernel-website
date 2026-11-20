@@ -2,6 +2,23 @@
 type PermissionKey =
   | "calendar.read"
   | "calendar.update"
+  | "contact-messages.delete"
+  | "contact-messages.read"
+  | "contact-messages.update"
+  | "content-categories.create"
+  | "content-categories.delete"
+  | "content-categories.read"
+  | "content-categories.update"
+  | "contents.create"
+  | "contents.delete"
+  | "contents.read"
+  | "contents.update"
+  | "faqs.create"
+  | "faqs.delete"
+  | "faqs.read"
+  | "faqs.update"
+  | "files.delete"
+  | "files.read"
   | "roles.create"
   | "roles.delete"
   | "roles.read"
@@ -31,4 +48,7 @@ export const AuthPaths = {
   otpRequest: "/auth/otp-request",
   logout: "/auth/logout",
   forgotPassword: "/auth/forgot-password",
+} as const;
+export const PublicPaths = {
+  contactMessages: "/public/contact-messages",
 } as const;

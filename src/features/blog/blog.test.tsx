@@ -96,6 +96,8 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: URL) => {
+      if (url.pathname === "/public/faqs")
+        return Response.json({ items: [], total: 0 });
       if (url.pathname === "/public/posts/sitemap")
         return Response.json({ items: [article], total: 1 });
       if (url.pathname.startsWith("/public/posts/"))
@@ -442,6 +444,7 @@ describe("safe HTML, automatic metadata and structured data", () => {
   it("publishes only current canonical article URLs with real lastModified values", async () => {
     expect(await sitemap()).toEqual([
       { url: "https://website.example.test/" },
+      { url: "https://website.example.test/contact" },
       { url: "https://website.example.test/blog" },
       {
         url: "https://website.example.test" + articlePath(article),
@@ -452,11 +455,14 @@ describe("safe HTML, automatic metadata and structured data", () => {
       "fetch",
       vi.fn(async () => Response.json({ items: [], total: 0 })),
     );
-    expect(await sitemap()).toEqual([{ url: "https://website.example.test/" }]);
+    expect(await sitemap()).toEqual([
+      { url: "https://website.example.test/" },
+      { url: "https://website.example.test/contact" },
+    ]);
     vi.stubEnv("WEBSITE_INDEXING_ENABLED", "false");
     expect(await sitemap()).toEqual([]);
   });
-  it("rejects sitemap generation when the published-post read fails", async () => {
+  it("does not hide a failed published-post read behind the static contact URL", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response(undefined, { status: 503 })),
