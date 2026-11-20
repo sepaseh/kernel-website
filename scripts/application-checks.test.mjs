@@ -564,6 +564,7 @@ test("browser groups select disjoint owned suites and forward cancellation witho
     accessibility: ["accessibility"],
     csp: ["csp"],
     e2e: [
+      "blog",
       "client-boundaries",
       "font-performance",
       "performance",
@@ -610,8 +611,8 @@ test("browser groups select disjoint owned suites and forward cancellation witho
       mode === "csp" ? "owned report-only result" : undefined,
     );
   }
-  assert.equal(new Set(selected).size, 8);
-  assert.equal(selected.length, 8);
+  assert.equal(new Set(selected).size, 9);
+  assert.equal(selected.length, 9);
   const authored = (await readdir(new URL("../e2e/website/", import.meta.url)))
     .filter((filename) => filename.endsWith(".spec.ts"))
     .map((filename) => `e2e/website/${filename}`);

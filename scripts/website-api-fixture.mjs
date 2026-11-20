@@ -266,6 +266,162 @@ export function createWebsiteApiFixture(environment = process.env) {
     codes.delete(key);
   };
 
+  const category = {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Field notes",
+    description: "Practical ideas for building thoughtfully.",
+    created_at: "2026-11-01T09:00:00.000Z",
+    updated_at: "2026-11-01T09:00:00.000Z",
+  };
+  const posts = new Map(
+    Array.from({ length: 13 }, (_, index) => {
+      const id = 48629173 + index;
+      const title =
+        index === 0
+          ? "Building with clear boundaries"
+          : `A practical guide ${index + 1}`;
+      const published = {
+        id,
+        title,
+        url_title:
+          index === 0
+            ? "building-with-clear-boundaries"
+            : `practical-guide-${index + 1}`,
+        excerpt: "Useful ideas, with room for your own direction.",
+        body: '<h2>A practical beginning</h2><p class="ql-indent-1">Public articles arrive as server-rendered HTML.</p><p class="ql-indent-2">این نوشته برای خواندن روشن و ساده آماده شده است.</p>',
+        category,
+        tags: [
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Foundations",
+            created_at: category.created_at,
+            updated_at: category.updated_at,
+          },
+        ],
+        published_at: category.created_at,
+        public_updated_at: category.updated_at,
+      };
+      return [
+        id,
+        {
+          published,
+          working: {
+            ...published,
+            title: "Saved working title",
+            url_title: "saved-working-title",
+            body: "<p>Private saved working content.</p>",
+          },
+        },
+      ];
+    }),
+  );
+  posts.set(87654321, {
+    working: {
+      id: 87654321,
+      title: "A private draft",
+      url_title: "a-private-draft",
+      excerpt: "Not published.",
+      body: "<p>Private saved working content.</p>",
+      tags: [],
+    },
+  });
+  const capabilities = new Map();
+  const publishedPosts = () =>
+    [...posts.values()].flatMap((post) =>
+      post.published ? [post.published] : [],
+    );
+  const slicePosts = (request, maximum = 100) => {
+    const query = new URL(request.url, "http://127.0.0.1").searchParams;
+    const offset = Number(query.get("offset") ?? 0);
+    const size = Number(query.get("size") ?? 12);
+    if (
+      !Number.isSafeInteger(offset) ||
+      offset < 0 ||
+      !Number.isSafeInteger(size) ||
+      size < 1 ||
+      size > maximum
+    )
+      throw new FixtureError(400, "Invalid fixture pagination.");
+    const items = publishedPosts().filter(
+      (post) =>
+        !query.has("category_id") ||
+        post.category?.id === query.get("category_id"),
+    );
+    return { items: items.slice(offset, offset + size), total: items.length };
+  };
+  const blogHandler = (pathname) => {
+    const detail = /^\/public\/posts\/([1-9]\d{7})(\/preview)?$/.exec(pathname);
+    if (detail)
+      return {
+        GET: (request, response) => {
+          const value = posts.get(Number(detail[1]));
+          if (detail[2]) {
+            const capability = capabilities.get(tokenFor(request));
+            if (
+              !capability ||
+              capability.id !== Number(detail[1]) ||
+              capability.expires <= Date.now() ||
+              !sessions.has(capability.session)
+            )
+              throw new FixtureError(
+                401,
+                "The fixture preview is unavailable.",
+              );
+            return send(response, 200, value.working);
+          }
+          if (!value?.published)
+            throw new FixtureError(404, "Article not found.");
+          return send(response, 200, value.published);
+        },
+      };
+    const operation =
+      /^\/posts\/([1-9]\d{7})\/(preview-token|publish|unpublish)$/.exec(
+        pathname,
+      );
+    if (operation)
+      return {
+        POST: (request, response) => {
+          if (!accountFor(request).administrator)
+            throw new FixtureError(
+              403,
+              "The fixture action requires an administrator.",
+            );
+          const id = Number(operation[1]);
+          const post = posts.get(id);
+          if (!post) throw new FixtureError(404, "Article not found.");
+          if (operation[2] === "preview-token") {
+            const token = `fixture_preview_${randomUUID()}`;
+            const expires = Date.now() + 300_000;
+            capabilities.set(token, {
+              id,
+              expires,
+              session: tokenFor(request),
+            });
+            return send(response, 200, {
+              token,
+              expires_at: new Date(expires).toISOString(),
+            });
+          }
+          if (operation[2] === "publish")
+            post.published = {
+              ...post.working,
+              published_at: new Date().toISOString(),
+              public_updated_at: new Date().toISOString(),
+            };
+          else delete post.published;
+          return send(response, 200, { updated: true });
+        },
+      };
+    if (pathname.startsWith("/public/categories/"))
+      return {
+        GET: (_request, response) => {
+          if (pathname !== `/public/categories/${category.id}`)
+            throw new FixtureError(404, "Category not found.");
+          return send(response, 200, category);
+        },
+      };
+    return undefined;
+  };
   const handlers = new Map([
     [
       "/account/me",
@@ -499,10 +655,41 @@ export function createWebsiteApiFixture(environment = process.env) {
     ],
   ]);
 
+  handlers.set("/public/posts", {
+    GET: (request, response) => {
+      const result = slicePosts(request);
+      return send(response, 200, {
+        ...result,
+        items: result.items.map((post) => {
+          const item = { ...post };
+          delete item.body;
+          return item;
+        }),
+      });
+    },
+  });
+  handlers.set("/public/posts/sitemap", {
+    GET: (request, response) => {
+      const result = slicePosts(request, 1000);
+      return send(response, 200, {
+        ...result,
+        items: result.items.map(({ id, url_title, public_updated_at }) => ({
+          id,
+          url_title,
+          public_updated_at,
+        })),
+      });
+    },
+  });
+  handlers.set("/public/categories", {
+    GET: (_request, response) =>
+      send(response, 200, { items: [category], total: 1 }),
+  });
+
   /** Dispatch only owned routes/methods and require the exact configured website origin for mutations. */
   const handle = async (request, response) => {
     const pathname = new URL(request.url, "http://127.0.0.1").pathname;
-    const methods = handlers.get(pathname);
+    const methods = handlers.get(pathname) ?? blogHandler(pathname);
     if (!methods) throw new FixtureError(404, "Unknown website fixture route.");
     if (!Object.hasOwn(methods, request.method)) {
       send(

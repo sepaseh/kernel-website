@@ -26,6 +26,12 @@ export async function Header() {
       </Link>
       <nav aria-label={t("home")} className="flex items-center gap-1 sm:gap-5">
         <Link
+          href="/blog"
+          className="px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {t("blog")}
+        </Link>
+        <Link
           href="/#foundation"
           className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
         >

@@ -46,19 +46,21 @@ describe("website ICU catalogs", () => {
       for (const [key, source] of leaves) {
         const rendered = translate(key as Parameters<typeof translate>[0], {
           name: "Ada",
+          page: 2,
           email: "qa@example.com",
           seconds: 17,
           max: 1000,
         });
         expect(rendered, `${locale}:${key}`).not.toBe("");
         expect(rendered, `${locale}:${key}`).not.toMatch(
-          /\{(?:name|email|seconds)\}/,
+          /\{(?:name|page|email|seconds|max)\}/,
         );
         if (source.includes("{name}")) expect(rendered).toContain("Ada");
         if (source.includes("{email}"))
           expect(rendered).toContain("qa@example.com");
         if (source.includes("{seconds}")) expect(rendered).toContain("17");
         if (source.includes("{max}")) expect(rendered).toContain("1000");
+        if (source.includes("{page}")) expect(rendered).toContain("2");
       }
     },
   );

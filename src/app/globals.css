@@ -123,6 +123,105 @@
     width: calc(100% - 32px);
   }
 }
+.blog-prose {
+  line-height: 1.95;
+  overflow-wrap: anywhere;
+}
+.blog-prose > * + * {
+  margin-block-start: 1.5rem;
+}
+.blog-prose h2,
+.blog-prose h3,
+.blog-prose h4 {
+  margin-block-start: 2.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.blog-prose h2 {
+  font-size: 1.8rem;
+}
+.blog-prose h3 {
+  font-size: 1.45rem;
+}
+.blog-prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.blog-prose blockquote {
+  border-inline-start: 3px solid var(--primary);
+  padding-inline-start: 1.25rem;
+  color: var(--muted-foreground);
+}
+.blog-prose ol,
+.blog-prose ul {
+  padding-inline-start: 1.75rem;
+}
+.blog-prose ol {
+  list-style-type: decimal;
+}
+.blog-prose ul,
+.blog-prose li[data-list="bullet"] {
+  list-style-type: disc;
+}
+.blog-prose pre {
+  overflow-x: auto;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--muted);
+  direction: ltr;
+  text-align: left;
+}
+.blog-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+}
+.blog-prose .ql-align-center {
+  text-align: center;
+}
+.blog-prose .ql-align-right {
+  text-align: right;
+}
+.blog-prose .ql-align-justify {
+  text-align: justify;
+}
+.blog-prose .ql-direction-rtl {
+  direction: rtl;
+}
+.blog-prose .ql-size-small {
+  font-size: 0.85em;
+}
+.blog-prose .ql-size-large {
+  font-size: 1.25em;
+}
+.blog-prose .ql-size-huge {
+  font-size: 1.6em;
+}
+.blog-prose .ql-indent-1 {
+  padding-inline-start: 1.75rem;
+}
+.blog-prose .ql-indent-2 {
+  padding-inline-start: 3.5rem;
+}
+.blog-prose .ql-indent-3 {
+  padding-inline-start: 5.25rem;
+}
+.blog-prose .ql-indent-4 {
+  padding-inline-start: 7rem;
+}
+.blog-prose .ql-indent-5 {
+  padding-inline-start: 8.75rem;
+}
+.blog-prose .ql-indent-6 {
+  padding-inline-start: 10.5rem;
+}
+.blog-prose .ql-indent-7 {
+  padding-inline-start: 12.25rem;
+}
+.blog-prose .ql-indent-8 {
+  padding-inline-start: 14rem;
+}
 /* Keep motion overrides unlayered so they outrank Tailwind utility layers. */
 @media (prefers-reduced-motion: reduce) {
   html {

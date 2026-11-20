@@ -412,7 +412,7 @@ test("the reviewed phase has its exact owned production module count", async () 
     "runners-foundation": 55,
     "browser-foundation": 55,
     application: 80,
-    operations: 80,
+    operations: 96,
   };
   assert.equal(result.files, reviewedSourceCounts[phase]);
   assert.deepEqual(result.violations, []);
@@ -664,6 +664,7 @@ test("package names cannot conceal local links, aliases or repository dependenci
     motion: "14.6.0",
     "next-themes": "0.4.6",
     "radix-ui": "1.8.1",
+    "sanitize-html": "2.18.2",
     clsx: "2.1.1",
     next: "16.4.3",
     "next-intl": "4.14.9",

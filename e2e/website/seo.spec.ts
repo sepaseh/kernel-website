@@ -292,7 +292,7 @@ for (const locale of localeCodes) {
   });
 }
 
-test("publishes only the real homepage in discovery files and serves a valid local social PNG", async ({
+test("publishes home and current article URLs in discovery files and serves a valid local social PNG", async ({
   page,
   request,
 }) => {
@@ -322,8 +322,16 @@ test("publishes only the real homepage in discovery files and serves a valid loc
           (element) => element.textContent,
         );
       }, xml),
-    ).toEqual([canonicalHome]);
-    expect(xml).not.toContain("<lastmod>");
+    ).toEqual([
+      canonicalHome,
+      `${canonicalOrigin}/blog`,
+      ...Array.from(
+        { length: 13 },
+        (_, index) =>
+          `${canonicalOrigin}/${48629173 + index}/${index === 0 ? "building-with-clear-boundaries" : `practical-guide-${index + 1}`}`,
+      ),
+    ]);
+    expect(xml).toContain("<lastmod>2026-11-01T09:00:00.000Z</lastmod>");
     const image = await request.get(`${origin}/social-image`);
     expect(image.status()).toBe(200);
     expect(image.headers()["content-type"]).toContain("image/png");
