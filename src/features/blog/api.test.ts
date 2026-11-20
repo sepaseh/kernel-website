@@ -205,8 +205,8 @@ describe("published sitemap traversal", () => {
     url_title: post.url_title,
     public_updated_at: post.public_updated_at,
   };
-  it("accepts all 49,998 articles that leave the two static sitemap slots", async () => {
-    const total = 49998;
+  it("accepts all 49,996 articles that leave the four static sitemap slots", async () => {
+    const total = 49996;
     const fetcher = vi.fn(async (url: URL) => {
       const offset = Number(url.searchParams.get("offset"));
       return Response.json({
@@ -224,7 +224,7 @@ describe("published sitemap traversal", () => {
     const result = await loadBlogSitemap();
     expect(result).toHaveLength(total);
     expect(result[0].id).toBe(10000000);
-    expect(result.at(-1)?.id).toBe(10049997);
+    expect(result.at(-1)?.id).toBe(10049995);
     expect(fetcher).toHaveBeenCalledTimes(50);
     expect(fetcher.mock.calls.at(-1)?.[0]).toEqual(
       new URL(
@@ -232,7 +232,7 @@ describe("published sitemap traversal", () => {
       ),
     );
   });
-  it("rejects the first invalid total 49,999 before requesting any follow-up page", async () => {
+  it("rejects the first invalid total 49,997 before requesting any follow-up page", async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
@@ -241,7 +241,7 @@ describe("published sitemap traversal", () => {
             ...entry,
             id: 10000000 + index,
           })),
-          total: 49999,
+          total: 49997,
         }),
       )
       .mockRejectedValue(new Error("Unexpected follow-up request"));
@@ -271,7 +271,7 @@ describe("published sitemap traversal", () => {
   });
   it.each([
     { items: [], total: 1 },
-    { items: [], total: 50000 },
+    { items: [], total: 49998 },
     { items: {}, total: 0 },
     { items: [entry, entry], total: 2 },
     { items: [entry], total: 0 },

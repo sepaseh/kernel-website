@@ -6,6 +6,61 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 describe("website API boundary", () => {
+  it("forwards only a valid public contact key and strips all session effects", async () => {
+    const key = "11111111-1111-4111-8111-111111111111";
+    const fetch = vi.fn().mockImplementation(async () =>
+      Response.json(
+        { id: "safe" },
+        {
+          status: 201,
+          headers: {
+            "Set-Cookie": "session=replace; HttpOnly",
+            "Retry-After": "17",
+          },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const request = (idempotency: string) =>
+      new Request("http://localhost:3001/api/public/contact-messages", {
+        method: "POST",
+        headers: {
+          Origin: "http://localhost:3001",
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotency,
+          Cookie: "session=original",
+          Authorization: "Bearer synthetic",
+          "X-Forwarded-For": "untrusted",
+        },
+        body: JSON.stringify({
+          name: "Ada",
+          mobile: "۰۹۱۲۳۴۵۶۷۸۹",
+          description: "Plain\ntext",
+        }),
+      });
+    for (const invalid of ["", "wrong", "11111111-1111-0111-0111-111111111111"])
+      expect(
+        (
+          await forwardApiRequest(request(invalid), [
+            "public",
+            "contact-messages",
+          ])
+        ).status,
+      ).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+    const response = await forwardApiRequest(request(key), [
+      "public",
+      "contact-messages",
+    ]);
+    const headers = fetch.mock.calls[0][1].headers;
+    expect(headers.get("idempotency-key")).toBe(key);
+    for (const name of ["cookie", "authorization", "x-forwarded-for"])
+      expect(headers.has(name)).toBe(false);
+    expect(response.status).toBe(201);
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(response.headers.get("retry-after")).toBe("17");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
   it("never shares account responses between cookie sessions, even when upstream advertises a public cache", async () => {
     const fetch = vi.fn().mockImplementation(async (_url, init) =>
       Response.json(

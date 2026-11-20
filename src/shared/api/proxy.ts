@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from "./origin";
 
 const allowed = new Map([
+  ["public/contact-messages", ["POST"]],
   ["auth/login", ["POST"]],
   ["auth/register", ["POST"]],
   ["auth/otp-request", ["POST"]],
@@ -72,7 +73,23 @@ async function forward(request: Request, segments: string[]) {
     );
   }
   const headers = new Headers({ Accept: "application/json" });
-  for (const key of ["cookie", "content-type", "origin", "x-request-id"]) {
+  const anonymous = path === "public/contact-messages";
+  if (
+    anonymous &&
+    !/^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(
+      request.headers.get("idempotency-key") ?? "",
+    )
+  )
+    return Response.json(
+      { message: "A valid submission key is required." },
+      { status: 400 },
+    );
+  for (const key of [
+    "content-type",
+    "origin",
+    "x-request-id",
+    anonymous ? "idempotency-key" : "cookie",
+  ]) {
     const value = request.headers.get(key);
     if (value) headers.set(key, value);
   }
@@ -163,8 +180,9 @@ async function responseForBrowser(
     const value = upstream.headers.get(key);
     if (value) responseHeaders.set(key, value);
   }
-  for (const value of upstream.headers.getSetCookie())
-    responseHeaders.append("Set-Cookie", value);
+  if (path !== "public/contact-messages")
+    for (const value of upstream.headers.getSetCookie())
+      responseHeaders.append("Set-Cookie", value);
   // The management API also supports bearer consumers. This website only uses
   // HttpOnly cookies; successful auth JSON must not expose those credentials.
   if (

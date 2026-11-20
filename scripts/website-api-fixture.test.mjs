@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -97,6 +98,180 @@ async function register(request, number, firstName = "Website") {
     token: body.access_token,
   };
 }
+
+test("public FAQ pagination exposes only ordered active text and validates its exact query", async (t) => {
+  const { request } = await fixture(t);
+  const response = await request("/public/faqs");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("cache-control"), /no-store/);
+  const first = await response.json();
+  assert.equal(first.total, 21);
+  assert.equal(first.items.length, 20);
+  assert.deepEqual(Object.keys(first.items[0]).sort(), [
+    "answer",
+    "id",
+    "question",
+    "sort",
+  ]);
+  assert.ok(first.items[0].id < first.items[1].id);
+  const second = await (await request("/public/faqs?offset=20&size=20")).json();
+  assert.equal(second.items.length, 1);
+  assert.equal(second.total, 21);
+  assert.deepEqual(
+    await (await request("/public/faqs?offset=10000000&size=1")).json(),
+    { items: [], total: 21 },
+  );
+  for (const query of [
+    "search=x",
+    "is_active=false",
+    "unknown=x",
+    "offset=-1",
+    "offset=10000001",
+    "size=0",
+    "size=101",
+    "offset=1.5",
+    "size=20&size=1",
+  ])
+    assert.equal((await request("/public/faqs?" + query)).status, 400, query);
+  const admin = await login(request);
+  const authenticated = await (
+    await request("/public/faqs?size=100", { token: admin.token })
+  ).json();
+  assert.equal(authenticated.items.length, 21);
+  assert.ok(
+    authenticated.items.every(
+      (item) => item.question !== "Inactive fixture question",
+    ),
+  );
+});
+
+test("FAQ fixture edits remain private, atomic and immediately change public visibility", async (t) => {
+  const { request } = await fixture(t);
+  const current = await (await request("/public/faqs?size=100")).json();
+  const id = current.items[0].id;
+  const path = "/faqs/" + id;
+  assert.equal(
+    (await request(path, { method: "PATCH", body: { is_active: false } }))
+      .status,
+    401,
+  );
+  const admin = await login(request);
+  const patch = (body) =>
+    request(path, { method: "PATCH", body, token: admin.token });
+  for (const body of [
+    {},
+    { id },
+    { question: "" },
+    { answer: " " },
+    { sort: -1 },
+    { sort: 1.5 },
+    { sort: 1000001 },
+    { question: "Not saved", is_active: "true" },
+  ])
+    assert.equal((await patch(body)).status, 400);
+  assert.equal(
+    (await (await request("/public/faqs?size=1")).json()).items[0].question,
+    current.items[0].question,
+  );
+  assert.deepEqual(
+    await (
+      await patch({
+        question: " Edited question ",
+        answer: " First\nSecond ",
+        sort: 0,
+      })
+    ).json(),
+    { id },
+  );
+  const changed = await (await request("/public/faqs?size=1")).json();
+  assert.equal(changed.items[0].question, "Edited question");
+  assert.equal(changed.items[0].answer, "First\nSecond");
+  await patch({ is_active: false });
+  assert.equal(
+    (await (await request("/public/faqs?size=100")).json()).total,
+    20,
+  );
+  await patch({ is_active: true });
+  assert.equal(
+    (await (await request("/public/faqs?size=100")).json()).total,
+    21,
+  );
+  assert.equal(
+    (
+      await request("/faqs/44444444-4444-4444-8444-999999999999", {
+        method: "PATCH",
+        token: admin.token,
+        body: { is_active: true },
+      })
+    ).status,
+    404,
+  );
+});
+
+test("anonymous contact receipts replay normalized input and remain private from public readers", async (t) => {
+  const { request } = await fixture(t);
+  const key = randomUUID();
+  const body = {
+    name: " Ada ",
+    mobile: "۰۹۱۲۳۴۵۶۷۸۹",
+    description: " First\nSecond ",
+  };
+  const post = (value) =>
+    request("/public/contact-messages", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: value,
+    });
+  const first = await post(body);
+  assert.equal(first.status, 201);
+  const receipt = await first.json();
+  assert.deepEqual(Object.keys(receipt).sort(), ["created_at", "id"]);
+  assert.equal(first.headers.get("set-cookie"), null);
+  const replay = await post({
+    name: "Ada",
+    mobile: "+989123456789",
+    description: "First\nSecond",
+  });
+  assert.deepEqual(await replay.json(), receipt);
+  assert.equal((await post({ ...body, description: "Different" })).status, 409);
+  assert.equal((await request("/contact-messages")).status, 401);
+  const admin = await login(request);
+  const inbox = await (
+    await request("/contact-messages", { token: admin.token })
+  ).json();
+  assert.equal(inbox.total, 1);
+  assert.equal(inbox.items[0].mobile, "+989123456789");
+  assert.equal(inbox.items[0].description, "First\nSecond");
+  assert.equal(inbox.items[0].is_read, false);
+});
+
+test("contact validation and quota do not consume a receipt and accepted replays bypass quota", async (t) => {
+  const { request } = await fixture(t);
+  const body = { name: "Ada", mobile: "09123456789", description: "A message" };
+  const post = (value, key = randomUUID()) =>
+    request("/public/contact-messages", {
+      method: "POST",
+      headers: { "Idempotency-Key": key },
+      body: value,
+    });
+  for (const value of [
+    { ...body, email: "unexpected@example.test" },
+    { ...body, mobile: "0912-3456789" },
+    { ...body, name: " " },
+    { ...body, description: " " },
+  ])
+    assert.equal((await post(value)).status, 400);
+  assert.equal((await post(body, "invalid")).status, 400);
+  const key = randomUUID();
+  const first = await post(body, key);
+  const receipt = await first.json();
+  for (let index = 0; index < 4; index++)
+    assert.equal((await post(body)).status, 201);
+  const limited = await post(body);
+  assert.equal(limited.status, 429);
+  assert.ok(Number(limited.headers.get("retry-after")) > 0);
+  assert.deepEqual(await (await post(body, key)).json(), receipt);
+});
 
 test("test-only markers, canonical origins, fixed interfaces and explicit ports guard creation before other inputs", () => {
   assert.throws(

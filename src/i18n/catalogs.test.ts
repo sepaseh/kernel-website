@@ -44,16 +44,20 @@ describe("website ICU catalogs", () => {
       const leaves = Object.entries(messages);
       expect(leaves.length).toBeGreaterThan(100);
       for (const [key, source] of leaves) {
-        const rendered = translate(key as Parameters<typeof translate>[0], {
-          name: "Ada",
-          page: 2,
-          email: "qa@example.com",
-          seconds: 17,
-          max: 1000,
-        });
+        const rendered = translate.markup(
+          key as Parameters<typeof translate>[0],
+          {
+            name: "Ada",
+            page: 2,
+            email: "qa@example.com",
+            seconds: 17,
+            max: 1000,
+            number: (value) => `<bdi dir="ltr">${value}</bdi>`,
+          },
+        );
         expect(rendered, `${locale}:${key}`).not.toBe("");
         expect(rendered, `${locale}:${key}`).not.toMatch(
-          /\{(?:name|page|email|seconds|max)\}/,
+          /\{(?:name|email|seconds)\}/,
         );
         if (source.includes("{name}")) expect(rendered).toContain("Ada");
         if (source.includes("{email}"))
@@ -61,6 +65,10 @@ describe("website ICU catalogs", () => {
         if (source.includes("{seconds}")) expect(rendered).toContain("17");
         if (source.includes("{max}")) expect(rendered).toContain("1000");
         if (source.includes("{page}")) expect(rendered).toContain("2");
+        if (source.includes("<number>")) {
+          expect(rendered).toContain('<bdi dir="ltr">+989</bdi>');
+          expect(rendered).not.toContain("<number>");
+        }
       }
     },
   );

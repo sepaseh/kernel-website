@@ -38,6 +38,8 @@ const browserSuites = {
   e2e: [
     "blog.spec.ts",
     "client-boundaries.spec.ts",
+    "contact.spec.ts",
+    "faq.spec.ts",
     "font-performance.spec.ts",
     "performance.spec.ts",
     "session-isolation.spec.ts",
