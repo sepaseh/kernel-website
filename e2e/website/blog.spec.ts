@@ -51,16 +51,16 @@ test("blog layouts remain accessible across desktop and mobile RTL themes", asyn
           "direction",
           "ltr",
         );
-        await expect(
-          page.locator(".blog-prose p").filter({
-            hasText: "Public articles arrive as server-rendered HTML.",
-          }),
-        ).toHaveCSS("direction", "ltr");
-        await expect(
-          page.locator(".blog-prose p").filter({
-            hasText: "این نوشته برای خواندن روشن و ساده آماده شده است.",
-          }),
-        ).toHaveCSS("direction", "rtl");
+        const englishParagraph = page.locator(".blog-prose p").filter({
+          hasText: "Public articles arrive as server-rendered HTML.",
+        });
+        const persianParagraph = page.locator(".blog-prose p").filter({
+          hasText: "این نوشته برای خواندن روشن و ساده آماده شده است.",
+        });
+        await expect(englishParagraph).toHaveCSS("direction", "ltr");
+        await expect(englishParagraph).toHaveCSS("padding-left", "28px");
+        await expect(persianParagraph).toHaveCSS("direction", "rtl");
+        await expect(persianParagraph).toHaveCSS("padding-right", "56px");
       }
       await page.evaluate(async () => {
         await document.fonts.ready;

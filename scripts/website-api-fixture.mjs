@@ -288,7 +288,7 @@ export function createWebsiteApiFixture(environment = process.env) {
             ? "building-with-clear-boundaries"
             : `practical-guide-${index + 1}`,
         excerpt: "Useful ideas, with room for your own direction.",
-        body: "<h2>A practical beginning</h2><p>Public articles arrive as server-rendered HTML.</p><p>این نوشته برای خواندن روشن و ساده آماده شده است.</p>",
+        body: '<h2>A practical beginning</h2><p class="ql-indent-1">Public articles arrive as server-rendered HTML.</p><p class="ql-indent-2">این نوشته برای خواندن روشن و ساده آماده شده است.</p>',
         category,
         tags: [
           {
