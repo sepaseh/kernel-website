@@ -1,20 +1,24 @@
-# Security
+# Security policy
 
 ## Report a vulnerability privately
 
-For a suspected vulnerability, use this repository's GitHub **Security** tab and
-**Report a vulnerability** when private reporting is available.
-If it is unavailable, request a private reporting channel from the repository
-owner before sharing technical details. Do not post an exploit or credential
-in a public issue, PR, log or assistant message.
+Use **Report a vulnerability** in the repository's GitHub **Security** tab when
+private reporting is available. Otherwise, ask the repository owner for a
+secure channel before sharing technical details. Keep reports and sensitive
+details out of public issues, pull requests, commits and logs.
 
-Include the affected revision, reproduction with synthetic data, expected
-behavior and impact. Omit tokens, real user records and production payloads.
-Do not test an existing service or production system without explicit authority.
+Include the affected revision, feature or endpoint, expected and observed
+behavior, potential impact and steps using synthetic data. Redact credentials,
+tokens, personal information and sensitive payloads from the report and any
+attachments. Review error messages and nested causes before sharing them.
+
+Get explicit authorization before testing an existing service or production
+system. Keep exploit details and credentials out of assistant messages.
 
 ## Validate a fix
 
 Keep the original failure visible, add a focused regression when warranted and
 follow [exact-tree validation](docs/validation.md). Do not suppress findings,
 exclude source or weaken the review gate.
-The governance publication does not establish application or deployment security.
+Use the [threat model](docs/threat-model.md) for assumptions about the website,
+its HTTP API and its deployment boundary.

@@ -1,54 +1,37 @@
-# Website documentation
+# Documentation index
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+Use this index to find the guide for your task.
 
-Choose the task you want to complete. This standalone website owns its source,
-setup and tests. Local acceptance uses its own synthetic HTTP fixture; downstream
-developers choose backend integrations.
+## Install and run
 
-## Run and develop
+- [Run the website locally](development.md) against a disposable API.
+- [Start and inspect the synthetic HTTP fixture](api-fixture.md).
+- [Troubleshoot setup and checks](troubleshooting.md) when installation, startup or validation fails.
 
-1. [Local development](development.md): install dependencies, select a disposable
-   local HTTP fixture, build and open the website; follow the profile-feedback example
-   through UI, wire types, translations and focused tests.
-2. [Architecture](architecture.md): find feature, shared infrastructure and
-   framework composition owners.
-3. [Forms](forms.md) and [session](session.md): preserve submitted values,
-   cancellation, account identity and stale-result behavior when changing a flow.
-4. [Testing](testing.md): choose and place focused tests while editing.
-5. [Validation](validation.md): export the proposed public bytes, install fresh
-   Node/Python/browser dependencies and run complete acceptance for publication.
+## Explore capabilities
 
-Use [troubleshooting](troubleshooting.md) when a command fails and
-[source navigation](source-navigation.md) when you need an exact owner or test.
-[Contributing](../CONTRIBUTING.md) covers commits, PR size and review.
+- [Use the blog and private preview](blog.md), including article URLs, archives, media and preview tokens.
+- [Send a contact message](contact.md) and [publish FAQs](faq.md).
+- [Trace authentication and account forms](forms.md) and [session ownership](session.md).
+- [Maintain localization](localization.md), [compose the UI](client-ui.md) and [manage local fonts](fonts.md). See the [interface conventions](../DESIGN.md).
+- [Prepare SEO metadata and indexing](seo.md) and [verify the Content Security Policy](website-csp.md).
 
-## Build, install and maintain
+## Work with the source
 
-- [Deployment](deployment.md): build and package a standalone release; review
-  native and Docker installation requirements.
-- [Release operations](release-operations.md): choose a manual operational task
-  and follow its input, ownership and cleanup requirements.
-- [Staging](staging.md): validate explicit target inputs, then run separately
-  authorized smoke/staging checks with the matching installed browsers.
-- [Releasing](releasing.md): version metadata and release workflow.
-- [Branch protection](branch-protection.md) and [SonarQube](sonarqube.md): verify
-  current-head checks and review prerequisites.
+- [Find the implementation owner and its tests](source-navigation.md) and [plan a change](change-workflow.md).
+- [Review the architecture](architecture.md) and trace [application composition](application.md), [client and document flow](client-document.md) and [HTTP forwarding](server-boundary.md).
+- [Review runner contracts](runner-foundation.md) and [browser tooling](browser-foundation.md) for configuration and process ownership.
+- [Choose and write tests](testing.md) and [diagnose test failures](test-reliability.md).
+- [Test accessibility](accessibility.md), [compare screenshots](visual-regression.md) and [measure website performance](website-performance.md).
+- [Validate a source change](validation.md) and [prepare a contribution](../CONTRIBUTING.md).
+- [Verify branch protection](branch-protection.md), [review evidence](reviews.md) and [SonarQube Cloud analysis](sonarqube.md).
+- [Review the source scope](bootstrap.md), [threat model](threat-model.md) and [authentication review](authentication-review.md).
+- [Read assistant instructions](../.agents/README.md), [trace the source with an assistant](ai-code-understanding.md) and [evaluate how an assistant discovers rules](comprehension-evaluation.md).
+- [Report a security vulnerability](../SECURITY.md) and [find recent changes](../CHANGELOG.md).
 
-## Behavior and configuration references
+## Package and deploy
 
-| Topic                            | Read                                                                                                                                                            |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HTTP and API compatibility       | [Server boundary](server-boundary.md), [API fixture](api-fixture.md), [request/document flow](client-document.md)                                               |
-| UI and translated content        | [Design](../DESIGN.md), [client UI](client-ui.md), [localization](localization.md), [fonts](fonts.md)                                                           |
-| SEO, security and privacy        | [SEO](seo.md), [CSP](website-csp.md), [threat model](threat-model.md), [authentication review](authentication-review.md), [security reviews](reviews.md)        |
-| Browser quality                  | [Accessibility](accessibility.md), [visual regression](visual-regression.md), [website performance](website-performance.md)                                     |
-| Application and runner internals | [Application composition](application.md), [runner foundation](runner-foundation.md), [browser foundation](browser-foundation.md), [source scope](bootstrap.md) |
-| Change and failure investigation | [Change workflow](change-workflow.md), [test reliability](test-reliability.md)                                                                                  |
-| Assistant tooling                | [Guidance](../.agents/README.md), [source understanding](ai-code-understanding.md), [evaluation](comprehension-evaluation.md)                                   |
-
-The [canonical manifest](../.agents/validation.json) owns commands and profiles.
-Keep guides in English and flat under `docs`. Report QA results in the task or
-terminal; create a local report only when explicitly requested, under ignored
-`test-results/`. Documentation contains current guidance rather than QA reports
-or decision-record archives.
+- [Choose a deployment path](deployment.md), then [configure Docker](../deploy/docker/README.md) or [configure native Linux hosting](../deploy/native/README.md).
+- [Run a release operation](release-operations.md) with explicit targets and owned resources.
+- [Publish a release](releasing.md) and verify the tag and release metadata.
+- [Verify authorized staging and release targets](staging.md).

@@ -1,13 +1,56 @@
 # Local website translations
 
-Read the current [source scope](../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+## Catalogs
 
-All website messages are local source under src/i18n/catalog-data. The ten languages ar/de/en/es/fa/fr/it/pt/ru/tr each own exactly one code-named JSON resource in locales/<code>.json. Each contains one flat string-valued object: no duplicate keys, nested common/feature objects, dotted path keys, parallel sources or compatibility aliases. locales.ts registers supported catalog codes; erased types derive the complete key shape from en.json. Use explicit .json import extensions; current TypeScript Bundler resolution does not resolve extensionless catalog paths to JSON. The loader registry lazily imports each resource and preserves its default object identity.
+Keep all website messages under `src/i18n/catalog-data`. Each supported code
+(`ar`, `de`, `en`, `es`, `fa`, `fr`, `it`, `pt`, `ru`, `tr`) owns one flat,
+string-valued `locales/<code>.json` resource. Exclude duplicate keys, nested
+objects, dotted keys, parallel sources and compatibility aliases. `locales.ts`
+registers supported codes and erased types derive the key shape from `en.json`.
+Use explicit `.json` import extensions. The loader registry lazily imports each
+resource and preserves the default object's identity.
 
-Shared meanings have one canonical bare root key such as login or password. Feature-specific meanings use explicit lower-camel prefixes, such as authLoginTitle, accountEmail and accountEmailLabel; keep section headings distinct from input labels. Never merge meanings merely because text matches. Every key requires genuine nonempty translations in all ten languages with identical ICU {variable} placeholders and preserved newlines. No English spreads/fallback catalogs are allowed. JSON resources contain data only; engines/providers/validation stay outside the resource directory. Keep exact-shape type assertions and runtime JSON/key checks alongside the real ICU tests. Catalog data stays indexed source; do not add analysis exclusions.
+Use one bare key for a shared meaning such as `login` or `password`. Prefix
+feature-specific keys in lower camel case, such as `authLoginTitle`,
+`accountEmail` and `accountEmailLabel`. Keep headings distinct from input
+labels.
 
-Published client components call useTranslations() at the root and use flat keys. Keep one translator per component when possible. Framework translation/request adapters and bootstrap-error pages must preserve these local contracts. Inspect the source marker/inventory: support-only phases have no such published adapters; runnable integration must close their ownership and real execution tests. selectClientMessages uses explicit static root/auth/account key allowlists and requires strings; never ship the whole catalog, infer groups by prefix or import English runtime values to construct the lists. Update all-language scope tests with any intentional new client key.
+Keep message keys and placeholders consistent across all catalogs. Give every
+key a genuine, nonempty translation in each supported language.
+Preserve ICU `{variable}` placeholders and newlines. Exclude English spreads
+and fallback catalogs. Keep engines, providers and validation outside
+the resource directory. Maintain exact-shape types, JSON/key checks and real
+ICU tests. Catalog data remains indexed by analysis.
 
-Persisted public API settings choose the sole active language and its direction. Validate language.direction as ltr or rtl and use that exact API value, including when it differs from a local code-based expectation. Never derive or override direction from the catalog code. The website has no calendar display, so do not add an unused calendar or language-name registry. Preserve existing settings; malformed/unavailable/unsupported values are explicit errors. No visitor negotiation, language cookie or canonical language prefix. When routes are delivered, preserve the planned permanent /en and /fa aliases with queries and verify actual redirects. Support-only tests do not prove route execution.
+## Request and client scopes
 
-Use the registered unit, typecheck and boundary checks from [validation.json](../validation.json); the real ICU/client-scope tests cover all ten catalogs and selected client messages. Use browser or standalone translation commands only if actually registered in the canonical manifest; never infer execution from authored suites. Catalog changes are local; coordinate HTTP compatibility only when the wire protocol changes. See [localization](../../docs/localization.md).
+Call `useTranslations()` without a namespace in client components and use flat
+keys. Prefer one translator per component. The
+[client selector](../../src/i18n/client-messages.ts) uses explicit `root`,
+`auth`, `account` and `contact` key allowlists and requires strings. Keep the
+complete catalog on the server. Keep allowlists independent of key prefixes and
+English runtime values. Update all-language scope tests when adding a client
+message. The
+[global error route](../../src/app/global-error.tsx) reads reviewed English and
+Persian strings directly when request settings or providers may be unavailable.
+
+## API language and calendar
+
+Persisted public API settings choose the sole active language, direction and
+calendar. Validate `language.direction` as `ltr` or `rtl` and use the exact API
+value. Article dates map API calendars to `gregory` or `persian`, independent
+of the catalog code. Preserve explicit errors for unavailable settings,
+malformed values and unsupported languages. Keep visitor preferences, cookies,
+headers and URL prefixes out of language selection. Preserve the permanent
+`/en` and `/fa` compatibility redirects and their query strings. Verify actual
+redirects when changing route behavior.
+
+## Verify translation changes
+
+Use the [focused catalog checks](../../docs/localization.md#edit-a-message) while
+editing. They cover integrity, ICU and client scope across all ten languages.
+The [validation manifest](../validation.json) also requires typecheck and
+boundary checks.
+
+Follow the [HTTP contract review](api-collection.md#verify-before-changing-a-consumer)
+when the public settings protocol changes.

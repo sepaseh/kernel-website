@@ -1,40 +1,51 @@
 # Guidance and documentation
 
-Use [AGENTS](../../AGENTS.md), the [settings index](../settings.json) and
-[source navigation](../../docs/source-navigation.md) for progressive reading.
-Read the owner source and tests; index entries and static links do not prove
-behavior or successful execution.
+## Maintain documentation
 
-Keep assistant instructions and maintained documentation English, current and
-organized by reader task. Use [source navigation](../../docs/source-navigation.md)
-to select the existing owner. Update that owner alongside behavior, configuration,
-test or workflow changes. Procedures state prerequisites, actions, expected
-results and relevant recovery; references define contracts; explanations describe
-ownership and reasoning. Verify changed claims against source and nearby tests.
+Keep assistant instructions and maintained documentation in English, current and
+organized by reader task. Update the owning guide alongside behavior,
+configuration, test or workflow changes. Verify changed claims against the
+owning source and nearby tests.
+
+Procedures state prerequisites, actions, expected results and relevant recovery.
+References define contracts. Explanations describe ownership and reasoning.
+
 Do not add routine dated QA reports, archives, ADRs, translated companion guides
 or bilingual navigation. Application localization remains a separate concern.
 
-Use repository-relative machine paths and document-relative Markdown links.
-Link maintained current files, not future or deleted paths. Register only
-published owners, tests, rules, skills and actual check IDs. The publication
-inventory owns admitted paths; generated output and private runtime state are
-never documentation fixtures. Keep human guides flat and task-oriented.
+Keep human guides flat. Put each shared instruction in its owning rule and use
+a section link where another workflow needs it. Follow the
+[published inventory](../../.github/bootstrap-policy.json).
 
-The [manifest](../validation.json) owns commands and profiles; settings project
-that inventory. Do not duplicate an independent complete gate or fixed count.
-Optional host adapters and hooks need actual integration; they do not grant
-authorization, install themselves automatically or replace the full gate.
+## Maintain indexes and optional integrations
+
+Use repository-relative machine paths and document-relative Markdown links to
+current files. Register only published owners, tests, rules, skills and actual
+check IDs. Use admitted public source and synthetic fixtures for examples.
+Follow the [fixture safety rules](safety.md#secrets-and-local-state).
+
+The [validation manifest](../validation.json) owns commands and profiles.
+Settings project that inventory. Refer to the manifest for the full gate and
+keep prose free of a separate gate inventory or check count.
+
+Optional adapters and hooks depend on actual host integration and remain
+subject to the [safety rules](safety.md) and
+[validation workflow](../skills/validate-change/SKILL.md#validate-the-exact-tree).
+
+## Record evidence
 
 Report execution outcomes and evidence limits in the current task or terminal.
 Do not commit execution reports. Create a local report only when explicitly
-requested, under ignored `test-results/`; required coverage stays in its configured
-location. Keep repository-specific scratch exports, validation evidence and
-recovery files inside ignored repository-local directories.
+requested, under ignored `test-results/`. Required coverage stays in its
+configured location. Use the [working-checkout rule](branches.md#working-checkout)
+for scratch exports and recovery files.
 
-Static checks establish paths, indexes and command consistency. They do not prove
-that a host loaded instructions, that an assistant understood them, that a
-provider completed analysis or review, or that an application ran. Record actual
-host-reported loading where available and otherwise mark discovery unknown.
-Keep evaluation prompts separate from oracle answers. Use only synthetic
-fixtures; never inspect secrets or owner data to answer evaluation questions.
-Do not claim portability or improved performance without measured evidence.
+Static guidance checks verify published paths, local Markdown links and section
+anchors, indexes and command consistency. Support claims about instruction loading, application behavior, provider results,
+portability or performance with evidence from the relevant execution.
+
+Record actual host-reported loading where available and otherwise mark discovery
+unknown. Follow the [bounded evaluation procedure](../../docs/comprehension-evaluation.md)
+when measuring comprehension. Keep prompts separate from scoring criteria and
+use only allowlisted public source and synthetic fixtures. Require measured
+evidence for claims of compatibility.

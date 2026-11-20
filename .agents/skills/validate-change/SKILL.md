@@ -5,35 +5,39 @@ description: Select Kernel checks for the actual change and run the complete can
 
 # Validate a change
 
-Read the affected source, rules, [validation policy](../../../docs/validation.md)
-and [canonical manifest](../../validation.json). Inspect status/diffs when working
-in Git; an isolated export has no Git history and must retain its recorded source
-commit/tree. Preserve unrelated local work.
+Read the [publication policy](../../../.github/bootstrap-policy.json) for the
+phase, readiness and admitted files. Read the affected source, tests and rules.
+Inspect the working tree and staged changes under the
+[working-checkout rule](../../rules/branches.md#working-checkout).
 
-1. Start with the smallest relevant published check or test. Behavior changes need
-   a regression for the observable failure. Use only commands declared for the
-   actual published phase; later application tooling does not establish a current check.
-2. Before an authorized commit, push or PR handoff, run
-   `npm run validate -- full` on the exact final proposed snapshot in a fresh
-   verification-only export. Follow the documented isolation, locked installation
-   and synthetic-fixture procedure. The manifest owns every required entry,
-   command and order; never substitute a copied count or partial command list.
-3. Resolve failures within scope and reverify. Never omit, downgrade or replace a
-   required check with a faster profile, suppress findings or lower coverage to
-   obtain a pass. Do not stage or commit while a required check fails or cannot run.
-4. Record the checked revision/tree, actual results and remaining limits. Read
-   admitted files and `applicationReady` from [the publication policy](../../../.github/bootstrap-policy.json).
-   While readiness is false, governance and synthetic tests cannot establish an
-   assembled application. Application admission requires its genuine complete gate;
-   configuration, component tests and installed services do not replace execution.
-5. Report unavailable commands or provider evidence honestly. Local success does
-   not establish hosted CI, provider analysis, review approval or deployment.
+## Choose affected checks
 
-Existing explicit authorization and preferences remain valid throughout the task.
-Static guidance checks verify paths and consistency, not automatic assistant
-loading, instruction comprehension or improved model performance.
+Start with the smallest relevant published check from the
+[validation manifest](../../validation.json). Add a focused regression for
+changed observable behavior under the [testing rules](../../rules/testing.md).
 
-Follow the validation procedure's empty npm-configuration setup and preserve
-measured unit coverage at 90% and governance coverage at 80%. All executable
-tooling remains measured; do not add source, rule or coverage exclusions.
-Foundation evidence includes contracts, catalogs and font integrity. It establishes no application or browser readiness.
+## Validate the exact tree
+
+Before an authorized commit, push or PR handoff, follow the
+[exact-tree procedure](../../../docs/validation.md). Compare the proposed source
+with a fresh verification-only export. Use its empty npm configuration, locked
+installs and synthetic fixtures. Run `npm run validate -- full` in that export.
+
+Follow [check integrity](../../rules/testing.md#coverage-and-check-integrity)
+and report any required check that blocks staging or committing.
+
+Resolve required failures within the task's scope and reverify. Preserve
+required checks, genuine failing assertions and coverage. Leave staging and
+committing pending while a required check fails or cannot run.
+
+## Report evidence
+
+Report the phase, readiness, checked revision or tree, commands, actual results
+and unavailable checks. Use the
+[provider evidence rules](../../rules/pull-requests.md#provider-evidence-and-required-checks)
+for hosted checks and approval, and the
+[guidance evidence rules](../../rules/guidance.md) for instruction discovery.
+
+Record a fingerprint when the verification procedure uses one. Follow the
+[website evidence rules](../../rules/guidance.md#record-evidence) for skipped
+checks and known limits.

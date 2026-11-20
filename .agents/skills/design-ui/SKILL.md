@@ -3,14 +3,28 @@ name: design-ui
 description: Design or implement this website's pages and components, restyle its UI, or prepare design-tool handoffs using its actual system. Use for visual and interaction work, not unrelated backend changes.
 ---
 
-# Design website UI
+# Design UI
 
-Read the current [source scope](../../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+Read [AGENTS.md](../../../AGENTS.md), the [design system](../../../DESIGN.md)
+and the owner of the affected interface in the current checkout. Identify the
+requested deliverable and available tools. Follow the
+[remote action rules](../../rules/safety.md#external-systems) for uploads and
+publication.
 
-Read [DESIGN.md](../../../DESIGN.md), [the phase guide](../../../docs/bootstrap.md), then the relevant source owners and canonical rules in [navigation](../../navigation.json). Inspect the available primitives and actual states before proposing or changing UI. Inspect the published root CSS/layout, pages and actual browser/visual evidence for the proposed source; never infer appearance or a successful product flow from a marker or historical image. Generator metadata is optional development tooling and must be checked for actual presence before use.
+1. Follow the [design handoff guide](../../../DESIGN.md#tools-and-handoff) for
+   artifacts and hosted prototypes. Apply the remote action rules to tool
+   connections as well as uploads and publication.
+2. Find the relevant owners in [source navigation](../../../docs/source-navigation.md).
+   Inspect the root CSS, layout, affected routes, primitives and interaction
+   states. Verify generator metadata before using a generator.
+3. Follow the [existing design system](../../../DESIGN.md#reuse-the-system) and
+   [website behavior rules](../../rules/website.md). Keep optional design tools
+   and assistants outside runtime dependencies.
+4. Review responsive behavior and interaction states in the browser on the
+   proposed source. Follow the
+   [rendered review procedure](../../../DESIGN.md#verify-the-rendered-page) and
+   [exact-tree validation](../validate-change/SKILL.md#validate-the-exact-tree)
+   at the appropriate handoff boundary.
 
-Establish the requested output: graphic/concept, editable design, runnable local UI or hosted prototype. Preserve the user's chosen tools and scope. Discover available tools and read their applicable skills; use source tools for integration and design/image tools for the output they can actually produce. Native design-system setup is separate from repository instruction discovery. Do not infer permission to upload, connect or publish from a local UI request.
-
-Implement within the exact published source/package boundaries and the requested phase. Follow DESIGN's source references for existing control states, API language/direction, flat catalogs, session ownership, proxy/CSP and document/performance support. Responsive, browser and visual claims require actual runnable integration evidence. Keep optional assistants/tools outside runtime dependencies.
-
-Select checks from the [validation manifest](../../validation.json) through [validate-change](../validate-change/SKILL.md). Report actual output, inspected source, reused/changed components and tokens, executed tools/checks, visual references and remaining integration/verification limits. Do not claim host autoload, external setup or successful product flows without evidence.
+Report the deliverable, reused or changed components and tokens, actual checks,
+visual observations and evidence limits.

@@ -1,8 +1,6 @@
 # Use the website's UI components
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Build feature UI from the controls in shared UI. Keep
+Build feature UI from the existing controls. Keep
 authentication behavior in `src/features/auth`, account forms in
 `src/features/account`, home content in `src/features/home` and page/shell
 composition in `src/app`. [Architecture](architecture.md) maps the owners;
@@ -10,7 +8,7 @@ composition in `src/app`. [Architecture](architecture.md) maps the owners;
 
 ## Choose and compose controls
 
-Use the existing Alert, Button, Card, Input and Label primitives, with
+Use the existing Alert, Button, Card, Input, Label and Textarea primitives, with
 [FormField](../src/shared/ui/FormField.tsx) and
 [Feedback](../src/shared/ui/Feedback.tsx) for form labels and messages.
 The primitives use Radix Slot/Label, class-variance-authority and
@@ -38,7 +36,9 @@ label and input. A form `name` is independent of that DOM ID. Error text takes
 precedence over hint text; its description is combined with any caller-supplied
 `aria-describedby`, and an error marks the input invalid. See
 [EmailForm](../src/features/account/components/email-form/EmailForm.tsx) for a
-complete form using this control.
+complete form using this control. For multiline content, give the Textarea a
+visible label and associate its error with `aria-describedby`, as in the
+[contact form](../src/features/contact/ContactForm.tsx).
 
 Button defaults its own native button to `type="button"`. Set
 `type="submit"` explicitly on submit controls; keep resend, retry and logout
@@ -55,8 +55,10 @@ API messages as HTML or expose transport diagnostics.
 
 [Forms](forms.md) defines the published feature behavior for submitted values,
 native validation, pending/error/retry states and OTP destinations.
-[Session](session.md) supplies generation and mount-operation guards. Feature
-forms key their reset identity by locale, session generation and account.
+[Session](session.md) supplies generation and mount-operation guards.
+Authentication and account forms key their reset identity by locale, session
+generation and account. The anonymous [contact form](contact.md) keys its owner
+by locale and retains the submission key with the mounted form.
 The shared [OTP component](../src/features/auth/OtpForm.tsx) owns registration
 and recovery code requests, destination checks and cooldown feedback.
 
@@ -90,7 +92,7 @@ Run focused owner tests using [testing](testing.md), then applicable type/lint
 checks. Real React Testing Library tests cover native attributes, labels,
 descriptions, disabled/Slot behavior, escaped localized feedback and theme-only
 storage. Feature form integration tests cover submitted values, pending state,
-errors, retries and stale operations; see [form evidence](forms.md#evidence-and-limits).
+errors, retries and stale operations. [Form verification](forms.md#verify-form-behavior)
 
 Provider/static-markup tests cover nonce forwarding, visible content and
 reduced-motion configuration. Form tests use the real HTTP/session owners and

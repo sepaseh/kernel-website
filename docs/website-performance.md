@@ -1,11 +1,7 @@
 # Measure bundles and run an advisory local performance lab
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use this guide to inspect an actual local build and collect optional Lighthouse
-samples. Production bundle budgets remain required; lab scores are advisory and
-outside the [full validation profile](validation.md). These procedures establish
-only the measurements actually run, not a field dataset or deployment result.
+Use the production build to check required bundle budgets. Collect optional
+Lighthouse samples separately from the [full validation profile](validation.md).
 
 ## Prepare the local fixture
 
@@ -43,6 +39,11 @@ it is not initial network transfer or executed JavaScript. Gzip figures sum
 individually compressed files rather than measuring a host's actual encoding.
 Budget limits are regression ceilings. Do not change them merely to hide a
 failure or treat synthetic helper tests as an actual build measurement.
+
+The 870,000-byte aggregate JavaScript ceiling accommodates the expanded feature
+set. The separate 260,000-byte per-chunk ceiling limits individual bundle size.
+Use the current build output to diagnose which files and routes account for an
+increase.
 
 ## Collect twelve owned Lighthouse samples
 

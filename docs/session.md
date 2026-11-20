@@ -1,7 +1,5 @@
 # Client session, operation and cooldown ownership
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 [SessionProvider](../src/features/auth/session/SessionProvider.tsx) consumes the locale
 already supplied by next-intl and reads /account/me through `getAccount` in the
 [session HTTP module](../src/features/auth/session/api.ts). That module also owns
@@ -23,10 +21,9 @@ It is local request ownership, not an API session token or authorization value.
 The kernel:session-expired listener starts a fresh read and is removed on unmount.
 Accepted mutation data can replace only its own loaded snapshot; a callback
 captured before a newer session cannot overwrite that session. Consumers outside
-the provider fail explicitly. Cookie isolation and full login/logout browser
-journeys require actual exact-tree execution under the [application contract](application.md)
-and [local synthetic HTTP fixture](api-fixture.md), regardless of which source
-phase first introduced this provider. Local owner tests cannot replace that evidence.
+the provider fail explicitly. Verify browser cookie isolation and full
+login/logout journeys against the [local synthetic HTTP fixture](api-fixture.md)
+using the [application acceptance guide](application.md).
 
 ## Form operation ownership
 
@@ -36,6 +33,8 @@ and invalidates pending feedback/navigation before a new account read completes.
 The HTTP operations distinguish public login, registration,
 OTP and recovery 401 responses, which do not emit session-expired, from protected
 mutation 401 responses, which do.
+The anonymous [contact form](contact.md) uses the same mount guard and suppresses
+session-expired notifications for its public requests.
 
 [useOperationScope](../src/shared/hooks/use-operation-scope.ts) activates a fresh
 per-mount token in `useLayoutEffect` setup. A capture made after that owner's

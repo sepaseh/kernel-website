@@ -1,37 +1,67 @@
 # Kernel Website
 
-The current publication phase is **operations** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
+Kernel Website is the standalone Next.js and TypeScript application for
+public-facing Kernel features. It uses a configured HTTP API for content,
+settings and accounts. The built-in synthetic API lets you run the website
+locally with disposable data.
 
-This stage delivers application routes, providers and website composition. A source
-marker or installed dependency does not prove a successful runtime check.
+## Run locally
 
-## Published source
+Use a source directory without runtime dotenv files.
 
-- Authentication flows, HTTP consumers and session ownership.
-- Account forms, contracts and requests.
-- Home reveal behavior and shared frontend controls.
-- SEO, CSP and optional Web Vitals delivery helpers.
-- Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
-- Licensed font source and real font verification.
-- Guarded Node runners, a synthetic HTTP fixture and deployment templates.
-- Guarded browser tooling, authored typed browser/visual suites and retained baseline images.
-- Framework routes, application shell, providers and local HTTP request adapters.
-- Manual packaging, smoke/staging and disposable Docker runners, release workflows
-  and an advisory local Lighthouse lab.
+1. From the repository root, use the Node version in [.nvmrc](.nvmrc) and
+   install the locked packages with `npm ci --include=dev`.
+2. Set the public loopback inputs in both terminals. Use the PowerShell or shell
+   example in the [local development guide](docs/development.md#set-explicit-local-inputs).
+3. Start the synthetic API in the first terminal and wait for its listening
+   message. Leave it running.
 
-The [application](docs/application.md), [runner contracts](docs/runner-foundation.md),
-[browser tooling](docs/browser-foundation.md), [HTTP fixture](docs/api-fixture.md)
-and [deployment references](docs/deployment.md) define the delivered contracts.
-The full gate must execute real production build, browser/CSP and visual checks
-with the disposable local fixture and reviewed browser. Compilation and historical
-screenshots alone establish no browser execution or external backend compatibility.
+   ```sh
+   node scripts/test-website-api.mjs
+   ```
 
-[Operations](docs/release-operations.md), [releasing](docs/releasing.md) and
-[staging](docs/staging.md) have separate public inputs, authorization and acceptance.
-Their source does not establish an executed container, release or remote check.
+4. In the second terminal, build and start the website.
 
-Start with [Contributing](CONTRIBUTING.md), [task navigation](docs/source-navigation.md), [source scope](docs/bootstrap.md) and [exact-tree validation](docs/validation.md). [AGENTS](AGENTS.md) owns assistant entry instructions.
+   ```sh
+   npm run build
+   npm start
+   ```
 
-Use the exact Node version in [.nvmrc](.nvmrc), freshly install the locked dependencies in an owned verification export and run `npm run validate -- full`. The [manifest](.agents/validation.json) owns every required command.
+5. Open <http://127.0.0.1:3010> and visit `/blog`, `/faq`, `/contact` or `/login`.
+   Stop both processes with Ctrl+C when finished. Stopping the fixture discards
+   its accounts, messages and other in-memory changes.
 
-[Branch protection](docs/branch-protection.md), [review preflight](docs/reviews.md) and [SonarQube Cloud](docs/sonarqube.md) distinguish configured policy from current-head hosted results. See [Security](SECURITY.md) for private reporting.
+For environment setup, feature edits and browser checks, follow the
+[local development guide](docs/development.md). For startup and check failures,
+start with [local troubleshooting](docs/troubleshooting.md).
+
+## Included capabilities
+
+- Multilingual home page, published blog and frequently asked questions.
+- Public contact form.
+- Registration, sign-in, password recovery and account management.
+
+The publication phase is **operations** and application readiness is **true**.
+The [publication policy](.github/bootstrap-policy.json) defines admitted files.
+Build, browser and deployment results depend on execution in their respective
+environments.
+
+## Documentation
+
+- [Documentation index](docs/README.md) for guides by task.
+- [Architecture](docs/architecture.md) for system boundaries and source ownership.
+- [Development](docs/development.md) for local setup and source changes.
+- [Validation](docs/validation.md) for required checks and evidence.
+- [Deployment](docs/deployment.md) for packaging and deployment.
+
+While editing, use the affected checks from the [validation manifest](.agents/validation.json).
+Before an authorized commit, push or PR handoff, run the full profile against
+the exact proposed tree with the local fixture and reviewed Chromium build.
+
+## Get help and contribute
+
+Use repository issues for bugs and feature requests. Report suspected
+vulnerabilities privately. [Issues](https://github.com/sepaseh/kernel-website/issues) · [Security policy](SECURITY.md)
+
+Follow the contribution workflow to propose a change. Assistants start at the
+repository's assistant entry point. [Contributing](CONTRIBUTING.md) · [Assistant entry point](AGENTS.md)
