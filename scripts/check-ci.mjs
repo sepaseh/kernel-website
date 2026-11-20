@@ -376,7 +376,10 @@ function validateProducerJob(job, name, label) {
   assert.equal(job.needs, undefined);
   assert.equal(job.strategy, undefined);
   assert.equal(job["timeout-minutes"], name === "audit" ? 5 : 20);
-  assert.equal(job["runs-on"], "ubuntu-latest");
+  assert.equal(
+    job["runs-on"],
+    name === "governance" ? "ubuntu-24.04" : "ubuntu-latest",
+  );
   pinnedActions(job);
   assert.equal(job.steps[0].with.ref, "${{ github.sha }}");
   const suite = name === "unit" || name === "governance";

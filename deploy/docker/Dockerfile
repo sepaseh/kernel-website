@@ -1,4 +1,4 @@
-FROM node:24.18.0-bookworm-slim AS dependencies
+FROM node:24.22.2-bookworm-slim AS dependencies
 WORKDIR /app
 # Refuse incomplete source before dependency installation or application build.
 COPY .github/bootstrap-policy.json ./.github/bootstrap-policy.json
@@ -21,7 +21,7 @@ ENV NODE_ENV=production API_BASE_URL=http://127.0.0.1:3100 HOSTNAME=127.0.0.1 PO
     WEBSITE_CSP_MODE=enforce KERNEL_SYNTHETIC_ENV=1
 RUN npm run build
 
-FROM node:24.18.0-bookworm-slim AS website
+FROM node:24.22.2-bookworm-slim AS website
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3001
 COPY --from=build --chown=node:node /app/.next/standalone ./

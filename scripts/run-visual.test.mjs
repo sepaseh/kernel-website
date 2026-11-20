@@ -137,11 +137,11 @@ async function fixture(t, ready = true) {
     await put(`node_modules/${name}`, "// Inert synthetic transitive entry.\n");
   await put(
     "node_modules/@playwright/test/cli.js",
-    `import{writeFileSync}from'node:fs';writeFileSync('capture.json',JSON.stringify({args:process.argv.slice(2),environment:process.env}));`,
+    `import{writeFileSync}from'node:fs';writeFileSync('test-results/capture.json',JSON.stringify({args:process.argv.slice(2),environment:process.env}));`,
   );
   await put(
     "node_modules/@playwright/test/index.mjs",
-    `import{writeFileSync}from'node:fs';export const chromium={async launch(options){writeFileSync('probe.json',JSON.stringify(options));return {version(){return 'synthetic-chromium';},async close(){writeFileSync('probe-closed','closed');}};}};`,
+    `import{writeFileSync}from'node:fs';export const chromium={async launch(options){writeFileSync('test-results/probe.json',JSON.stringify(options));return {version(){return 'synthetic-chromium';},async close(){writeFileSync('test-results/probe-closed','closed');}};}};`,
   );
   await put("playwright.visual.config.ts", "// Owned fake visual config.\n");
   for (const name of [
@@ -242,8 +242,8 @@ test("visual readiness and pre-abort precede options, public environment and art
     /aborted/,
   );
   await assert.rejects(runVisual(ready.root, { signal: {} }), /AbortSignal/);
-  await noFile(ready.root, "probe.json");
-  await noFile(ready.root, "capture.json");
+  await noFile(ready.root, "test-results/probe.json");
+  await noFile(ready.root, "test-results/capture.json");
 });
 
 test("visual arguments and every nonempty CI update marker fail before SDK or baseline access", async (t) => {
@@ -267,7 +267,7 @@ test("visual arguments and every nonempty CI update marker fail before SDK or ba
       }),
       /forbidden in CI/,
     );
-  await noFile(root, "probe.json");
+  await noFile(root, "test-results/probe.json");
 });
 
 test("comparison uses actual host metadata, verified SDK and public explicit origins with the real owned fake CLI", async (t) => {
@@ -280,7 +280,7 @@ test("comparison uses actual host metadata, verified SDK and public explicit ori
   });
   assert.equal(result.mode, "compare");
   assert.equal(result.metadataPath, path.join(root, metadataPath));
-  const capture = await json(root, "capture.json");
+  const capture = await json(root, "test-results/capture.json");
   assert.deepEqual(capture.args, [
     "test",
     `--config=${path.join(root, "playwright.visual.config.ts")}`,
@@ -297,7 +297,7 @@ test("comparison uses actual host metadata, verified SDK and public explicit ori
   for (const key of ["NODE_OPTIONS", "TOKEN"])
     assert.equal(Object.hasOwn(capture.environment, key), false);
   assert.equal(
-    await readFile(path.join(root, "probe-closed"), "utf8"),
+    await readFile(path.join(root, "test-results/probe-closed"), "utf8"),
     "closed",
   );
   assert.deepEqual(await json(root, metadataPath), reviewed);
@@ -336,13 +336,13 @@ test("comparison refuses missing or unreviewed metadata and mismatched browser w
     runVisual(root, { environment }),
     /review metadata mismatch/,
   );
-  await noFile(root, "probe.json");
+  await noFile(root, "test-results/probe.json");
   await put(metadataPath, { ...reviewed, browserVersion: "foreign-browser" });
   await assert.rejects(
     runVisual(root, { environment }),
     /Chromium does not match/,
   );
-  await noFile(root, "capture.json");
+  await noFile(root, "test-results/capture.json");
   await lockReleased(root);
 });
 
@@ -355,12 +355,34 @@ test("verified visual reuse preserves build bytes and uses skip-build without up
   );
   await runVisual(root, { environment, reuseBuild: true });
   assert.equal(
-    (await json(root, "capture.json")).environment.WEBSITE_SKIP_BUILD,
+    (await json(root, "test-results/capture.json")).environment
+      .WEBSITE_SKIP_BUILD,
     "1",
   );
   assert.deepEqual(
     await readFile(path.join(root, "coverage/verification-build.json")),
     record,
+  );
+  assert.deepEqual(await json(root, metadataPath), reviewed);
+  await lockReleased(root);
+});
+
+test("visual reuse records failure if a successful capture changes verified output", async (t) => {
+  const { root, put, environment, metadataPath, reviewed, prepareBuild } =
+    await fixture(t);
+  await prepareBuild();
+  await put(
+    "node_modules/@playwright/test/cli.js",
+    "import{writeFileSync}from'node:fs';writeFileSync('.next/static/chunk.js','changed output');",
+  );
+
+  await assert.rejects(
+    runVisual(root, { environment, reuseBuild: true }),
+    /does not match the current source/,
+  );
+  assert.equal(
+    (await json(root, "test-results/visual/environment.json")).outcome,
+    "failed",
   );
   assert.deepEqual(await json(root, metadataPath), reviewed);
   await lockReleased(root);
@@ -378,12 +400,12 @@ test("visual reuse refuses invalid switches, updates and unverified output befor
     /fresh owned build/,
   );
   await assert.rejects(runVisual(root, { environment, reuseBuild: true }));
-  await noFile(root, "probe.json");
+  await noFile(root, "test-results/probe.json");
   await prepareBuild();
   await put(".next/static/chunk.js", "tampered output");
   await assert.rejects(runVisual(root, { environment, reuseBuild: true }));
-  await noFile(root, "probe.json");
-  await noFile(root, "capture.json");
+  await noFile(root, "test-results/probe.json");
+  await noFile(root, "test-results/capture.json");
   await lockReleased(root);
 });
 
@@ -427,7 +449,7 @@ test("metadata write failure prevents actual capture and releases only the owned
     runVisual(root, { environment, argv: ["--update"] }),
     /unlinked regular file/,
   );
-  await noFile(root, "capture.json");
+  await noFile(root, "test-results/capture.json");
   await lockReleased(root);
 });
 
@@ -442,7 +464,7 @@ test("an existing Next lock and another visual owner block probing without remov
     await readFile(path.join(root, ".next/lock"), "utf8"),
     "existing owner's lock",
   );
-  await noFile(root, "probe.json");
+  await noFile(root, "test-results/probe.json");
   await lockReleased(root);
   await rm(path.join(root, ".next/lock"));
   const release = await acquireVisualLock(path.join(root, "test-results"));
@@ -475,7 +497,7 @@ test("comparison acquires exclusion before reading baseline review metadata", as
     runVisual(root, { environment }),
     /review metadata mismatch/,
   );
-  await noFile(root, "capture.json");
+  await noFile(root, "test-results/capture.json");
   await lockReleased(root);
 });
 
@@ -548,7 +570,7 @@ test("probe validation and bounded output failures preserve baselines and releas
   );
   await assert.rejects(runVisual(root, { environment }), /bounded output/);
   assert.deepEqual(await json(root, metadataPath), reviewed);
-  await noFile(root, "capture.json");
+  await noFile(root, "test-results/capture.json");
   await lockReleased(root);
 });
 

@@ -219,7 +219,7 @@ export async function createDockerFixtureRequest(root, certificate) {
 }
 
 const fixtureDockerfile = [
-  "FROM node:24.18.0-bookworm-slim AS synthetic-api",
+  "FROM node:24.22.2-bookworm-slim AS synthetic-api",
   "WORKDIR /app",
   "COPY --chown=node:node website-api-fixture.mjs ./website-api-fixture.mjs",
   "USER node",

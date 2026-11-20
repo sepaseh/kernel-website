@@ -442,6 +442,9 @@ test("CSP evidence retains reports and failure artifacts from both enforcement m
 test("font coverage uses pinned Python and dependencies before measuring and sharing the same producer artifact", () => {
   for (const change of [
     (value) => {
+      value.jobs.governance["runs-on"] = "ubuntu-latest";
+    },
+    (value) => {
       value.jobs.governance.steps.splice(3, 1);
     },
     (value) => {

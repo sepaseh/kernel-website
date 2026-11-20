@@ -36,6 +36,14 @@ const lcov = (source = "src/example.ts") =>
   `TN:\nSF:${source}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n`;
 const fontCoverage =
   '<coverage lines-valid="1"><class filename="subset-website-fonts.py"><line number="1" hits="1"/></class></coverage>\n';
+const gitCommands = {
+  "rev-parse HEAD": commit,
+  "rev-parse HEAD^{tree}": tree,
+  "rev-parse HEAD:.github/workflows/ci.yml": workflow,
+  "diff --name-only HEAD --": "",
+  [`ls-tree -rz --name-only ${tree}`]:
+    "src/example.ts\0scripts/subset-website-fonts.py\0",
+};
 const identityOptions = () => ({
   environment: {
     GITHUB_REPOSITORY: "example/api",
@@ -54,14 +62,8 @@ const identityOptions = () => ({
     },
   },
   git: (args) => {
-    const commands = {
-      "rev-parse HEAD": commit,
-      "rev-parse HEAD^{tree}": tree,
-      "rev-parse HEAD:.github/workflows/ci.yml": workflow,
-      "diff --name-only HEAD --": "",
-    };
-    assert.ok(Object.hasOwn(commands, args.join(" ")));
-    return commands[args.join(" ")];
+    assert.ok(Object.hasOwn(gitCommands, args.join(" ")));
+    return gitCommands[args.join(" ")];
   },
 });
 const fixture = async (context) => {
@@ -401,11 +403,14 @@ test("revalidates the actual current head, merge base, tested tree and workflow"
     );
   }
   for (const command of ["HEAD^{tree}", "HEAD:.github/workflows/ci.yml"]) {
+    const changed = "f".repeat(40);
     await assert.rejects(
       runEvidence("--verify-coverage", {
         ...options,
-        git: (args) =>
-          args[1] === command ? "f".repeat(40) : options.git(args),
+        git: (args) => {
+          if (args[1] === command) return changed;
+          return options.git(args.map((arg) => (arg === changed ? tree : arg)));
+        },
       }),
       /does not match/,
     );
@@ -548,6 +553,69 @@ test("validates every source in a report containing multiple records", async (co
   await assert.rejects(readCoverage(options.root), { code: "ENOENT" });
 });
 
+test("rejects existing LCOV and font sources outside the attested Git tree", async (context) => {
+  const options = await fixture(context);
+  await runEvidence("--record", options);
+  await writeFile(path.join(options.root, "src/local.ts"), "export {};\n");
+  await writeFile(
+    path.join(options.root, "coverage/unit/lcov.info"),
+    lcov("src/local.ts"),
+  );
+  for (const mode of ["--record", "--verify-coverage"])
+    await assert.rejects(
+      runEvidence(mode, options),
+      /outside the attested Git tree: src\/local\.ts/,
+    );
+
+  options.environment.CI_EVIDENCE_SUITE = "governance";
+  await runEvidence("--record", options);
+  const git = options.git;
+  options.git = (args) =>
+    args[0] === "ls-tree" ? "src/example.ts\0" : git(args);
+  for (const mode of ["--record", "--verify-coverage"])
+    await assert.rejects(
+      runEvidence(mode, options),
+      /outside the attested Git tree: scripts\/subset-website-fonts\.py/,
+    );
+});
+
+test("validates measured line bounds across all records for a source", async (context) => {
+  const options = await fixture(context);
+  const report = path.join(options.root, "coverage/unit/lcov.info");
+  const source = path.join(options.root, "src/example.ts");
+  await writeFile(source, "// first\r\n// second\u2028// third\n");
+  await writeFile(report, lcov().replace("DA:1,1", "DA:3,1") + lcov());
+  await runEvidence("--record", options);
+  await runEvidence("--verify-coverage", options);
+
+  await writeFile(report, lcov().replace("DA:1,1", "DA:4,1") + lcov());
+  for (const mode of ["--record", "--verify-coverage"])
+    await assert.rejects(
+      runEvidence(mode, options),
+      /LCOV contains a line outside its source: src\/example\.ts/,
+    );
+});
+
+test("validates governance line bounds using Node's LCOV numbering", async (context) => {
+  const options = await fixture(context);
+  options.environment.CI_EVIDENCE_SUITE = "governance";
+  const report = path.join(options.root, "coverage/governance/lcov.info");
+  await writeFile(
+    path.join(options.root, "src/example.ts"),
+    "// first\r\n// second\r// third\u2028// fourth\u2029// fifth\n",
+  );
+  await writeFile(report, lcov().replace("DA:1,1", "DA:2,1"));
+  await runEvidence("--record", options);
+  await runEvidence("--verify-coverage", options);
+
+  await writeFile(report, lcov().replace("DA:1,1", "DA:3,1"));
+  for (const mode of ["--record", "--verify-coverage"])
+    await assert.rejects(
+      runEvidence(mode, options),
+      /LCOV contains a line outside its source: src\/example\.ts/,
+    );
+});
+
 test("requires measured lines independently for each source with executable lines", async (context) => {
   const options = await fixture(context);
   await writeFile(path.join(options.root, "src/another.ts"), "export {};\n");
@@ -681,7 +749,7 @@ test("CLI handler publishes the artifact and rejects tampering in an isolated su
   };
   const script = `import { runEvidence } from ${JSON.stringify(new URL("./ci-evidence.mjs", import.meta.url).href)};
     const input = JSON.parse(process.argv[1]);
-    const values = ${JSON.stringify({ "rev-parse HEAD": commit, "rev-parse HEAD^{tree}": tree, "rev-parse HEAD:.github/workflows/ci.yml": workflow, "diff --name-only HEAD --": "" })};
+    const values = ${JSON.stringify(gitCommands)};
     await runEvidence(process.argv[2], { ...input, git: args => values[args.join(" ")] });`;
   const run = (mode) =>
     spawnSync(

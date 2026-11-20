@@ -6,7 +6,7 @@ required check commands and their full-profile order.
 
 ## Local and hosted execution
 
-Local `full` validation still runs all required checks once. Hosted CI uses
+Local `full` validation still runs all required checks once. GitHub Actions uses
 the static, audit, unit, governance, build, functional E2E, accessibility, SEO,
 CSP and visual profiles as an exact partition of the complete required gate.
 The static checks and test suites install their locked dependencies;
@@ -103,3 +103,24 @@ A saved report requires an explicit request and belongs under ignored
 Do not stage or commit if any required check fails or cannot run.
 Passing local validation grants no commit, push, remote review or merge authority.
 Hosted CI, Sonar and CodeRabbit results remain separate [review evidence](reviews.md).
+
+## Run CI on GitLab or Gitea
+
+The [GitLab pipeline](../.gitlab-ci.yml) runs for same-project merge requests
+and pushes to the default branch. The [Gitea workflow](../.gitea/workflows/ci.yaml)
+runs for same-repository pull requests and pushes to `main` when repository
+Actions are enabled. Read the full validation job log for the individual
+checks from the `full` profile.
+
+Use an isolated Windows x64 job environment for the reviewed visual baselines.
+Scope the runner to trusted repositories and keep deployment credentials out
+of this job environment.
+Assign the GitLab runner the `kernel-windows-x64` tag with a PowerShell Core
+shell. Give the Gitea runner the `kernel-windows-x64` host label. Git, PowerShell
+7, the Node version in [.nvmrc](../.nvmrc) and CPython 3.14.4 must be on PATH.
+The jobs install locked npm and font dependencies plus Chromium, then run the
+full profile with synthetic loopback settings on ports 3010 and 3100.
+
+Open the job for the current revision to inspect a failure. Configure merge
+enforcement in the destination repository's settings. CodeQL, Sonar analysis
+and review-provider evidence follow their existing GitHub workflows.

@@ -31,3 +31,14 @@ are separate evidence. Follow [review preflight](pull-requests.md#coderabbit-req
 skipped or conversational provider replies do not establish a completed review.
 Submit remote comments or reviews, resolve conversations and merge only with
 authorization for the corresponding action.
+
+## Address review feedback
+
+1. Read the review thread and its current status. Verify the finding against the
+   latest published PR head, the owning source and the relevant tests.
+2. Record the disposition. State what changed and which check verified it, or
+   explain why the finding is already addressed or does not apply. Identify the
+   published revision when it helps the reviewer verify the result.
+3. When authorized to reply, respond in the original review thread. Follow the
+   [remote action rules](safety.md#external-systems) for replies, conversation
+   resolution and re-review requests. Leave unresolved findings visible.

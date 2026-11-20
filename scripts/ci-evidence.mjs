@@ -129,7 +129,8 @@ const parseCoverageLine = (line, record) => {
       throw new Error("LCOV records must end before another source");
 
     record.source = safeRelative(line.slice(3));
-    record.sources.add(record.source);
+    if (!record.sources.has(record.source))
+      record.sources.set(record.source, 0);
     record.executable = undefined;
     record.lines.clear();
     return;
@@ -157,6 +158,10 @@ const parseCoverageLine = (line, record) => {
       throw new Error("LCOV requires valid measured line records");
 
     record.lines.add(number);
+    record.sources.set(
+      record.source,
+      Math.max(record.sources.get(record.source), Number(number)),
+    );
     return;
   }
   if (line === "end_of_record") {
@@ -173,7 +178,7 @@ const coverageSources = (bytes) => {
     lines: new Set(),
     records: 0,
     source: undefined,
-    sources: new Set(),
+    sources: new Map(),
   };
   const lines = new TextDecoder("utf-8", { fatal: true })
     .decode(bytes)
@@ -194,19 +199,42 @@ const readMeasuredReport = async (root, reportPath, label) => {
   return bytes;
 };
 
+const countCoverageSourceLines = (text, reportPath) => {
+  if (reportPath === "coverage/governance/lcov.info") {
+    // The Node test runner retains LF and CRLF at the end of each source line.
+    return text.split(/(?<=\n)/u).length;
+  }
+  const lines = text.split(/\r\n|[\n\r\u2028\u2029]/u);
+  return lines.length - (lines.at(-1) === "" ? 1 : 0);
+};
+
 export const readCoverage = async (
   root,
   reportPath = "coverage/unit/lcov.info",
+  sourcePaths,
 ) => {
   const bytes = await readMeasuredReport(root, reportPath, "LCOV");
-  await Promise.all(
-    [...coverageSources(bytes)].map((source) => regularFile(root, source)),
-  );
+  for (const [source, lastMeasuredLine] of coverageSources(bytes)) {
+    assertAttestedSource(sourcePaths, source);
+    const { filename } = await regularFile(root, source);
+    const text = await readFile(filename, "utf8");
+    const lineCount = countCoverageSourceLines(text, reportPath);
+    if (lastMeasuredLine > lineCount)
+      throw new Error(`LCOV contains a line outside its source: ${source}`);
+  }
   return bytes;
 };
 
+const assertAttestedSource = (sourcePaths, source) => {
+  if (sourcePaths && !sourcePaths.has(source))
+    throw new Error(
+      `Coverage source is outside the attested Git tree: ${source}`,
+    );
+};
+
 const fontCoveragePath = "coverage/governance/font-coverage.xml";
-const readFontCoverage = async (root) => {
+const fontCoverageSource = "scripts/subset-website-fonts.py";
+const readFontCoverage = async (root, sourcePaths) => {
   const bytes = await readMeasuredReport(
     root,
     fontCoveragePath,
@@ -220,7 +248,8 @@ const readFontCoverage = async (root) => {
     )
   )
     throw new Error("Font coverage must measure the published font verifier");
-  await regularFile(root, "scripts/subset-website-fonts.py");
+  assertAttestedSource(sourcePaths, fontCoverageSource);
+  await regularFile(root, fontCoverageSource);
   return bytes;
 };
 
@@ -353,11 +382,16 @@ export const runEvidence = async (
     await buildEvidence({ root, environment, identity, verifying, output });
     return identity;
   }
-  const reports = [{ reportPath, bytes: await readCoverage(root, reportPath) }];
+  const sourcePaths = new Set(
+    readGit(["ls-tree", "-rz", "--name-only", identity.tree]).split("\0"),
+  );
+  const reports = [
+    { reportPath, bytes: await readCoverage(root, reportPath, sourcePaths) },
+  ];
   if (suite === "governance")
     reports.push({
       reportPath: fontCoveragePath,
-      bytes: await readFontCoverage(root),
+      bytes: await readFontCoverage(root, sourcePaths),
     });
   const expected = evidenceManifest(identity, reports, suite);
   if (verifying) {

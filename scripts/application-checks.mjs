@@ -26,6 +26,7 @@ import { runCspReportOnly } from "./test-csp-report-only.mjs";
 import {
   fingerprintBuildSource,
   invalidateVerificationBuild,
+  recheckVerificationBuild,
   recordVerificationBuild,
   verifyVerificationBuild,
 } from "./verification-build.mjs";
@@ -167,7 +168,8 @@ export async function runApplicationCheck(root, mode, options = {}) {
     );
   }
   const browserInputs = await syntheticBrowserInputs(directory, inherited);
-  await verifyVerificationBuild(directory, { environment: inherited });
+  const buildOptions = { environment: browserInputs.websiteEnvironment };
+  const verifiedBuild = await verifyVerificationBuild(directory, buildOptions);
   signal?.throwIfAborted();
   const browserEnvironment = {
     ...browserInputs.websiteEnvironment,
@@ -182,14 +184,17 @@ export async function runApplicationCheck(root, mode, options = {}) {
       signal,
       reuseBuild: true,
     });
-  await run(
-    [
-      await resolvePlaywrightCli(directory),
-      "test",
-      `--config=${path.join(directory, "playwright.website.config.ts")}`,
-      ...browserSuites[mode].map((filename) => `e2e/website/${filename}`),
-    ],
-    browserEnvironment,
+  const cli = await resolvePlaywrightCli(directory);
+  await recheckVerificationBuild(directory, buildOptions, verifiedBuild, () =>
+    run(
+      [
+        cli,
+        "test",
+        `--config=${path.join(directory, "playwright.website.config.ts")}`,
+        ...browserSuites[mode].map((filename) => `e2e/website/${filename}`),
+      ],
+      browserEnvironment,
+    ),
   );
   if (mode === "csp")
     return (options.reportOnly ?? runCspReportOnly)(directory, {

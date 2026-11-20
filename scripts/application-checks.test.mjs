@@ -15,7 +15,10 @@ import { test } from "node:test";
 import { createApiFixture } from "./api-fixture-test-support.mjs";
 import { runApplicationCheck } from "./application-checks.mjs";
 import { runOwnedProcess } from "./runner-process.mjs";
-import { verifyVerificationBuild } from "./verification-build.mjs";
+import {
+  recordVerificationBuild,
+  verifyVerificationBuild,
+} from "./verification-build.mjs";
 
 async function fixture(t, ready = true) {
   const parent = await realpath(os.tmpdir());
@@ -678,6 +681,53 @@ test("all browser groups refuse missing, stale or changed build evidence before 
   await put(".next/standalone/server.js", "changed output");
   await rejectAll();
   assert.equal(executions, 0);
+});
+
+test("CSP cannot move to report-only when enforce replaces the verified build", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  await prepareBuild(root, environment);
+  let reportOnlyCalls = 0;
+
+  await assert.rejects(
+    runApplicationCheck(root, "csp", {
+      environment,
+      execute: async () => {
+        await put(".next/static/chunk.js", "replacement output");
+        await recordVerificationBuild(root, { environment });
+      },
+      reportOnly: async () => {
+        reportOnlyCalls++;
+      },
+    }),
+    /Verification build changed during browser execution/,
+  );
+  assert.equal(reportOnlyCalls, 0);
+});
+
+test("a failed browser group retains the child failure and changed build failure", async (t) => {
+  const { root, put, environment } = await fixture(t);
+  await prepareBuild(root, environment);
+  const failure = new Error("owned suite failed");
+
+  await assert.rejects(
+    runApplicationCheck(root, "e2e", {
+      environment,
+      execute: async () => {
+        await put(".next/standalone/server.js", "changed output");
+        throw failure;
+      },
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 2);
+      assert.equal(error.errors[0], failure);
+      assert.match(
+        error.errors[1].message,
+        /does not match the current source/,
+      );
+      return true;
+    },
+  );
 });
 
 test("visual dispatch uses its guarded owner and retains explicit API selection and failure", async (t) => {

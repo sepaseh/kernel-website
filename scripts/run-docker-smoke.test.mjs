@@ -1044,6 +1044,9 @@ test("Docker smoke cleans state when fixture copy, port or report preparation fa
 test("Docker fixture context copies only the fixed unlinked website responder into independent files", async (context) => {
   const { root, options, state } = await syntheticSmoke(context);
   const entry = path.join(root, "scripts/website-api-fixture.mjs");
+  const nodeVersion = (
+    await readFile(new URL("../.nvmrc", import.meta.url), "utf8")
+  ).trim();
   await writeFile(path.join(root, "package.json"), '{"name":"website-only"}');
   await writeFile(path.join(root, "scripts/unrelated.mjs"), "// not copied");
   const execute = options.docker;
@@ -1056,7 +1059,10 @@ test("Docker fixture context copies only the fixed unlinked website responder in
         "website-api-fixture.mjs",
       ]);
       const dockerfile = await readFile(file, "utf8");
-      assert.match(dockerfile, /^FROM node:24\.18\.0-bookworm-slim /);
+      assert.equal(
+        dockerfile.split("\n")[0],
+        `FROM node:${nodeVersion}-bookworm-slim AS synthetic-api`,
+      );
       assert.match(
         dockerfile,
         /COPY --chown=node:node website-api-fixture\.mjs \.\/website-api-fixture\.mjs/,

@@ -213,9 +213,10 @@ test("CSP wrapper rejects every extra argument before resolving the SDK", async 
 test("CSP wrapper executes the exact owned CLI with public origins and forced report-only skip-build mode", async (t) => {
   const { root, put, environment, prepareBuild } = await fixture(t);
   await prepareBuild();
+  await mkdir(path.join(root, "test-results"));
   await put(
     "node_modules/@playwright/test/cli.js",
-    `import{writeFileSync}from'node:fs';writeFileSync('csp-execution.json',JSON.stringify({args:process.argv.slice(2),cwd:process.cwd(),environment:process.env}));`,
+    `import{writeFileSync}from'node:fs';writeFileSync('test-results/csp-execution.json',JSON.stringify({args:process.argv.slice(2),cwd:process.cwd(),environment:process.env}));`,
   );
   assert.deepEqual(
     await runCspReportOnly(root, {
@@ -225,7 +226,7 @@ test("CSP wrapper executes the exact owned CLI with public origins and forced re
     { code: 0, signal: null },
   );
   const actual = JSON.parse(
-    await readFile(path.join(root, "csp-execution.json"), "utf8"),
+    await readFile(path.join(root, "test-results/csp-execution.json"), "utf8"),
   );
   assert.equal(actual.cwd, root);
   assert.deepEqual(actual.args, [
@@ -262,6 +263,20 @@ test("CSP report-only acceptance refuses unverified or stale prepared builds bef
   });
 });
 
+test("a successful report-only child cannot certify changed build output", async (t) => {
+  const { root, put, environment, prepareBuild } = await fixture(t);
+  await prepareBuild();
+  await put(
+    "node_modules/@playwright/test/cli.js",
+    "import{writeFileSync}from'node:fs';writeFileSync('.next/static/chunk.js','changed output');",
+  );
+
+  await assert.rejects(
+    runCspReportOnly(root, { environment, stdio: "ignore" }),
+    /does not match the current source/,
+  );
+});
+
 test("CSP actual child failures and cancellation remain observable failures", async (t) => {
   const { root, put, environment, prepareBuild } = await fixture(t);
   await prepareBuild();
@@ -270,13 +285,15 @@ test("CSP actual child failures and cancellation remain observable failures", as
     runCspReportOnly(root, { environment, stdio: "ignore" }),
     /code 7/,
   );
+  const results = path.join(root, "test-results");
+  await mkdir(results);
   await put(
     "node_modules/@playwright/test/cli.js",
-    "import{createServer}from'node:net';import{writeFileSync,renameSync}from'node:fs';createServer().listen(0,'127.0.0.1');writeFileSync('csp-started.tmp','ready');renameSync('csp-started.tmp','csp-started');\n",
+    "import{createServer}from'node:net';import{writeFileSync,renameSync}from'node:fs';createServer().listen(0,'127.0.0.1');writeFileSync('test-results/csp-started.tmp','ready');renameSync('test-results/csp-started.tmp','test-results/csp-started');\n",
   );
   const controller = new AbortController();
   await assert.rejects(
-    abortOnFixtureFile(root, "csp-started", controller, () =>
+    abortOnFixtureFile(results, "csp-started", controller, () =>
       runCspReportOnly(root, {
         environment,
         stdio: "ignore",

@@ -60,6 +60,16 @@ test("Docker and native templates retain explicit runtime, TLS and proxy boundar
     new URL("../deploy/docker/Dockerfile", import.meta.url),
     "utf8",
   );
+  const nodeVersion = (
+    await readFile(new URL("../.nvmrc", import.meta.url), "utf8")
+  ).trim();
+  assert.deepEqual(
+    dockerfile.split(/\r?\n/).filter((line) => line.startsWith("FROM node:")),
+    [
+      `FROM node:${nodeVersion}-bookworm-slim AS dependencies`,
+      `FROM node:${nodeVersion}-bookworm-slim AS website`,
+    ],
+  );
   const phaseGuard = dockerfile.indexOf(
     "await requireApplicationReady(process.cwd())",
   );
@@ -225,7 +235,7 @@ test("Docker build copies the actual application-helper closure and uses explici
   );
   const buildStage = dockerfile
     .split("FROM dependencies AS build")[1]
-    .split("FROM node:24.18.0-bookworm-slim AS website")[0];
+    .split(/^FROM /m)[0];
   assert.match(buildStage, /^COPY scripts \.\/scripts$/m);
   for (const value of [
     "API_BASE_URL=http://127.0.0.1:3100",

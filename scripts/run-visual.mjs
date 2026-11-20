@@ -16,7 +16,10 @@ import {
 } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
 import { runVerificationCli, startOwnedProcess } from "./runner-process.mjs";
-import { verifyVerificationBuild } from "./verification-build.mjs";
+import {
+  recheckVerificationBuild,
+  verifyVerificationBuild,
+} from "./verification-build.mjs";
 import {
   acquireVisualLock,
   assertReviewedVisualBaseline,
@@ -162,9 +165,10 @@ async function runCapture({
   metadata,
   reportPath,
   trackChild,
+  verifiedBuild,
+  buildOptions,
 }) {
-  let failure;
-  try {
+  const capture = async () => {
     const owned = startOwnedProcess({
       args: [
         installation.cli,
@@ -179,6 +183,17 @@ async function runCapture({
     });
     trackChild(owned.child);
     await owned.completion;
+  };
+  let failure;
+  try {
+    if (verifiedBuild)
+      await recheckVerificationBuild(
+        root,
+        buildOptions,
+        verifiedBuild,
+        capture,
+      );
+    else await capture();
   } catch (error) {
     failure = error;
   }
@@ -288,8 +303,10 @@ export async function runVisual(root = repository, options = {}) {
       });
     }
     await requireNoNextLock(directory);
-    if (reuseBuild)
-      await verifyVerificationBuild(directory, { environment: inherited });
+    const buildOptions = { environment: inputs.websiteEnvironment };
+    const verifiedBuild = reuseBuild
+      ? await verifyVerificationBuild(directory, buildOptions)
+      : undefined;
     await assertVisualPortsAvailable([
       Number(new URL(inputs.websiteOrigin).port),
       Number(new URL(inputs.apiOrigin).port),
@@ -342,6 +359,8 @@ export async function runVisual(root = repository, options = {}) {
       metadata,
       reportPath,
       trackChild,
+      verifiedBuild,
+      buildOptions,
     });
     return { mode: update ? "update" : "compare", metadataPath, reportPath };
   });

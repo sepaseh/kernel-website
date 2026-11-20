@@ -20,6 +20,12 @@ reviews, PR changes, merges and protection changes each require authorization
 for their actual effect. Existing session authorization persists.
 Use `codex/` branches and Conventional Commit titles.
 
+When reviewing a PR or addressing review feedback, read
+[Address review feedback](.agents/rules/code-review.md#address-review-feedback)
+at the start of the task, before switching branches or editing files. Record the
+outcome and verification for each finding. Reply in the original review thread
+when authorized.
+
 Review each PR's complete scope and aim for at most 80 changed-file entries
 initially. Split independent changes when useful and explain larger cohesive
 changes. File count is advisory: exceeding 100 alone must not fail CI or require
