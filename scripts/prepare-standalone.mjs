@@ -3,6 +3,7 @@ import {
   mkdtemp,
   readdir,
   readlink,
+  realpath,
   rename,
   rm,
 } from "node:fs/promises";
@@ -23,10 +24,10 @@ const repository = fileURLToPath(new URL("../", import.meta.url));
 const postcssCopyLimits = { maxEntries: 4096, maxBytes: 16 * 1024 * 1024 };
 const postcssStagePrefix = ".kernel-postcss-";
 
-/** Admit ordinary package bytes only; materialization must not introduce more links. */
+/** Admit ordinary package bytes and count the root as the copy does. */
 async function regularPostcssTree(
   directory,
-  budget = { entries: 0, bytes: 0 },
+  budget = { entries: 1, bytes: 0 },
 ) {
   await artifactDirectory(directory);
   for (const name of await readdir(directory)) {
@@ -58,6 +59,13 @@ async function readPostcssAlias(directory, parent, name, target) {
     throw new Error("Generated PostCSS alias must target its exact package.");
 
   await regularPostcssTree(target);
+  const [resolvedAlias, resolvedTarget] = await completeArtifactWork([
+    realpath(alias),
+    realpath(target),
+  ]);
+  if (path.relative(resolvedTarget, resolvedAlias) !== "")
+    throw new Error("Generated PostCSS alias must target its exact package.");
+
   const [metadata, lock] = await completeArtifactWork([
     readArtifactFile(path.join(target, "package.json")),
     readArtifactFile(path.join(directory, "package-lock.json")),
@@ -149,7 +157,7 @@ async function materializePostcss({ alias, identity, link, target }) {
   const finishStage = async (restore) => {
     await assertOwnedPostcssStage(stage, stageIdentity);
     if (restore) await restorePostcssAlias(backup, alias, identity, link);
-    await rm(stage, { recursive: true });
+    await rm(stage, { recursive: true, maxRetries: 3 });
   };
 
   try {

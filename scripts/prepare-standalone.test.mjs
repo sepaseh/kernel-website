@@ -86,6 +86,44 @@ test("preparation materializes each exact PostCSS alias from its own locked ordi
     assert.equal((await lstat(alias)).isDirectory(), true);
 });
 
+for (const missingTarget of [false, true])
+  test(`PostCSS preflight preserves both aliases when the second alias ${missingTarget ? "cannot be resolved" : "resolves to another package"}`, async (t) => {
+    const { root, put, aliases } = await postcssFixture(t);
+    const secondAlias = aliases[1].alias;
+    const previousAsset = ".next/standalone/public/previous.txt";
+    await put(previousAsset, "preserve old assets");
+    const failure = Object.assign(new Error("synthetic resolution failure"), {
+      code: "ENOENT",
+    });
+    const original = fsPromises.realpath;
+    const lookup = t.mock.method(
+      fsPromises,
+      "realpath",
+      (filename, options) => {
+        if (filename !== secondAlias) return original(filename, options);
+        return missingTarget
+          ? Promise.reject(failure)
+          : Promise.resolve(aliases[0].target);
+      },
+    );
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        prepareStandalone(root),
+        missingTarget ? (error) => error === failure : /exact package/,
+      );
+    } finally {
+      lookup.mock.restore();
+      syncBuiltinESMExports();
+    }
+    for (const { alias } of aliases)
+      assert.equal((await lstat(alias)).isSymbolicLink(), true);
+    assert.equal(
+      await readFile(path.join(root, previousAsset), "utf8"),
+      "preserve old assets",
+    );
+  });
+
 for (const invalid of ["target", "name", "version", "nested link", "size"])
   test(`PostCSS ${invalid} preflight rejects before replacing either alias or existing assets`, async (t) => {
     const { root, put, aliases } = await postcssFixture(t);
@@ -130,6 +168,61 @@ for (const invalid of ["target", "name", "version", "nested link", "size"])
       "preserve old assets",
     );
   });
+
+test("PostCSS preflight includes the root in the second tree's entry budget", async (t) => {
+  const { root, put, aliases } = await postcssFixture(t);
+  const { target } = aliases[1];
+  const previousAsset = ".next/standalone/public/previous.txt";
+  const entryLimit = 4096;
+  await put(previousAsset, "preserve old assets");
+  const existingEntries = (await readdir(target)).length;
+  for (let index = existingEntries; index < entryLimit; index++)
+    await writeFile(path.join(target, `fixture-${index}.txt`), "");
+
+  await assert.rejects(
+    prepareStandalone(root),
+    /PostCSS package exceeds its entry budget/,
+  );
+  for (const { alias } of aliases)
+    assert.equal((await lstat(alias)).isSymbolicLink(), true);
+  assert.equal(
+    await readFile(path.join(root, previousAsset), "utf8"),
+    "preserve old assets",
+  );
+
+  await unlink(path.join(target, `fixture-${entryLimit - 1}.txt`));
+  await prepareStandalone(root);
+  for (const { alias } of aliases)
+    assert.equal((await lstat(alias)).isSymbolicLink(), false);
+  assert.equal((await readdir(aliases[1].alias)).length, entryLimit - 1);
+});
+
+test("PostCSS cleanup gives Node bounded retries for removing each owned stage", async (t) => {
+  const { root, aliases } = await postcssFixture(t);
+  const original = fsPromises.rm;
+  const removal = t.mock.method(fsPromises, "rm", original);
+  syncBuiltinESMExports();
+  try {
+    await prepareStandalone(root);
+  } finally {
+    removal.mock.restore();
+    syncBuiltinESMExports();
+  }
+  const stageRemovals = removal.mock.calls.filter(({ arguments: [filename] }) =>
+    path.basename(filename).startsWith(".kernel-postcss-"),
+  );
+  assert.equal(stageRemovals.length, aliases.length);
+  for (const [
+    index,
+    {
+      arguments: [stage, options],
+    },
+  ] of stageRemovals.entries()) {
+    assert.equal(path.dirname(stage), path.dirname(aliases[index].alias));
+    assert.deepEqual(options, { recursive: true, maxRetries: 3 });
+    await assert.rejects(lstat(stage), { code: "ENOENT" });
+  }
+});
 
 test("a failed staged PostCSS copy preserves the junction and target and removes only its own stage", async (t) => {
   const { root, aliases } = await postcssFixture(t);
