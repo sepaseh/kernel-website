@@ -5,7 +5,6 @@ import {
   readlink,
   rename,
   rm,
-  unlink,
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,6 +21,7 @@ import {
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const postcssCopyLimits = { maxEntries: 4096, maxBytes: 16 * 1024 * 1024 };
+const postcssStagePrefix = ".kernel-postcss-";
 
 /** Admit ordinary package bytes only; materialization must not introduce more links. */
 async function regularPostcssTree(
@@ -46,7 +46,35 @@ async function regularPostcssTree(
   }
 }
 
-/** Preflight only Next's two generated PostCSS alias locations against their exact owned packages. */
+async function readPostcssAlias(directory, parent, name, target) {
+  const alias = path.join(parent, name);
+  const identity = await lstat(alias, { bigint: true });
+  if (!identity.isSymbolicLink()) return undefined;
+  if (!/^postcss-[0-9a-f]{16}$/.test(name))
+    throw new Error("Unexpected generated dependency link.");
+
+  const link = await readlink(alias);
+  if (path.relative(target, path.resolve(parent, link)) !== "")
+    throw new Error("Generated PostCSS alias must target its exact package.");
+
+  await regularPostcssTree(target);
+  const [metadata, lock] = await completeArtifactWork([
+    readArtifactFile(path.join(target, "package.json")),
+    readArtifactFile(path.join(directory, "package-lock.json")),
+  ]);
+  const installed = JSON.parse(metadata);
+  const version = JSON.parse(lock).packages?.["node_modules/postcss"]?.version;
+  if (
+    typeof version !== "string" ||
+    !version ||
+    installed.name !== "postcss" ||
+    installed.version !== version
+  )
+    throw new Error("Generated PostCSS package must match its root lock.");
+  return { alias, identity, link, target };
+}
+
+/** Preflight both generated dependency trees before changing either one. */
 async function postcssAliases(directory) {
   const aliases = [];
   for (const tree of [directory, path.join(directory, ".next/standalone")]) {
@@ -56,32 +84,13 @@ async function postcssAliases(directory) {
     if (!parent) continue;
     const target = path.join(tree, "node_modules/postcss");
     for (const name of await readdir(parent)) {
-      const alias = path.join(parent, name);
-      const identity = await lstat(alias, { bigint: true });
-      if (!identity.isSymbolicLink()) continue;
-      if (!/^postcss-[0-9a-f]{16}$/.test(name))
-        throw new Error("Unexpected generated dependency link.");
-      const link = await readlink(alias);
-      if (path.relative(target, path.resolve(parent, link)) !== "")
+      if (name.startsWith(postcssStagePrefix))
         throw new Error(
-          "Generated PostCSS alias must target its exact package.",
+          "An unfinished PostCSS replacement requires a clean build.",
         );
-      await regularPostcssTree(target);
-      const [metadata, lock] = await completeArtifactWork([
-        readArtifactFile(path.join(target, "package.json")),
-        readArtifactFile(path.join(directory, "package-lock.json")),
-      ]);
-      const installed = JSON.parse(metadata);
-      const version =
-        JSON.parse(lock).packages?.["node_modules/postcss"]?.version;
-      if (
-        typeof version !== "string" ||
-        !version ||
-        installed.name !== "postcss" ||
-        installed.version !== version
-      )
-        throw new Error("Generated PostCSS package must match its root lock.");
-      aliases.push({ alias, identity, link, target });
+
+      const entry = await readPostcssAlias(directory, parent, name, target);
+      if (entry) aliases.push(entry);
     }
   }
   return aliases;
@@ -90,43 +99,72 @@ async function postcssAliases(directory) {
 const sameIdentity = (left, right) =>
   left.dev === right.dev && left.ino === right.ino;
 
+async function assertOwnedPostcssAlias(filename, identity, link) {
+  const current = await lstat(filename, { bigint: true });
+  if (
+    !current.isSymbolicLink() ||
+    !sameIdentity(current, identity) ||
+    (await readlink(filename)) !== link
+  )
+    throw new Error("Generated PostCSS alias changed during publication.");
+}
+
+async function assertOwnedPostcssStage(stage, identity) {
+  await artifactDirectory(stage);
+  if (!sameIdentity(await lstat(stage, { bigint: true }), identity))
+    throw new Error("PostCSS copy stage changed during publication.");
+}
+
+async function restorePostcssAlias(backup, alias, identity, link) {
+  await assertOwnedPostcssAlias(backup, identity, link);
+  try {
+    await lstat(alias);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    await rename(backup, alias);
+    return;
+  }
+  throw new Error(
+    "Cannot restore a PostCSS alias over an occupied destination.",
+  );
+}
+
 /** Publish a bounded regular copy after checking the original junction still belongs to this build. */
 async function materializePostcss({ alias, identity, link, target }) {
   const stage = await mkdtemp(
-    path.join(path.dirname(alias), ".kernel-postcss-"),
+    path.join(path.dirname(alias), postcssStagePrefix),
   );
   const stageIdentity = await lstat(stage, { bigint: true });
+  const replacement = path.join(stage, "package");
+  const backup = path.join(stage, "original");
+  let backedUp = false;
+
+  const finishStage = async (restore) => {
+    await assertOwnedPostcssStage(stage, stageIdentity);
+    if (restore) await restorePostcssAlias(backup, alias, identity, link);
+    await rm(stage, { recursive: true });
+  };
+
   try {
     await copyArtifactTree({
       source: target,
       sourceRoot: target,
-      destination: stage,
+      destination: replacement,
       ...postcssCopyLimits,
     });
     await regularPostcssTree(target);
-    const current = await lstat(alias, { bigint: true });
-    if (
-      !current.isSymbolicLink() ||
-      !sameIdentity(current, identity) ||
-      (await readlink(alias)) !== link
-    )
-      throw new Error("Generated PostCSS alias changed before publication.");
-    await artifactDirectory(stage);
-    if (!sameIdentity(await lstat(stage, { bigint: true }), stageIdentity))
-      throw new Error("PostCSS copy stage changed before publication.");
-    await unlink(alias);
-    await rename(stage, alias);
+    await artifactDirectory(replacement);
+    await assertOwnedPostcssStage(stage, stageIdentity);
+    await assertOwnedPostcssAlias(alias, identity, link);
+    await rename(alias, backup);
+    backedUp = true;
+    await rename(replacement, alias);
   } catch (error) {
-    await completeArtifactWork([
-      Promise.reject(error),
-      (async () => {
-        await artifactDirectory(stage);
-        if (!sameIdentity(await lstat(stage, { bigint: true }), stageIdentity))
-          throw new Error("PostCSS copy stage changed before cleanup.");
-        await rm(stage, { recursive: true });
-      })(),
-    ]);
+    await completeArtifactWork([Promise.reject(error), finishStage(backedUp)]);
+    return;
   }
+
+  await finishStage(false);
 }
 
 /** Allows absent asset copies while rejecting linked entries and unsafe ancestors before cleanup. */

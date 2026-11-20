@@ -162,6 +162,72 @@ test("a failed staged PostCSS copy preserves the junction and target and removes
   }
 });
 
+for (const rollbackFails of [false, true])
+  test(`a failed PostCSS publication ${rollbackFails ? "retains its backup if rollback fails" : "restores the original alias and allows a retry"}`, async (t) => {
+    const { root, aliases } = await postcssFixture(t);
+    const { alias, target } = aliases[0];
+    const identity = await lstat(alias, { bigint: true });
+    const link = await readlink(alias);
+    const publicationFailure = new Error("synthetic publication failure");
+    const rollbackFailure = new Error("synthetic rollback failure");
+    const original = fsPromises.rename;
+    const renaming = t.mock.method(fsPromises, "rename", (from, to) => {
+      if (to === alias && path.basename(from) === "package")
+        return Promise.reject(publicationFailure);
+      if (rollbackFails && to === alias && path.basename(from) === "original")
+        return Promise.reject(rollbackFailure);
+      return original(from, to);
+    });
+    syncBuiltinESMExports();
+
+    try {
+      await assert.rejects(prepareStandalone(root), (error) => {
+        if (!rollbackFails) return error === publicationFailure;
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.cause, publicationFailure);
+        assert.deepEqual(error.errors, [publicationFailure, rollbackFailure]);
+        return true;
+      });
+    } finally {
+      renaming.mock.restore();
+      syncBuiltinESMExports();
+    }
+
+    const parent = path.dirname(alias);
+    const stages = (await readdir(parent)).filter((name) =>
+      name.startsWith(".kernel-postcss-"),
+    );
+    assert.equal(
+      await readFile(path.join(target, "index.js"), "utf8"),
+      aliases[0].text,
+    );
+    assert.equal((await lstat(aliases[1].alias)).isSymbolicLink(), true);
+    if (rollbackFails) {
+      await assert.rejects(lstat(alias), { code: "ENOENT" });
+      assert.equal(stages.length, 1);
+      assert.equal(
+        await readlink(path.join(parent, stages[0], "original")),
+        link,
+      );
+      await assert.rejects(prepareStandalone(root), /requires a clean build/);
+      return;
+    }
+
+    assert.deepEqual(stages, []);
+    const restored = await lstat(alias, { bigint: true });
+    assert.equal(restored.ino, identity.ino);
+    assert.equal(await readlink(alias), link);
+
+    await prepareStandalone(root);
+    for (const entry of aliases) {
+      assert.equal((await lstat(entry.alias)).isDirectory(), true);
+      assert.equal(
+        await readFile(path.join(entry.alias, "index.js"), "utf8"),
+        entry.text,
+      );
+    }
+  });
+
 test("standalone preparation copies current assets without executing server code or bundling private state", async (t) => {
   const { root, put } = await fixture(t);
   await put("public/.env.local", "SYNTHETIC_ONLY=excluded");

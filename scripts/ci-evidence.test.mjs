@@ -596,6 +596,26 @@ test("validates measured line bounds across all records for a source", async (co
     );
 });
 
+test("validates governance line bounds using Node's LCOV numbering", async (context) => {
+  const options = await fixture(context);
+  options.environment.CI_EVIDENCE_SUITE = "governance";
+  const report = path.join(options.root, "coverage/governance/lcov.info");
+  await writeFile(
+    path.join(options.root, "src/example.ts"),
+    "// first\r\n// second\r// third\u2028// fourth\u2029// fifth\n",
+  );
+  await writeFile(report, lcov().replace("DA:1,1", "DA:2,1"));
+  await runEvidence("--record", options);
+  await runEvidence("--verify-coverage", options);
+
+  await writeFile(report, lcov().replace("DA:1,1", "DA:3,1"));
+  for (const mode of ["--record", "--verify-coverage"])
+    await assert.rejects(
+      runEvidence(mode, options),
+      /LCOV contains a line outside its source: src\/example\.ts/,
+    );
+});
+
 test("requires measured lines independently for each source with executable lines", async (context) => {
   const options = await fixture(context);
   await writeFile(path.join(options.root, "src/another.ts"), "export {};\n");
