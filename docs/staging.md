@@ -1,17 +1,20 @@
 # Check an authorized staging or smoke target
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use these commands only for an explicitly authorized non-production deployment.
-They visit supplied website/API URLs and use installed local browsers; they do
-not start a local API fixture or deploy an application. Local application
-acceptance uses the separate [API fixture](api-fixture.md) and
-[full validation](validation.md).
+Use these commands to check an explicitly authorized non-production deployment
+with the installed Playwright browsers and reviewed website/API URLs. For
+local application acceptance, follow [full validation](validation.md).
 
 ## Prepare public inputs
 
-Use the pinned Node/npm toolchain and a fresh `npm ci --include=dev` installation. Select the
-actual artifact and target before running a browser. The required inputs are:
+Use the Node version in [.nvmrc](../.nvmrc) and its bundled npm. Install the
+locked development dependencies from the website root.
+
+```sh
+npm ci --include=dev --strict-peer-deps --ignore-scripts --no-audit --no-fund
+```
+
+Select the actual artifact and target before running a browser. Supply the
+inputs for the selected check.
 
 | Staging input              | Smoke input                    | Value                                             |
 | -------------------------- | ------------------------------ | ------------------------------------------------- |
@@ -80,11 +83,11 @@ OS dependencies and needs the operator's normal host permission. Use the exact
 installed SDK, not an unpinned `npx` download.
 
 The wrapper filters its child environment and selects Chromium, Firefox and
-WebKit with one worker and no retries. The authored scenario visits `/`, `/login`,
-`/register` and `/forgot-password`; it checks visible headings, local asset
-responses, noindex, nonce CSP, Axe findings and the explicit API health response
-`{"status":"ok"}`. Success means those cases passed for that actual target and
-browser set, not complete accessibility or deployment acceptance.
+WebKit with one worker and no retries. The [scenario](../e2e/operations/staging.spec.ts)
+visits `/`, `/login`, `/register` and `/forgot-password`. It checks headings,
+noindex, nonce CSP, Axe findings and the API health response `{"status":"ok"}`.
+It requires a successful same-origin font, script or stylesheet response and
+rejects failed or cross-origin requests for those resource types.
 
 ## Run an authorized release smoke check
 
@@ -109,10 +112,10 @@ node node_modules/@playwright/test/cli.js install chromium
 npm run test:smoke
 ```
 
-Smoke checks login/register forms, asset responses, the actual
-`/_kernel/release` JSON marker and API health. It requires the selected and
-expected IDs to agree and the remote marker to match them. A marker alone cannot
-identify all running website bytes.
+The [smoke scenario](../e2e/operations/smoke.spec.ts) checks login/register forms,
+requires a successful same-origin font, script or stylesheet response and
+rejects failures for those resource types. It checks API health and requires
+the `/_kernel/release` response to match the selected and expected release ID.
 
 ## Read results and finish
 
@@ -123,11 +126,20 @@ Ctrl+C if necessary and wait for the owned Playwright process to drain; these ch
 do not own the external deployment, so they must not stop it or remove its data.
 Retain first failures and inspect only the current run's generated artifacts.
 
-The main-only [staging](../.github/workflows/staging.yml) and
-[deployment-smoke](../.github/workflows/deployment-smoke.yml) workflows map manual
-URL inputs to these same contracts and repository-variable host allowlists.
-Dispatch requires separate remote authorization. Their source does not establish
-a completed hosted run.
+## Run an authorized check in GitHub Actions
+
+- For [Staging validation](../.github/workflows/staging.yml), supply
+  `application_url` and `api_health_url` matching the configured host allowlists.
+- For [Deployment smoke tests](../.github/workflows/deployment-smoke.yml), also
+  supply `deployment_id` matching the repository variable
+  `SMOKE_EXPECTED_DEPLOYMENT_ID`.
+
+After authorization, select `main` and dispatch the selected workflow. Inspect
+the validation step for a rejected input. On browser completion, inspect the
+run's Playwright artifact for the actual target and outcome. The artifact name
+includes the run ID.
+
+## Check a DAST target before authorizing a scan
 
 [DAST](../.github/workflows/dast.yml) is a separate authorized scan. Its pure
 preflight is `node scripts/validate-workflow-targets.mjs dast`, using `DAST_TARGET`,

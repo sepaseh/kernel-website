@@ -1,18 +1,9 @@
-# Build, package and prepare installation
+# Build, package and deploy
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-This phase publishes guarded packaging/rendering helpers and deployment
-templates. The application readiness marker is false: the delivery CLIs reject
-it before their operation callbacks read inputs, write artifacts or make health
-requests. Importing a helper starts no operation. The contracts and commands
-below describe a future application-ready package; they are not an activation
-procedure for this publication. Do not toggle the marker to bypass the boundary.
-
-Owner tests use synthetic roots and artifacts to verify these helpers. Creating
-a real release requires delivered framework composition and complete application
-acceptance. Activating a service or operator target also requires separate
-authorization and intended-platform verification.
+Use this guide to prepare an immutable release and verify an authorized
+deployment.
+Complete [exact-tree validation](validation.md) before publishing. Installation
+and target checks require authorization and verification on the target platform.
 
 ## Prepare and build
 
@@ -27,10 +18,11 @@ From the website root, with the development inputs set:
 npm run build
 ```
 
-Success produces `.next/BUILD_ID`, `.next/standalone/server.js` and static assets,
-and passes the production bundle budgets. Stop on a failed build; a previous
-`.next` directory cannot validate the current source. Keep one writer for build
-and packaging outputs.
+Success prints `Production build and bundle budgets passed.` and prepares
+`.next/BUILD_ID`, `.next/standalone/server.js` and static assets. The build also
+records the source, runtime inputs and output for browser acceptance. Resolve
+any build failure before packaging and keep one writer for build and packaging
+outputs.
 
 ## Create an immutable local package
 
@@ -41,14 +33,16 @@ starting with a letter/digit and containing no `..`.
 npm run deploy:package -- --release=local-preview-001
 ```
 
-The wrapper consumes the existing build. Expected output is
-`dist/releases/local-preview-001/`, containing:
+Package immediately after verifying the build you intend to ship. The command
+prints the release ID, platform and output directory on success. Under
+`dist/releases/local-preview-001/`, check:
 
 - `website/server.js`, bundled runtime dependencies, public files and static assets;
 - three runtime preflight/health helpers in `scripts/` and the matching
   `.github/bootstrap-policy.json`;
 - `release.json`, recording `releaseId`, `websiteBuildId`, Node version, platform,
-  architecture and bundled-runtime ownership.
+  architecture, the website entry point and bundled-runtime ownership. Match
+  `websiteBuildId` to the accepted build's `.next/BUILD_ID`.
 
 An existing destination fails rather than being overwritten. Inspect a partial
 output and choose a new ID. Build on the intended OS/architecture with the locked
@@ -75,18 +69,16 @@ configuration without contacting Nginx or reading certificate/key contents. Its
 three paths must remain inside the owning repository. Relative paths resolve
 from that root, regardless of the shell's current directory.
 
-After application readiness has been delivered, this example renders public
-placeholders to an unused ignored output path. In the current phase it stops at
-the readiness gate without reading the template or creating output:
+This example renders public placeholders to an unused ignored output path after
+the readiness check. Review the resulting configuration before any installation:
 
 ```sh
 node scripts/render-deployment.mjs --template deploy/native/nginx/kernel-website.conf.template --public-values-file deploy/native/nginx.env.example --output test-results/deployment-example/nginx.conf
 ```
 
-When admitted by readiness, success prints `Deployment configuration rendered.`
-and creates that file. Review its hostname, certificate paths, release ID and
-forwarding values. It is an
-example configuration, ready for inspection rather than installation unchanged.
+Success prints `Deployment configuration rendered.` and creates that file.
+Review its hostname, certificate paths, release ID and forwarding values before
+rendering the separately selected installation configuration.
 For selected operator values, use a separate public-values file inside the owned
 root and an unused generated output path; keep actual keys outside source.
 
@@ -117,15 +109,15 @@ certificate, successful container deployment or production readiness.
 
 ## Check and roll back an authorized installation
 
-For a future accepted application-ready artifact with selected public production
-settings, the shipped preflight command is:
+From the installed release root, supply the selected public production settings
+to verify the packaged readiness marker and deployment inputs.
 
 ```sh
 node scripts/validate-deployment-env.mjs website
 ```
 
-Expected success is `Deployment configuration is valid.`. After an owned or
-authorized website is listening on its explicitly selected address:
+Expected success is `Deployment configuration is valid.`. Once the website is
+listening, probe its sign-in route from that same release root:
 
 ```sh
 node scripts/healthcheck.mjs website http://127.0.0.1:3001/login

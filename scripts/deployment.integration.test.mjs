@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, cp, readFile, writeFile } from "node:fs/promises";
+import { chmod, cp, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
@@ -226,7 +226,99 @@ test("the Docker build guard executes only the public readiness policy before in
   assert.equal(run().status, 0);
 });
 
-test("Docker build copies the actual application-helper closure and uses explicit synthetic build inputs", async (context) => {
+test("Docker context admits complete public proof inputs and excludes private siblings", async () => {
+  const { allowedFiles } = JSON.parse(
+    await readFile(
+      new URL("../.github/bootstrap-policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const lines = (
+    await readFile(new URL("../.dockerignore", import.meta.url), "utf8")
+  )
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  const escape = (value) => value.replaceAll("[", "[[]");
+  const parents = [
+    ...new Set(
+      allowedFiles.flatMap((filename) =>
+        filename
+          .split("/")
+          .slice(0, -1)
+          .map((_, index, parts) => parts.slice(0, index + 1).join("/")),
+      ),
+    ),
+  ].sort(
+    (left, right) =>
+      left.split("/").length - right.split("/").length ||
+      (left < right ? -1 : Number(left > right)),
+  );
+  const terminalRoots = [
+    ".git",
+    "node_modules",
+    ".next",
+    "coverage",
+    "dist",
+    "test-results",
+    "playwright-report",
+    ".lighthouseci",
+  ];
+  const terminalDenies = terminalRoots.flatMap((directory) => [
+    directory,
+    `${directory}/**`,
+  ]);
+  assert.deepEqual(lines, [
+    "**",
+    ...parents.flatMap((parent) => [
+      `!${escape(parent)}`,
+      `${escape(parent)}/**`,
+    ]),
+    ...allowedFiles.toSorted().map((filename) => `!${escape(filename)}`),
+    ...terminalDenies,
+    ".agents/settings.local.json",
+  ]);
+  // This deliberately restricted policy has only literal paths and descendant denies.
+  // Check inherited parent matches as well as direct file exceptions.
+  const excluded = (filename) => {
+    let result = false;
+    for (const line of lines) {
+      const include = line.startsWith("!");
+      const pattern = (include ? line.slice(1) : line).replaceAll("[[]", "[");
+      const match =
+        pattern === "**" ||
+        (pattern.endsWith("/**")
+          ? filename.startsWith(pattern.slice(0, -2))
+          : filename === pattern || filename.startsWith(pattern + "/"));
+      if (match) result = !include;
+    }
+    return result;
+  };
+  for (const filename of allowedFiles)
+    assert.equal(excluded(filename), false, filename);
+  for (const filename of [
+    ".env",
+    ".env.production",
+    ".agents/settings.local.json",
+    ".agents/private/credentials.json",
+    ".github/credentials.txt",
+    "docs/private-notes.md",
+    "node_modules/next/package.json",
+    "coverage/private.json",
+    "coverage/pr2-ci-linux/python-hashed/lib64/never-open",
+    "src/private.key",
+    "src/app/[postId]/private.txt",
+    "src/app/p/page.tsx",
+    "deploy/docker/Dockerfile.dockerignore",
+  ])
+    assert.equal(excluded(filename), true, filename);
+  await assert.rejects(
+    stat(new URL("../deploy/docker/Dockerfile.dockerignore", import.meta.url)),
+    { code: "ENOENT" },
+  );
+});
+
+test("Docker build copies the complete filtered source and uses explicit synthetic build inputs", async (context) => {
   const directory = await temporaryFixture(context);
   await markedCliFixture(directory, false);
   const dockerfile = await readFile(
@@ -236,7 +328,7 @@ test("Docker build copies the actual application-helper closure and uses explici
   const buildStage = dockerfile
     .split("FROM dependencies AS build")[1]
     .split(/^FROM /m)[0];
-  assert.match(buildStage, /^COPY scripts \.\/scripts$/m);
+  assert.match(buildStage, /^COPY \. \.$/m);
   for (const value of [
     "API_BASE_URL=http://127.0.0.1:3100",
     "HOSTNAME=127.0.0.1",
@@ -247,8 +339,7 @@ test("Docker build copies the actual application-helper closure and uses explici
   ])
     assert.ok(buildStage.includes(value));
   assert.ok(
-    buildStage.indexOf("COPY scripts ./scripts") <
-      buildStage.indexOf("RUN npm run build"),
+    buildStage.indexOf("COPY . .") < buildStage.indexOf("RUN npm run build"),
   );
   await cp(new URL("./", import.meta.url), path.join(directory, "scripts"), {
     recursive: true,
