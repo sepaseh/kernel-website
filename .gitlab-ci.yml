@@ -1,0 +1,46 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_PROJECT_ID && $CI_MERGE_REQUEST_PROJECT_ID == $CI_PROJECT_ID'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+variables:
+  GIT_STRATEGY: clone
+  HOSTNAME: 127.0.0.1
+  PORT: "3010"
+  WEBSITE_URL: http://127.0.0.1:3010
+  API_BASE_URL: http://127.0.0.1:3100
+  WEBSITE_INDEXING_ENABLED: "false"
+  NODE_ENV: production
+  KERNEL_SYNTHETIC_ENV: "1"
+  PLAYWRIGHT_BROWSERS_PATH: "0"
+  NPM_CONFIG_INCLUDE: dev
+
+full-validation:
+  rules:
+    - when: on_success
+  tags: [kernel-windows-x64]
+  timeout: 2 hours
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      $expectedNode = (Get-Content -Raw -LiteralPath .nvmrc).Trim()
+      $nodeRuntime = node -p 'process.platform + "/" + process.arch + "/" + process.versions.node'
+      if ($LASTEXITCODE -ne 0 -or $nodeRuntime -ne "win32/x64/$expectedNode") { throw "Install Windows x64 Node $expectedNode on the runner." }
+
+      $pythonVersion = python -c "import platform; print(platform.python_version())"
+      if ($LASTEXITCODE -ne 0 -or $pythonVersion -ne '3.14.4') { throw 'Install CPython 3.14.4 on the runner.' }
+
+      npm.cmd ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      python -m venv coverage/ci-fonts
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      $env:Path = (Resolve-Path -LiteralPath coverage/ci-fonts/Scripts).Path + ';' + $env:Path
+      python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      node node_modules/@playwright/test/cli.js install chromium
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      npm.cmd run validate -- full
+      exit $LASTEXITCODE

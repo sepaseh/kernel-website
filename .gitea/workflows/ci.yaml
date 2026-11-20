@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+env:
+  HOSTNAME: 127.0.0.1
+  PORT: "3010"
+  WEBSITE_URL: http://127.0.0.1:3010
+  API_BASE_URL: http://127.0.0.1:3100
+  WEBSITE_INDEXING_ENABLED: "false"
+  NODE_ENV: production
+  KERNEL_SYNTHETIC_ENV: "1"
+  PLAYWRIGHT_BROWSERS_PATH: "0"
+  NPM_CONFIG_INCLUDE: dev
+
+jobs:
+  full-validation:
+    name: Full validation
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: kernel-windows-x64
+    timeout-minutes: 120
+    steps:
+      - uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install dependencies and run full validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expectedNode = (Get-Content -Raw -LiteralPath .nvmrc).Trim()
+          $nodeRuntime = node -p 'process.platform + "/" + process.arch + "/" + process.versions.node'
+          if ($LASTEXITCODE -ne 0 -or $nodeRuntime -ne "win32/x64/$expectedNode") { throw "Install Windows x64 Node $expectedNode on the runner." }
+
+          $pythonVersion = python -c "import platform; print(platform.python_version())"
+          if ($LASTEXITCODE -ne 0 -or $pythonVersion -ne '3.14.4') { throw 'Install CPython 3.14.4 on the runner.' }
+
+          npm.cmd ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          python -m venv coverage/ci-fonts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:Path = (Resolve-Path -LiteralPath coverage/ci-fonts/Scripts).Path + ';' + $env:Path
+          python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          node node_modules/@playwright/test/cli.js install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          npm.cmd run validate -- full
+          exit $LASTEXITCODE

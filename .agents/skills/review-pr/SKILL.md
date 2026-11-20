@@ -1,12 +1,17 @@
 ---
 name: review-pr
-description: Review a Kernel pull request for actionable defects using the complete diff, current source and actual phase evidence.
+description: Review a Kernel pull request for actionable defects or address existing review feedback using the complete diff, current source and actual phase evidence.
 ---
 
 # Review a pull request
 
 Read [Git workflow](../../rules/git.md), [code review](../../rules/code-review.md),
 [pull requests](../../rules/pull-requests.md) and [safety](../../rules/safety.md).
+
+For a request to address existing review feedback, start with
+[Address review feedback](../../rules/code-review.md#address-review-feedback)
+before switching branches or editing files. Apply the steps below when reviewing
+a PR.
 
 1. Verify repository and PR, then read title/body, relevant acceptance criteria,
    current checks, commits and the complete base-to-head diff. Preserve checkout
