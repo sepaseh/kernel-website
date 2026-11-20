@@ -74,26 +74,33 @@ async function readPostcssAlias(directory, parent, name, target) {
   return { alias, identity, link, target };
 }
 
+async function postcssAliasesInTree(directory, tree) {
+  const parent = await existingAssetDirectory(
+    path.join(tree, ".next/node_modules"),
+  );
+  if (!parent) return [];
+
+  const names = await readdir(parent);
+  if (names.some((name) => name.startsWith(postcssStagePrefix)))
+    throw new Error(
+      "An unfinished PostCSS replacement requires a clean build.",
+    );
+
+  const target = path.join(tree, "node_modules/postcss");
+  const aliases = await completeArtifactWork(
+    names.map((name) => readPostcssAlias(directory, parent, name, target)),
+  );
+  return aliases.filter((alias) => alias !== undefined);
+}
+
 /** Preflight both generated dependency trees before changing either one. */
 async function postcssAliases(directory) {
-  const aliases = [];
-  for (const tree of [directory, path.join(directory, ".next/standalone")]) {
-    const parent = await existingAssetDirectory(
-      path.join(tree, ".next/node_modules"),
-    );
-    if (!parent) continue;
-    const target = path.join(tree, "node_modules/postcss");
-    for (const name of await readdir(parent)) {
-      if (name.startsWith(postcssStagePrefix))
-        throw new Error(
-          "An unfinished PostCSS replacement requires a clean build.",
-        );
-
-      const entry = await readPostcssAlias(directory, parent, name, target);
-      if (entry) aliases.push(entry);
-    }
-  }
-  return aliases;
+  const buildAliases = await postcssAliasesInTree(directory, directory);
+  const standaloneAliases = await postcssAliasesInTree(
+    directory,
+    path.join(directory, ".next/standalone"),
+  );
+  return [...buildAliases, ...standaloneAliases];
 }
 
 const sameIdentity = (left, right) =>
