@@ -1,16 +1,7 @@
 # Compare website screenshots
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-The current `operations` phase has `applicationReady: true`. The guarded
-visual runner still rejects false or invalid markers before configuration,
-dependencies or browser startup.
-The retained Windows PNGs and capture metadata are historical evidence, not a
-comparison of this source. Do not change the marker or rewrite baseline dates to
-make them appear current.
-
-Use the delivered composition and guarded visual
-runner to compare current pages with reviewed baseline images. The authored
+Run the visual suite to compare the current website against reviewed
+screenshots. The authored
 [visual suite](../e2e/visual/website.spec.ts) covers home in
 English/dark at 1280px, login in English/light at 1280px, registration in
 Persian/light at 360px and home in Persian/dark at 360px. Capture height is 900px;
@@ -25,7 +16,8 @@ registration uses a full-page screenshot.
    Windows-specific; Linux is a supported runner mode but needs its own reviewed
    images/metadata. A missing or incompatible baseline is a failure.
 3. Stop manually owned website/API launchers before the run. Keep build/browser
-   work sequential; do not remove another process's Next or visual lock.
+   work sequential on each checkout. Confirm the owner before taking any action
+   on an existing Next or visual lock.
 4. Build the current source, then run the registered comparison command:
 
 ```sh
@@ -35,9 +27,10 @@ npm run test:visual
 
 [The runner](../scripts/run-visual.mjs) checks readiness, clean source paths,
 explicit fixture inputs, SDK identity and free ports before capture. It owns an
-exclusive visual lock, refuses an existing Next lock and probes the actual bundled
-Chromium version. Comparison requires matching platform, Playwright/browser
-versions and reviewed baseline metadata.
+exclusive visual lock, refuses an existing Next lock and probes the actual
+bundled Chromium version. Comparison requires matching platform,
+Playwright/browser versions and valid review metadata. Preserve the baseline's
+original Node version, capture dates and source fingerprint as recorded.
 
 The lock remains present if child shutdown cannot confirm the capture has closed,
 or if initial lock identity cannot be established. The descriptor is closed but
@@ -47,28 +40,27 @@ lock; a replacement owner's lock must be preserved.
 
 Direct execution with `node scripts/run-visual.mjs` builds by default. The registered
 `npm run test:visual` command, canonical full gate
-and hosted visual job reuse the single verified production build. Reuse checks
-the admitted source fingerprint, semantic environment, exact Node/Next/platform
-identity and every non-cache `.next` file before capture, including under the
-visual lock. Hosted reuse also binds that build to its successful same-run
-producer attempt. A `BUILD_ID` alone does not authorize reuse. Baseline updates
-cannot reuse a build.
-When readiness permits execution, the runner starts its owned website/API
-processes through Playwright.
+and hosted visual job reuse the single verified production build. Under the
+visual lock, reuse verifies the admitted source, runtime inputs, exact
+Node/Next/platform identity and every non-cache `.next` file before and after
+capture. Hosted CI binds the downloaded build to its successful producer
+attempt in the same run. For a baseline update, the runner requires a fresh build.
+
+The runner starts its owned website/API processes through Playwright.
 The suite waits for local fonts, verifies language/theme/content and blocks
 unexpected external application requests before taking screenshots.
 [Capture configuration](../scripts/playwright-config.mjs) fixes reduced motion,
-timezone, locale, device scale and screenshot options. Reports identify the source
-input fingerprint and actual environment under ignored `test-results/visual`;
-Playwright artifacts are separate from baseline files.
+timezone, locale, device scale and screenshot options. The runner records the
+current source fingerprint and environment in
+`test-results/visual/environment.json`. Open the Playwright report in
+`playwright-report/visual` for individual outcomes.
 
 ## Inspect a difference
 
-Compare actual, expected and difference images together. Check content, language,
-theme, viewport and loaded font metadata before deciding that pixels should
-change. A Windows baseline does not establish another platform's appearance.
-The source fingerprint describes the runner's listed inputs; it does not replace
-the complete exact-tree validation record.
+For a pixel mismatch, open the actual, expected and difference images in the
+run's artifacts. Check the content, language, theme, viewport and font readiness.
+For a browser setup failure, inspect the first lock, origin, SDK or browser
+diagnostic before retrying.
 
 Keep original baseline bytes and review dates until an intentional update is
 authorized. Do not widen tolerances or regenerate images to hide a defect.

@@ -1,22 +1,28 @@
 # Website trust boundaries and residual risks
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+Requests travel from the browser through a trusted TLS gateway to the website
+request adapter and the configured HTTP backend. Verify the website path with
+the [application acceptance checks](application.md) and the installed edge with
+the [deployment checks](deployment.md).
 
-The intended runtime boundary is browser → trusted TLS gateway → website request
-adapter → explicitly configured HTTP backend. The [publication marker](../.github/bootstrap-policy.json)
-and exact inventory identify delivered owners. With a false marker, local
-HTTP/session/CSP support, authored browser cases and passive gateway templates do
-not establish a running end-to-end boundary. [Application acceptance](application.md)
-requires exact-tree execution; a later deployment additionally requires its own
-trusted edge and operator evidence.
+## Credentials and untrusted content
 
 The [proxy contract](server-boundary.md) limits routes/methods, mutation origins,
 headers and JSON bodies, forwards API-owned cookies, removes known auth token
 fields and returns private no-store responses. The application adapter and edge must
 preserve trusted Host/protocol and reject spoofed forwarding headers. The
 [session/forms](session.md) guard local stale results; the configured HTTP backend must
-establish authentication, authorization, persistence, OTP and revocation through
-its own contract and evidence. No API implementation is certified here.
+establish authentication, authorization, persistence, OTP and revocation.
+
+Contact requests use a separate anonymous path. The proxy forwards an
+idempotency key without visitor credentials and strips upstream Set-Cookie.
+The API owns quotas and duplicate protection. [Contact transport](contact.md)
+
+Public article HTML goes through an allowlist, and article images resolve through
+the same-origin media adapter. Private preview passes a post-scoped capability
+to the configured API for authorization on each read. [Blog rendering and preview](blog.md)
+
+## Response and delivery controls
 
 The [CSP helper](website-csp.md) validates a supplied nonce and policy settings.
 Fresh cryptographic generation, forged-header removal, response-header selection,

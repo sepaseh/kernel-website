@@ -1,15 +1,16 @@
-# Protect pull request merges
+# Verify branch protection
 
-Verify the live repository identity and actual protection before relying on it.
-Files and configured integrations do not themselves protect a branch.
+Use this guide to verify live branch protection and the evidence needed to merge
+a pull request. Confirm the repository and actual PR base.
 
 ## Required policy
 
 Protect main and every actual branch used as a PR base, including verified
 predecessors in a stack. Publication grants no merge or bypass.
-Require one approving review, dismiss stale approvals, resolve conversations,
-keep strict up-to-date checks, enforce for administrators and require linear
-history. Allow neither force pushes nor branch deletion. Add no bypass actors.
+Require an approving review, dismiss stale approvals, resolve conversations,
+require the branch to be up to date and enforce linear history. Block force
+pushes, branch deletion and administrative bypass.
+Add no bypass actors.
 
 | Required check                 | Expected GitHub App              |
 | ------------------------------ | -------------------------------- |
@@ -55,15 +56,19 @@ failed, skipped, cancelled or missing producer.
 
 Unit and governance each measure coverage once and publish an immutable
 suite/run/attempt artifact. Analysis downloads and verifies both artifacts against
-the repository, PR head, base, tested commit/tree, workflow and measured LCOV bytes.
+the repository, PR head, base, tested commit/tree, workflow and report bytes.
+The governance artifact includes the Python font verifier's coverage XML.
 Each artifact retains its successful producer attempt when only failed jobs or
 analysis are rerun. A passing scanner job remains separate from the native Sonar
 quality gate.
 
 ## Verify before merging
 
-Read live protection and the latest head's actual checks, approval and resolved
-conversations. Do not weaken policy to merge. A merge needs explicit authority.
-After a real merge, reconcile the remaining stack against actual main and
-rerun exact-tree validation when proposed bytes change. Keep each PR focused and state verified stack dependencies.
-[Review preflight](reviews.md) separately governs manual CodeRabbit requests.
+1. Confirm the intended base uses the live protection settings above and the
+   exact PR head is current with that base.
+2. Verify the required check names, providers and successful results for that
+   head. Confirm the substantive approval and resolve every conversation.
+   Use [review preflight](reviews.md) for manual CodeRabbit requests.
+3. Confirm the head again immediately before an authorized merge. After merging,
+   reconcile any remaining stack against the actual base and rerun
+   [exact-tree validation](validation.md) when the proposed bytes change.

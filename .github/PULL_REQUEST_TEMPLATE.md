@@ -1,20 +1,34 @@
-## Change
+## Problem and resulting behavior
 
-Describe the concrete problem, resulting behavior and focused scope.
+<!-- Explain who is affected, what changes for them and any prerequisite PR. -->
 
 ## Published scope
 
-- Phase and readiness from the actual source marker:
-- Exact proposed tree and base:
-- Changed-file entries: initial target at most 80; explain a larger cohesive scope (advisory):
-- Published source and measured coverage scope:
+- Publication phase, application readiness and any limitations
+- Exact proposed tree and intended base
+- Complete changed-file count and scope rationale
+- Published source and measured coverage scope
+
+<!-- Target at most 80 entries. Explain larger cohesive changes and any useful split. -->
 
 ## Verification
 
-Record the actual complete canonical gate results for this exact tree, first failures, skips and remaining blockers. The foundation phase includes font integrity but no runnable application, build or browser acceptance. Later application integration needs its own complete phase policy and execution evidence.
+- Full profile commands actually run against the proposed tree and their results
+- Hosted required checks and native CodeQL result for the current head
+- Sonar scanner result and actual quality gate for the analyzed revision
+- Substantive CodeRabbit findings, their disposition and current-head approval evidence
+- Sonar all-severity zero-unresolved evidence
+- Native approving-review count and provider `CodeRabbit` check for the current head
 
-## Review and protected merge
+<!-- Record failed, pending, skipped, stale or unavailable evidence. Match each result to the checked revision. -->
 
-Record matching scanner execution, native Sonar quality gate, native CodeQL result, complete all-severity zero-unresolved evidence and substantive CodeRabbit review. A passing provider check alone does not establish current-head approval. Use the native approving-review count alongside the provider `CodeRabbit` check and ordinary branch protection; no separate approval publisher or signal check is required.
+Record first failures and limits using the
+[exact-tree validation procedure](../docs/validation.md). The operations phase
+includes the production build, browser suites, both CSP modes and reviewed
+visual comparisons against the synthetic API.
 
-Report missing or stale hosted evidence honestly. Publication does not authorize a manual review request, merge or protection bypass.
+## Rollout and review
+
+<!-- Describe compatibility, operator steps, authorized repository settings and remaining review decisions. Keep incomplete work in draft. Merge requires separate authorization. -->
+
+<!-- Publication leaves manual review requests and merge subject to separate authorization. Follow the review preflight in docs/reviews.md. -->

@@ -1,12 +1,13 @@
 # Verify the document CSP policy
 
-The [published application](bootstrap.md) includes pure policy helpers and a request
-proxy that generates trusted nonces and applies enforcing or report-only headers.
+Use the production website to check CSP in both enforcing and report-only mode.
+The request proxy generates the nonce and the framework applies it to scripts.
 
 The server-only [nonce adapter](../src/shared/security/nonce.ts) awaits trusted
 request headers. The [root layout](../src/app/layout.tsx) passes its nonce through
 the application providers to the theme provider. The [home page](../src/app/page.tsx)
-separately reads the same request nonce for escaped JSON-LD output. See the
+and [public article renderer](../src/features/blog/Article.tsx) read the same
+request nonce for escaped JSON-LD output. See the
 [document-security trace](server-boundary.md#document-security) for that boundary.
 
 ## Pure policy contract
@@ -39,8 +40,7 @@ paths also receive CSP because a missing resource can return an HTML document,
 but the proxy preserves framework-owned status, body and caching for actual
 resources. Their missing-resource HTML uses the framework's private, no-store
 response. Thus real JavaScript, font and text resources can carry a policy
-header without losing their existing public cache behavior. This describes the
-current application's verified resources, not general worker-script compatibility.
+header and keep their framework-managed public cache behavior.
 
 ## Verify the application integration
 

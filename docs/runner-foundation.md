@@ -1,11 +1,8 @@
 # Node runner reference
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 Use this reference when changing launcher inputs, process ownership or analysis
-output. [Development](development.md) owns the local run procedure;
-[validation](validation.md) owns full checking; [API fixtures](api-fixture.md)
-describe the same-repository test-only HTTP responder.
+output. Follow [local development](development.md) to start the website and
+[API fixture](api-fixture.md).
 
 ## Readiness and imports
 
@@ -17,11 +14,6 @@ Never change the source marker just to run a command. [Browser tooling](browser-
 adds authored typed scenarios and guarded configuration; its operation entry
 points preserve the same readiness-first boundary.
 
-The owner tests create disposable synthetic roots with explicit readiness
-metadata to exercise the contracts below. Their stub executables and standalone
-files are test fixtures. They do not themselves establish framework compatibility,
-a real Next build, browser execution or an application readiness declaration.
-
 ## Owners and contracts
 
 | Owner                                                                         | Contract                                                                                                                                                              |
@@ -30,7 +22,7 @@ a real Next build, browser execution or an application readiness declaration.
 | [runner-inputs.mjs](../scripts/runner-inputs.mjs)                             | Checks readiness, rejects runtime dotenv presence without reading contents, validates public inputs and resolves installed Next plus the local HTTP fixture entry.    |
 | [start-website.mjs](../scripts/start-website.mjs)                             | Validates website inputs, prepares guarded standalone files and awaits the owned server.                                                                              |
 | [test-website-api.mjs](../scripts/test-website-api.mjs)                       | Starts the local test-only HTTP fixture with fresh in-memory state and a filtered environment, then drains its direct child.                                          |
-| [test-website-server.mjs](../scripts/test-website-server.mjs)                 | Builds with verified Next, prepares standalone files and serves after success; explicit skip-build mode still requires a guarded build ID.                            |
+| [test-website-server.mjs](../scripts/test-website-server.mjs)                 | Builds with verified Next and prepares standalone files. Explicit skip-build mode verifies the existing source, environment, toolchain and prepared output.           |
 | [analyze-website-performance.mjs](../scripts/analyze-website-performance.mjs) | Runs verified local Next analysis; only its export path exclusively creates bounded owned output and preserves unrelated files on failure.                            |
 
 `resolveNextCli` checks the selected website's manifest, lock and installed
@@ -67,17 +59,19 @@ single writer; they do not make portable filesystem operations race-proof.
 
 ## Owner verification
 
-Each listed script has a colocated `*.test.mjs` suite in measured governance
-coverage. Cases execute disposable Node programs in explicitly owned synthetic
-roots, test real lifecycle failures and cleanup, and verify that false readiness
-prevents input reads and side effects. They do not change the source marker or
-use existing APIs, private dotenv or operator state.
+Run the changed owner's colocated `*.test.mjs` suite first. For a runner input
+or lifecycle change, run:
 
-The [manifest](../.agents/validation.json) remains the command authority for the
-full gate and split CI profiles. These owner suites extend its governance check;
-they do not replace unit coverage, font verification or the other required
-checks. See [testing](testing.md) and [exact-tree validation](validation.md).
+```sh
+node --test scripts/runner-inputs.test.mjs scripts/runner-process.test.mjs
+```
 
-Real browser journeys and visual comparison need current-tree execution. Docker,
-Lighthouse and external targets have separate
-[operational acceptance](release-operations.md).
+Confirm that false readiness stops each guarded entry before input reads and
+side effects. Verify the original failure, owned process completion and cleanup
+in disposable synthetic roots. Keep the real source marker and operator state
+out of the fixture.
+
+The [manifest](../.agents/validation.json) includes these suites in measured
+governance coverage. Follow [exact-tree validation](validation.md) for the
+complete production build and browser checks. See [operations](release-operations.md)
+for Docker, Lighthouse and external targets.

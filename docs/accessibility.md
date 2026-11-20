@@ -1,7 +1,5 @@
 # Assess website accessibility
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 Use accessible controls while implementing a page, then verify the whole page
 with automated and manual checks. The repository includes DOM tests and
 [Playwright/Axe scenarios](../e2e/website/accessibility.spec.ts); their source
@@ -39,6 +37,9 @@ account in English/Persian and light/dark themes after fonts are ready. It
 attaches Axe violations and incomplete findings, and keeps violations blocking.
 Keyboard cases check the skip link/main target, retained theme-toggle focus,
 visible outlines, login focus order and native invalid-input focus.
+The functional browser suite also checks [blog layout](../e2e/website/blog.spec.ts),
+[contact form semantics](../e2e/website/contact.spec.ts) and
+[FAQ keyboard interaction](../e2e/website/faq.spec.ts).
 
 Inspect incomplete findings rather than treating an empty violations list as a
 complete assessment. Application journeys and the two CSP modes have their own

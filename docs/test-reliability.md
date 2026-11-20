@@ -1,15 +1,30 @@
-# Make asynchronous tests deterministic
+# Investigate unreliable tests
 
-Wait for the operation that establishes the asserted state: readiness messages,
-response-stream demand, child completion, connection closure or an observable
-UI update. Observe error and early-exit paths alongside readiness.
+Investigate the first failure even when a rerun passes. Preserve the exact
+command, runtime, platform, error output and synthetic fixture in use.
+
+## Choose the event that proves readiness
+
+Wait for the operation that establishes the asserted state. Observe its error
+and early-exit paths alongside readiness.
+
+| Test target         | Wait for                                                               |
+| ------------------- | ---------------------------------------------------------------------- |
+| Owned child process | Its readiness message and the same child's completion or close event.  |
+| HTTP response       | The consumer's stream demand, observable response or connection close. |
+| UI update           | The awaited interaction and observable DOM state.                      |
+| Timer or expiry     | A controlled clock advance, then the actual state transition.          |
 
 Do not synchronize with arbitrary sleeps, fixed retry counts, timed keepalive
 loops, empty microtask flushes or project-defined numeric test deadlines.
 Drive cancellation and timer transitions directly when those behaviors are
-under test. Preserve actual operational bounds without waiting for wall time.
+under test. Follow the [runner process cases](../scripts/runner-process.test.mjs)
+for readiness and cleanup and the [cooldown cases](../src/shared/hooks/use-cooldown.test.ts)
+for timer transitions.
 
-Keep ownership explicit. Drain only the direct child created by the fixture,
+## Verify failure and cleanup
+
+Drain only the direct child created by the fixture,
 close listeners/streams and release resources before deleting owned files.
 Report cleanup failures without hiding the original operation error.
 Never delete unrelated resources or use existing services/private data.

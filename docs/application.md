@@ -1,24 +1,21 @@
 # Application composition and acceptance
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-This guide maps the delivered application to its integration obligations. The
-[source policy](../.github/bootstrap-policy.json) owns the current inventory and
-readiness marker; [architecture](architecture.md) owns the source map.
-Use [development](development.md) for local setup and [validation](validation.md)
-for the complete checking procedure.
+Follow this guide when changing the website's routes, providers or request
+handling. Set up the running website and its disposable HTTP fixture using the
+[local development guide](development.md).
 
 ## Composition
 
-| Owner                                                                                              | Integration responsibility                                                                           |
-| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| [Root layout](../src/app/layout.tsx) and [providers](../src/app/providers/Providers.tsx)           | Compose request settings, scoped messages, session/theme support, local fonts and the request nonce. |
-| App routes and shell                                                                               | Compose home, authentication and account features with page metadata and error/fallback behavior.    |
-| [Request messages](../src/i18n/request.ts) and [server settings](../src/shared/settings/server.ts) | Load uncached API language/direction and select the appropriate local catalog.                       |
-| API route, [request proxy](../src/proxy.ts) and [forwarding policy](../src/shared/api/proxy.ts)    | Enforce HTTP boundaries, cookie/no-store forwarding and CSP integration.                             |
+| Owner                                                                                              | Integration responsibility                                                                                                       |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| [Root layout](../src/app/layout.tsx) and [providers](../src/app/providers/Providers.tsx)           | Compose request settings, scoped messages, session/theme support, local fonts and the request nonce.                             |
+| [App routes and shell](architecture.md)                                                            | Compose home, authentication, account, contact, FAQ, the public blog and private preview, with page metadata and error handling. |
+| [Request messages](../src/i18n/request.ts) and [server settings](../src/shared/settings/server.ts) | Load uncached API language, direction and calendar and select the local catalog.                                                 |
+| API route, [request proxy](../src/proxy.ts) and [forwarding policy](../src/shared/api/proxy.ts)    | Enforce HTTP boundaries, credential handling, no-store caching and CSP.                                                          |
 
-Keep API-selected language/direction and explicit root/auth/account message
-scopes, independent theme preference, form/session ownership, both CSP modes,
+Keep the API-selected language, direction and calendar, and preserve the
+explicit message scopes for root, auth, account and contact. Keep theme
+preference independent, and preserve form/session ownership, both CSP modes,
 explicit SEO origins with opt-in indexing, escaped JSON-LD and licensed local
 fonts. [Forms](forms.md), [session](session.md), [localization](localization.md),
 [server boundaries](server-boundary.md) and [design](../DESIGN.md) define the
@@ -49,7 +46,7 @@ metadata. Keep baseline bytes and dates intact. Updating an image requires
 explicit authorization and actual visual review; capture failure leaves review
 pending. See [visual regression](visual-regression.md).
 
-Before runnable merge, observe genuine current-head success from every required
+Before merging, observe current-head success from every required
 CI producer and the protected `check` aggregate. The aggregate must require the
 application build, each browser suite and visual comparison. Changes to protected
 contexts require explicit authorization. Scanner execution, native Sonar quality gate and review

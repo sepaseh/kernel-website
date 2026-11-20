@@ -3,8 +3,9 @@ name: design-ui
 description: Design or change this website's UI with its repository-owned design workflow and real source components.
 ---
 
-# Published reference
+# Design UI host adapter
 
-Read the current [source scope](../../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Read and follow the [canonical design skill](../../../.agents/skills/design-ui/SKILL.md).
+Read and follow the [canonical design workflow](../../../.agents/skills/design-ui/SKILL.md)
+using paths in the current checkout. This optional adapter adds no product rules,
+permissions or runtime dependencies. Record host-reported loading when available and
+leave discovery unknown when the host supplies no evidence.

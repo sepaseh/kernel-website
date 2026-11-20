@@ -1,18 +1,19 @@
 # Assistant guidance
 
-Start at [AGENTS.md](../AGENTS.md). [Settings](settings.json) indexes published
-rules and skills; [navigation](navigation.json) maps actual owners and tests.
-The [source policy](../.github/bootstrap-policy.json) declares the actual
-publication phase and application-readiness marker.
-The [validation manifest](validation.json) owns check names and commands.
+Start with [AGENTS.md](../AGENTS.md) and [Contributing](../CONTRIBUTING.md).
+Read the [publication policy](../.github/bootstrap-policy.json) for the active
+phase, readiness and admitted files. The [settings index](settings.json) lists
+the registered rules and skills.
+The [task map](navigation.json) maps work to source owners, tests and checks.
 
-Read matching rules and whole owning functions before changing them.
-Use [task navigation](../docs/source-navigation.md), [testing](../docs/testing.md)
-and [validation](../docs/validation.md) to select evidence.
-A file, index, workflow or successful configuration check proves neither
-automatic host loading nor model comprehension or a provider's completed review.
+| Task                                 | Where to start                                                                                                                               |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work on application source           | [Website rules](rules/website.md) and [source navigation](../docs/source-navigation.md)                                                      |
+| Design or review the interface       | [Design system](../DESIGN.md) and [design workflow](skills/design-ui/SKILL.md)                                                               |
+| Update instructions or documentation | [Guidance and documentation](rules/guidance.md) and [documentation index](../docs/README.md)                                                 |
+| Verify a change                      | [Validation guide](../docs/validation.md), [validation manifest](validation.json) and [validation workflow](skills/validate-change/SKILL.md) |
+| Work with Git or GitHub              | [Git workflow](rules/git.md) and [safety rules](rules/safety.md)                                                                             |
+| Prepare an operational check         | [Safety rules](rules/safety.md) and [release operations](../docs/release-operations.md)                                                      |
 
-Keep local preparation separate from authorized publication.
-Use one existing checkout, preserve user work and follow
-[Git policy](rules/git.md), [PR policy](rules/pull-requests.md) and
-[review preflight](../docs/reviews.md). Published source does not itself establish application, browser, provider or deployment execution.
+Use the [guidance evidence rules](rules/guidance.md#record-evidence) when
+reporting check results or instruction loading.

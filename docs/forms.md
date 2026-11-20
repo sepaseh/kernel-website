@@ -1,7 +1,5 @@
 # Feature form behavior
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 The local [login](../src/features/auth/login/Login.tsx),
 [registration](../src/features/auth/register/Register.tsx),
 [recovery](../src/features/auth/recovery/Recovery.tsx) and
@@ -63,7 +61,14 @@ A successful password change uses the narrow
 and registration refresh the session and navigate to /account; recovery navigates
 to /login?reset=success. Routes are fixed local destinations.
 
-## Evidence and limits
+## Anonymous contact form
+
+The [contact form](contact.md) requires Name, Mobile and Description and accepts
+Iranian `09` and `+989` mobile numbers. Its local form owner is keyed by locale.
+It keeps input and its normalized-payload submission key across uncertain
+retries, disables editing while pending and resets after confirmed success.
+
+## Verify form behavior
 
 The [login](../src/features/auth/login/Login.test.tsx),
 [registration](../src/features/auth/register/Register.test.tsx),

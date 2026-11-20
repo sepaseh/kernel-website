@@ -1,7 +1,5 @@
 # TypeScript
 
-Read the current [source scope](../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 ## Object shapes
 
 Use `type` for object shapes.
@@ -59,11 +57,11 @@ const statusLabel: Record<Status, string> = {
 
 ## Runtime validation
 
-Fail fast for required internal values, but validate untrusted external data before trusting it.
+Validate untrusted input at the boundary. Fail clearly when required internal
+state or configuration is missing. Handle genuinely optional data explicitly.
 
-- Required internal state/config: throw clearly when missing.
-- API/user input: validate or normalize at the boundary.
-- Truly optional data: handle explicitly without pretending it is required.
+Follow the [boundary validation rules](code-quality.md#validate-code-changes)
+and normalize external inputs before passing them to typed consumers.
 
 ## Prefer optional values over null
 
@@ -72,8 +70,8 @@ Fail fast for required internal values, but validate untrusted external data bef
   union.
 - Do not combine optional syntax with a nullable union such as
   `value?: string | null`; use `value?: string`.
-- Prefer omission to `null` in API examples and request payloads when absence
-  has no distinct domain meaning.
+- Follow the [HTTP contract rules](api-collection.md) for omission and explicit
+  `null` values in API payloads and examples.
 - Normalize nullable external response fields at the API boundary before they
   enter domain models or application state.
 - Keep `null` only when it has a distinct domain or protocol meaning, or when a
@@ -82,14 +80,12 @@ Fail fast for required internal values, but validate untrusted external data bef
 
 ## Shared types
 
-- Keep domain types beside their owning feature in `src/features/<feature>/types.ts`.
-- Keep infrastructure contracts beside the shared module that owns them.
-- Keep feature-specific wire requests in the owning feature's types.ts and settings contracts beside the settings loader. Reserve src/shared/contracts for locally reused wire concepts, without backend implementation imports.
-- Reserve the Props suffix for component inputs. For new types, use a singular
-  domain name, Query for query inputs and Request for write payloads. Use
-  Response for an actual wire response boundary or wrapper rather than adding
-  it to every domain model. Preserve meaningful existing contract names and
-  protocol field names; naming cleanup alone does not justify a wire change.
+- Follow the [source ownership rules](imports.md#source-owners) for feature
+  domain models, HTTP types and shared infrastructure contracts.
+- Use singular names for domain models, `Query` for query inputs, `Request` for
+  write bodies and `Response` for a wire wrapper or materially different response
+  shape. Preserve existing public names and contract fields during unrelated work.
+- Reserve `Props` for [component inputs](website.md#components-and-controls).
 
 ## Derive types from their source of truth
 
@@ -97,8 +93,8 @@ Fail fast for required internal values, but validate untrusted external data bef
   the consumer type from it instead of repeating a primitive, union, object
   shape, or function signature manually.
 - Use indexed access types such as `User["id"]` for domain fields and utility
-  types such as `Parameters<>`, `ReturnType<>`, and `ComponentProps<>` when
-  they keep consumers synchronized with the owning contract.
+  types such as `Parameters<>` and `ReturnType<>` when they keep consumers
+  synchronized with the owning contract.
 - Do not duplicate a type merely to make a local annotation shorter. Prefer a
   named derived alias when the inline expression would hurt readability.
 - Define a standalone type when it represents a genuinely independent domain
@@ -112,3 +108,5 @@ type DeleteUserId = User["id"];
 // Avoid: this can silently diverge if the domain identifier changes.
 type ManuallyTypedUserId = string;
 ```
+
+Use `ComponentProps<>` when deriving props from an existing component.

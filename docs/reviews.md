@@ -1,24 +1,27 @@
 # Request and verify a review
 
-Use the exact current PR head for every check. Read the complete diff,
-acceptance criteria and affected owners. Report actionable defects with their
-failure scenario; local validation does not replace review.
+Record the current PR head and intended base. Read the complete diff,
+acceptance criteria and affected owners. For each actionable defect, identify
+the changed location and a concrete failure scenario.
 
 ## Before requesting CodeRabbit
 
 A manual initial review or re-review requires explicit authorization and all of:
 
-1. Every required non-CodeRabbit protected check succeeds for the exact head.
+1. In the PR checks, verify every required non-CodeRabbit protected check
+   succeeded for the exact head with its [expected provider](branch-protection.md).
    Exclude only CodeRabbit's provider check and approval requirement to avoid
    a circular dependency.
    This includes the native `CodeQL` security result from App `57789`;
    its Actions analysis job alone does not satisfy that result.
-2. The real Sonar scanner ran and the native `SonarCloud Code Analysis` gate
+2. Open the scanner run and confirm the native `SonarCloud Code Analysis` gate
    succeeded for the same head.
-3. The applicable complete Sonar report has zero OPEN/unresolved issues across
-   all severities, including existing issues. Verify filters and pagination.
-4. At least one hour has passed since both the latest request and substantive
-   review; honor longer provider limits and send no duplicate in-flight request.
+3. In Sonar, select the matching project and analysis. Review the full
+   OPEN/unresolved issue list across all severities, including existing issues.
+   Check filters, result counts and pagination. Require zero such issues.
+4. Check the timestamps of the last request and substantive review. Wait at
+   least one hour from each, honor longer provider limits and avoid duplicating
+   an in-flight request.
 
 Missing, failed, pending, skipped, mismatched or incomplete evidence blocks a
 request. A new head invalidates prior evidence.

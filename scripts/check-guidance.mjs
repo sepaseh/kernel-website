@@ -94,14 +94,12 @@ const trimHtmlWhitespace = (value) => {
   return value.slice(start, end);
 };
 
-const decodeHtmlHref = (value) => {
+const decodeHtmlAttribute = (value) => {
   const quoted = value.replaceAll('"', "&#34;");
   const parsed = htmlParsers.html.parse(`<a href="${quoted}">`, {});
-  return trimHtmlWhitespace(
-    parsed.children[0].attrs[0].valueTokens
-      .map((token) => token.parts[0])
-      .join(""),
-  );
+  return parsed.children[0].attrs[0].valueTokens
+    .map((token) => token.parts[0])
+    .join("");
 };
 
 const htmlAttributeValue = (attributes, start) => {
@@ -119,8 +117,9 @@ const htmlAttributeValue = (attributes, start) => {
   return { end, value: attributes.slice(start, end) };
 };
 
-const openingTagHrefs = (tag) => {
-  const attributes = tag.replace(/^<[A-Za-z][\w:-]*/, "").slice(0, -1);
+const openingTagValues = (tag, matches) => {
+  const name = tag.match(/^<([A-Za-z][\w:-]*)/)[1];
+  const attributes = tag.slice(name.length + 1, -1);
   const values = [];
   const names = /([^\t\n\f\r "'<>/=]+)([\t\n\f\r ]*=[\t\n\f\r ]*)?/g;
   let match;
@@ -132,12 +131,13 @@ const openingTagHrefs = (tag) => {
       names.lastIndex = attribute.end;
     }
 
-    if (match[1].toLowerCase() === "href") values.push(decodeHtmlHref(value));
+    if (matches(name.toLowerCase(), match[1].toLowerCase()))
+      values.push(decodeHtmlAttribute(value));
   }
   return values;
 };
 
-const htmlHrefs = (fragments) => {
+const htmlValues = (fragments, matches) => {
   const tagTail = `(?:[^"'<>]|"[^"]*"|'[^']*')*>`;
   const tokens = new RegExp(
     [
@@ -158,16 +158,30 @@ const htmlHrefs = (fragments) => {
       escapes++;
     if (escapes % 2 || token[1] || /^<[!?]/.test(token[0])) continue;
 
-    values.push(...openingTagHrefs(token[0]));
+    values.push(...openingTagValues(token[0], matches));
   }
   return values;
 };
 
-export function validateGuideLinks(
-  filename,
-  content,
-  files = publicationFiles,
-) {
+const headingText = (node) => {
+  if (node.type === "text" || node.type === "inlineCode") return node.value;
+  return (node.children ?? []).map(headingText).join("");
+};
+
+const addHeadingAnchor = (node, anchors, nextSuffix) => {
+  const base = headingText(node)
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{M}\p{N} _-]/gu, "")
+    .replaceAll(" ", "-");
+  let anchor = base;
+  let suffix = nextSuffix.get(base) ?? 1;
+  while (anchors.has(anchor)) anchor = `${base}-${suffix++}`;
+  anchors.add(anchor);
+  nextSuffix.set(base, suffix);
+};
+
+function inspectGuide(filename, content) {
   assert.equal(
     filename.endsWith(".fa.md"),
     false,
@@ -184,11 +198,18 @@ export function validateGuideLinks(
   const nodes = [parsers.markdown.parse(content)];
   const links = [];
   const html = [];
+  const renderedHtml = [];
+  const anchors = new Set();
+  const nextSuffix = new Map();
   while (nodes.length) {
     const node = nodes.pop();
     if (["definition", "image", "link"].includes(node.type))
       links.push(node.url);
-    if (node.type === "html") html.push(node.value);
+    if (node.type === "heading") addHeadingAnchor(node, anchors, nextSuffix);
+    if (node.type === "html") {
+      html.push(node.value);
+      renderedHtml.push(node.value);
+    }
     if (node.type === "text") {
       const text = content.slice(
         node.position.start.offset,
@@ -203,25 +224,70 @@ export function validateGuideLinks(
     }
     nodes.push(...(node.children ?? []).toReversed());
   }
-  links.push(...htmlHrefs(html));
+  links.push(
+    ...htmlValues(html, (_tag, attribute) => attribute === "href").map(
+      trimHtmlWhitespace,
+    ),
+  );
+  for (const value of htmlValues(
+    renderedHtml,
+    (tag, attribute) =>
+      (tag === "a" && attribute === "name") ||
+      (/^(?:a|h[1-6])$/.test(tag) && attribute === "id"),
+  ))
+    anchors.add(value);
+  return { links, anchors };
+}
 
-  for (const link of links) {
-    if (link === "" || /^(?:https?:|mailto:|codex:|[?#])/i.test(link)) continue;
-
+function validateGuideDestinations(filename, guide, files, anchorsByFile) {
+  for (const link of guide.links) {
+    if (link === "" || /^(?:https?:|mailto:|codex:)/i.test(link)) continue;
     const target = decodeURIComponent(link.split(/[?#]/, 1)[0]);
-    assert.equal(
-      target.startsWith("/"),
-      false,
-      "Guide links must be relative to their file: " + filename + ": " + link,
-    );
-    const relative = path.posix.normalize(
-      path.posix.join(path.posix.dirname(filename), target),
-    );
+    let relative = filename;
+    if (target) {
+      assert.equal(
+        target.startsWith("/"),
+        false,
+        "Guide links must be relative to their file: " + filename + ": " + link,
+      );
+      relative = path.posix.normalize(
+        path.posix.join(path.posix.dirname(filename), target),
+      );
+      assert.ok(
+        present(relative, files),
+        "Missing or unpublished guide link: " + filename + ": " + link,
+      );
+    }
+
+    const fragmentStart = link.indexOf("#");
+    if (
+      fragmentStart < 0 ||
+      fragmentStart === link.length - 1 ||
+      !relative.endsWith(".md")
+    )
+      continue;
+    const fragment = decodeURIComponent(link.slice(fragmentStart + 1));
+    const anchors =
+      relative === filename ? guide.anchors : anchorsByFile.get(relative);
     assert.ok(
-      present(relative, files),
-      "Missing or unpublished guide link: " + filename + ": " + link,
+      anchors?.has(fragment) || /^top$/i.test(fragment),
+      "Missing Markdown section: " + filename + ": " + link,
     );
   }
+}
+
+export function validateGuideLinks(
+  filename,
+  content,
+  files = publicationFiles,
+  anchorsByFile = new Map(),
+) {
+  validateGuideDestinations(
+    filename,
+    inspectGuide(filename, content),
+    files,
+    anchorsByFile,
+  );
 }
 
 export function validateEvaluation(evaluation, navigation, manifest, files) {
@@ -305,16 +371,21 @@ export async function inspectGuidance(root = repository) {
     manifest.applicationReady,
   );
   const currentFiles = await getPublicationFiles(root);
-  await completePublicationWork(
+  const guides = await completePublicationWork(
     currentFiles
       .filter((file) => file.endsWith(".md"))
-      .map(async (filename) =>
-        validateGuideLinks(
-          filename,
-          await readPublishedFile(root, filename),
-          currentFiles,
-        ),
-      ),
+      .map(async (filename) => [
+        filename,
+        inspectGuide(filename, await readPublishedFile(root, filename)),
+      ]),
+  );
+  const anchorsByFile = new Map(
+    guides.map(([filename, guide]) => [filename, guide.anchors]),
+  );
+  await completePublicationWork(
+    guides.map(async ([filename, guide]) =>
+      validateGuideDestinations(filename, guide, currentFiles, anchorsByFile),
+    ),
   );
 }
 

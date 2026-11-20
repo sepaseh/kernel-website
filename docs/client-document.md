@@ -1,11 +1,7 @@
 # Trace document-related behavior
 
-The [features phase](bootstrap.md) publishes client features, HTTP support and
-document policy helpers. Follow the relevant owner and its local tests.
-
 Use this map when a page's language, metadata, security header or client behavior
-does not match its configuration. It connects framework composition to the
-canonical subject guides without defining another HTTP or document policy.
+does not match its configuration.
 
 ## From request to page
 
@@ -15,21 +11,20 @@ canonical subject guides without defining another HTTP or document policy.
    [Server boundaries](server-boundary.md) owns the transport and nonce contract;
    [CSP](website-csp.md) describes policy directives.
 2. [Server settings](../src/shared/settings/server.ts) reads validated uncached
-   API language/direction. React cache deduplicates only within one server render;
-   each new request reads settings again. [Localization](localization.md) owns
+   API language, direction and calendar. React cache deduplicates only within one
+   server render. [Localization](localization.md) owns
    settings failures, catalogs and explicit client message scopes.
 3. The [request message adapter](../src/i18n/request.ts) loads the selected local
    catalog. The [root layout](../src/app/layout.tsx) renders `lang`/`dir`, font
    preloads, the skip link, Header/main/Footer, providers and WebVitals.
-   Auth/account boundaries select their own message subsets.
+   Auth, account and contact boundaries select their own message subsets.
 4. Page metadata and nonce-bearing escaped JSON-LD come from the
    [SEO owners](seo.md). The root defaults new routes to noindex; public pages
    choose their own canonical metadata.
 5. Browser feature operations call the same-origin `/api` route through the
-   shared client. The server forwards only permitted operations to the configured
-   HTTP backend. [Server boundaries](server-boundary.md#browser-http-client) describes
-   cookies/no-store, errors and cancellation; [session](session.md) describes
-   refresh and stale-result ownership.
+   shared client. The server forwards allowed operations to the configured HTTP
+   backend. Server-rendered blog and FAQ pages have their own server-side readers.
+   [Browser and server HTTP boundaries](server-boundary.md)
 
 ## Find the relevant owner
 
@@ -42,6 +37,7 @@ canonical subject guides without defining another HTTP or document policy.
 | Input, feedback, theme or reduced motion                   | [Client UI](client-ui.md), [accessibility](accessibility.md)                    |
 | Font preload, shaping or asset bytes                       | [Fonts](fonts.md)                                                               |
 | Bundle size or optional metrics delivery                   | [Website performance](website-performance.md)                                   |
+| Blog, FAQ or contact page data                             | [Blog](blog.md), [FAQ](faq.md), [contact](contact.md)                           |
 
 ## Verify the layer you changed
 
