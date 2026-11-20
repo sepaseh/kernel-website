@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AuthPaths } from "@/shared/contracts";
+import { AuthPaths, PublicPaths } from "@/shared/contracts";
 
 import { apiRequest, WebsiteApiError } from "./client.ts";
 
@@ -17,6 +17,41 @@ const sessionObserver = () => {
 };
 
 describe("cookie-only website HTTP client", () => {
+  it("keeps contact anonymous and preserves quota headers without expiring the account session", async () => {
+    const expired = sessionObserver();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ message: "Denied" }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          { message: "Quota" },
+          { status: 429, headers: { "Retry-After": "17" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetch);
+    await expect(
+      apiRequest(PublicPaths.contactMessages, "en", {
+        headers: {
+          Authorization: "Bearer synthetic",
+          Cookie: "session=synthetic",
+        },
+        credentials: "include",
+      }),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(expired).not.toHaveBeenCalled();
+    expect(fetch.mock.calls[0][1].credentials).toBe("omit");
+    expect(
+      new Headers(fetch.mock.calls[0][1].headers).has("authorization"),
+    ).toBe(false);
+    expect(new Headers(fetch.mock.calls[0][1].headers).has("cookie")).toBe(
+      false,
+    );
+    await expect(
+      apiRequest(PublicPaths.contactMessages, "en"),
+    ).rejects.toMatchObject({ status: 429, retryAfter: "17" });
+  });
   it("keeps requests local, uncached and cookie-based without mutating caller headers", async () => {
     const fetch = vi
       .fn<typeof globalThis.fetch>()

@@ -192,10 +192,10 @@ export async function loadBlogSitemap(): Promise<BlogSitemapItem[]> {
       await json(`/public/posts/sitemap?offset=${result.length}&size=1000`),
     );
     total = integer(data.total);
-    // The sitemap reserves two URLs for home and the blog archive.
-    // Fail if the article list needs a sitemap index.
+    // The single sitemap reserves four URLs for home, contact, blog and FAQ. Fail clearly
+    // rather than silently dropping articles when a sitemap index is needed.
     if (
-      total > 49_998 ||
+      total > 49_996 ||
       !Array.isArray(data.items) ||
       data.items.length > 1000 ||
       (!data.items.length && result.length < total)

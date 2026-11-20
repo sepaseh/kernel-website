@@ -1,4 +1,4 @@
-import { AuthPaths } from "@/shared/contracts";
+import { AuthPaths, PublicPaths } from "@/shared/contracts";
 
 export class WebsiteApiError extends Error {
   constructor(
@@ -6,6 +6,7 @@ export class WebsiteApiError extends Error {
     readonly status: number,
     readonly fields: Record<string, string> = {},
     readonly requestId?: string,
+    readonly retryAfter?: string,
   ) {
     super(message);
   }
@@ -46,6 +47,7 @@ async function responseError(response: Response): Promise<WebsiteApiError> {
     response.status,
     fields,
     response.headers.get("x-request-id") ?? undefined,
+    response.headers.get("retry-after") ?? undefined,
   );
 }
 
@@ -55,19 +57,25 @@ export async function apiRequest<T = void>(
   init: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(init.headers);
+  const anonymous = path === PublicPaths.contactMessages;
+  if (anonymous) {
+    headers.delete("Authorization");
+    headers.delete("Cookie");
+  }
   headers.set("Accept", "application/json");
   headers.set("Accept-Language", locale);
   if (init.body) headers.set("Content-Type", "application/json");
   const response = await fetch(`/api${path}`, {
     ...init,
     headers,
-    credentials: "include",
+    credentials: anonymous ? "omit" : "include",
     cache: "no-store",
   });
   if (!response.ok) {
     const error = await responseError(response);
     if (
       response.status === 401 &&
+      !anonymous &&
       !sessionExpiryExemptPaths.has(path) &&
       typeof window !== "undefined"
     )

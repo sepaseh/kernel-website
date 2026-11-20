@@ -195,6 +195,18 @@ export async function Home() {
                   />
                 </Link>
               </Button>
+              <Link
+                href="/contact"
+                className="ms-6 mt-6 inline-flex text-sm underline underline-offset-4 hover:no-underline"
+              >
+                {t("contact")}
+              </Link>
+              <Link
+                href="/faq"
+                className="ms-6 mt-6 inline-flex text-sm underline underline-offset-4 hover:no-underline"
+              >
+                {t("faq")}
+              </Link>
             </div>
           </div>
         </Reveal>

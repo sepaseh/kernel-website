@@ -35,6 +35,23 @@ const sharedClientKeys = [
 ] as const satisfies readonly (keyof WebsiteTranslationResource)[];
 
 const clientKeys = {
+  contact: [
+    "contact",
+    "contactAnother",
+    "contactDescription",
+    "contactDescriptionInvalid",
+    "contactMobile",
+    "contactMobileHelp",
+    "contactMobileInvalid",
+    "contactName",
+    "contactNameInvalid",
+    "contactRateLimit",
+    "contactSend",
+    "contactSuccess",
+    "networkError",
+    "pending",
+    "unexpectedError",
+  ],
   account: [
     ...sharedClientKeys,
     "nameTooLong",

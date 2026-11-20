@@ -15,6 +15,19 @@ import {
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const publishedProductionFiles = new Set([
+  "src/app/faq/[[...path]]/page.tsx",
+  "src/features/faq/Faq.tsx",
+  "src/features/faq/api.ts",
+  "src/features/faq/paths.ts",
+  "src/features/faq/server.ts",
+  "src/features/faq/types.ts",
+  "src/app/contact/layout.tsx",
+  "src/app/contact/page.tsx",
+  "src/features/contact/ContactForm.tsx",
+  "src/features/contact/api.ts",
+  "src/features/contact/types.ts",
+  "src/features/contact/values.ts",
+  "src/shared/ui/textarea.tsx",
   "src/app/(auth)/forgot-password/page.tsx",
   "src/app/(auth)/layout.tsx",
   "src/app/(auth)/login/page.tsx",
@@ -407,6 +420,22 @@ ownerPackages.set("src/app/preview/[postId]/article/page.tsx", [
   packageImport("next/headers", "next"),
   packageImport("next/navigation", "next"),
 ]);
+ownerPackages.set("src/features/contact/ContactForm.tsx", localizedFormImports);
+ownerPackages.set("src/shared/ui/textarea.tsx", [reactTypesImport]);
+ownerPackages.set("src/app/contact/page.tsx", [serverIntlImport]);
+ownerPackages.set("src/app/contact/layout.tsx", [
+  serverIntlImport,
+  intlRuntimeImport,
+  reactTypesImport,
+]);
+ownerPackages.set("src/features/faq/api.ts", [serverOnlyImport]);
+ownerPackages.set("src/features/faq/server.ts", [
+  serverOnlyImport,
+  reactRuntimeImport,
+  packageImport("next/navigation", "next"),
+]);
+ownerPackages.set("src/features/faq/Faq.tsx", [linkImport, serverIntlImport]);
+ownerPackages.set("src/app/faq/[[...path]]/page.tsx", [serverIntlImport]);
 const runtimePackages = [
   "sanitize-html",
   "class-variance-authority",
@@ -507,6 +536,8 @@ const localSourceViolation = ({
   if (inside(path.resolve(root, "src/i18n/catalog-data"), file) && !typeOnly)
     return "Catalog data may import only fully erased local types";
   const wireOwners = [
+    "src/features/faq/types.ts",
+    "src/features/contact/types.ts",
     "src/features/account/types.ts",
     "src/features/auth/login/types.ts",
     "src/features/auth/recovery/types.ts",

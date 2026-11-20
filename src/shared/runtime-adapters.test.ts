@@ -150,7 +150,10 @@ describe("framework metadata routes", () => {
       rules: { userAgent: "*", allow: "/", disallow: "/api/" },
       sitemap: "https://website.example.test/sitemap.xml",
     });
-    expect(await sitemap()).toEqual([{ url: "https://website.example.test/" }]);
+    expect(await sitemap()).toEqual([
+      { url: "https://website.example.test/" },
+      { url: "https://website.example.test/contact" },
+    ]);
     expect(framework.connection).toHaveBeenCalledTimes(2);
   });
 

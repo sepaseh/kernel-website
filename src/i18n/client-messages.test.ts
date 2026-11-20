@@ -7,6 +7,23 @@ import { catalogs } from "./catalogs";
 import { selectClientMessages } from "./client-messages";
 
 const expectedKeys = {
+  contact: [
+    "contact",
+    "contactAnother",
+    "contactDescription",
+    "contactDescriptionInvalid",
+    "contactMobile",
+    "contactMobileHelp",
+    "contactMobileInvalid",
+    "contactName",
+    "contactNameInvalid",
+    "contactRateLimit",
+    "contactSend",
+    "contactSuccess",
+    "networkError",
+    "pending",
+    "unexpectedError",
+  ],
   root: [
     "account",
     "backHome",
@@ -155,7 +172,13 @@ describe("route-scoped flat client translations", () => {
       const root = selectClientMessages(messages, "root");
       const auth = selectClientMessages(messages, "auth");
       const account = selectClientMessages(messages, "account");
-      for (const [scope, selected] of Object.entries({ root, auth, account })) {
+      const contact = selectClientMessages(messages, "contact");
+      for (const [scope, selected] of Object.entries({
+        root,
+        auth,
+        account,
+        contact,
+      })) {
         expect(Object.keys(selected).sort()).toEqual(
           expectedKeys[scope as keyof typeof expectedKeys],
         );
@@ -175,6 +198,15 @@ describe("route-scoped flat client translations", () => {
       expect(root).not.toHaveProperty("accountTitle");
       expect(auth).not.toHaveProperty("accountEmailLabel");
       expect(account).not.toHaveProperty("authLoginTitle");
+      expect(contact).not.toHaveProperty("password");
+      expect(contact).not.toHaveProperty("contactIntro");
+      const contactText = createTranslator({ locale, messages: contact });
+      expect(contactText("contactRateLimit", { seconds: 17 })).toContain("17");
+      expect(
+        contactText.markup("contactMobileHelp", {
+          number: (value) => `<bdi dir="ltr">${value}</bdi>`,
+        }),
+      ).toContain('<bdi dir="ltr">+989</bdi>');
 
       const rootText = createTranslator({ locale, messages: root });
       const authText = createTranslator({ locale, messages: auth });

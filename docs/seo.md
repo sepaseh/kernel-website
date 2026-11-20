@@ -51,9 +51,12 @@ metadata. `index:false` cannot be overridden by the global indexing flag.
 When an origin exists, share metadata points to the
 [1200×630 social-image route](../src/app/social-image/route.tsx).
 
-The current public content page is `/`. Login, registration, recovery, account
-and error pages stay noindex and outside the sitemap. A new public page needs its
-own canonical path; assigning `/` globally misidentifies distinct pages.
+Public pages include home, contact, FAQ pagination, blog archives, category
+archives and code/title article routes. [Contact form](contact.md) ·
+[FAQ routes](faq.md) · [Blog URLs and metadata](blog.md)
+
+Login, registration, recovery, account, preview and error pages stay noindex and
+outside the sitemap. Give each new public page its own canonical path.
 Tracking queries and fragments are not separate pages. Internal links, redirects,
 canonicals and sitemap entries must identify the same public destination.
 
@@ -68,10 +71,12 @@ language/cache/metadata design change.
 [robots.ts](../src/app/robots.ts) allows page retrieval and disallows `/api/`.
 It advertises the sitemap only while indexing is enabled.
 [sitemap.ts](../src/app/sitemap.ts) returns an empty set while indexing is
-disabled. When enabled, it includes the public home URL and, when articles
-exist, the blog and current public article URLs. Article dates come from actual
-public updates. Two static slots leave 49,998 articles in the single sitemap.
-See the [blog route contract](blog.md).
+disabled. When enabled it includes home, Contact, blog when populated, FAQ when
+active items exist, and every current article through the paginated published API.
+It reads article and FAQ presence in parallel and fails when either read fails.
+Four static slots leave 49,996 article URLs before a sitemap index is required.
+FAQ has no fabricated modification date. Article `lastModified` is
+the real public content change time; no request timestamp is fabricated.
 
 `createWebsiteJsonLd` builds a `WebSite` object from the actual name,
 description, language and configured origin. It returns no object without an

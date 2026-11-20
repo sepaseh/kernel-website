@@ -1,4 +1,4 @@
-import { type ComponentProps, useId } from "react";
+import { type ComponentProps, type ReactNode, useId } from "react";
 
 import { cn } from "@/shared/lib/cn";
 
@@ -6,7 +6,7 @@ import { Input } from "./input";
 import { Label } from "./label";
 type Props = ComponentProps<"input"> & {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
 };
 export const FormField = ({

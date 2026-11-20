@@ -1,5 +1,5 @@
 // Test-only HTTP behavior for this website. This is not an authentication service.
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
 const cookieName = "website_fixture_session_token";
@@ -18,10 +18,11 @@ const languages = new Set([
 ]);
 
 class FixtureError extends Error {
-  constructor(status, message, fields = {}) {
+  constructor(status, message, fields = {}, headers = {}) {
     super(message);
     this.fields = fields;
     this.status = status;
+    this.headers = headers;
   }
 }
 
@@ -155,7 +156,15 @@ function publicAccount(account) {
     is_system_admin: account.administrator,
     last_name: account.last_name,
     mobile: account.mobile,
-    permissions: account.administrator ? ["settings.update"] : [],
+    permissions: account.administrator
+      ? [
+          "settings.update",
+          "faqs.create",
+          "faqs.delete",
+          "faqs.read",
+          "faqs.update",
+        ]
+      : [],
     status: "active",
     username: account.username,
   };
@@ -325,6 +334,75 @@ export function createWebsiteApiFixture(environment = process.env) {
       tags: [],
     },
   });
+  const faqs = new Map(
+    Array.from({ length: 22 }, (_, index) => {
+      const id = `44444444-4444-4444-8444-${String(index + 1).padStart(12, "0")}`;
+      return [
+        id,
+        {
+          id,
+          question:
+            index === 21
+              ? "Inactive fixture question"
+              : index === 0
+                ? "How do I get started?"
+                : index === 1
+                  ? "از کجا شروع کنم؟"
+                  : `Practical question ${index + 1}`,
+          answer:
+            index === 0
+              ? "Begin with the essentials and take the next step.\n\n<script>Plain text stays plain.</script>\n\nپاسخ روشن و ساده از همین‌جا آغاز می‌شود."
+              : "Explore the starter and adapt each part to your project.\nKeep your changes focused and easy to review.",
+          sort: Math.floor(index / 2),
+          is_active: index < 21,
+        },
+      ];
+    }),
+  );
+  const faqHandler = (pathname) => {
+    const id = /^\/faqs\/([\da-f-]+)$/.exec(pathname)?.[1];
+    if (!id) return undefined;
+    return {
+      PATCH: (request, response, body) => {
+        if (!accountFor(request).administrator)
+          throw new FixtureError(
+            403,
+            "FAQ editing requires the fixture administrator.",
+          );
+        const current = faqs.get(id);
+        if (!current) throw new FixtureError(404, "Unknown fixture FAQ.");
+        const keys = Object.keys(body);
+        if (
+          !keys.length ||
+          keys.some(
+            (key) => !["question", "answer", "sort", "is_active"].includes(key),
+          )
+        )
+          throw new FixtureError(400, "Invalid FAQ patch.");
+        const next = { ...current };
+        if (Object.hasOwn(body, "question"))
+          next.question = text(body, "question", 300);
+        if (Object.hasOwn(body, "answer"))
+          next.answer = text(body, "answer", 5000);
+        if (Object.hasOwn(body, "sort")) {
+          if (
+            !Number.isSafeInteger(body.sort) ||
+            body.sort < 0 ||
+            body.sort > 1_000_000
+          )
+            throw new FixtureError(400, "Invalid FAQ order.");
+          next.sort = body.sort;
+        }
+        if (Object.hasOwn(body, "is_active")) {
+          if (typeof body.is_active !== "boolean")
+            throw new FixtureError(400, "Invalid FAQ visibility.");
+          next.is_active = body.is_active;
+        }
+        faqs.set(id, next);
+        return send(response, 200, { id });
+      },
+    };
+  };
   const capabilities = new Map();
   const publishedPosts = () =>
     [...posts.values()].flatMap((post) =>
@@ -685,11 +763,167 @@ export function createWebsiteApiFixture(environment = process.env) {
     GET: (_request, response) =>
       send(response, 200, { items: [category], total: 1 }),
   });
-
+  const contactReceipts = new Map();
+  const contactMessages = [];
+  const contactQuotas = new Map();
+  let contactPeer = { count: 0, expires: 0 };
+  const digest = (value) => createHash("sha256").update(value).digest("hex");
+  handlers.set("/public/contact-messages", {
+    POST: (request, response, body) => {
+      const key = request.headers["idempotency-key"];
+      if (
+        typeof key !== "string" ||
+        !/^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(
+          key,
+        )
+      )
+        throw new FixtureError(400, "A UUID submission key is required.");
+      if (
+        Object.keys(body).some(
+          (key) => !["name", "mobile", "description"].includes(key),
+        )
+      )
+        throw new FixtureError(
+          400,
+          "Only name, mobile and description are accepted.",
+        );
+      const name = text(body, "name", 120);
+      const description = text(body, "description", 5000);
+      let number = text(body, "mobile", 32)
+        .replace(/[۰-۹]/g, (digit) => String(digit.codePointAt(0) - 1776))
+        .replace(/[٠-٩]/g, (digit) => String(digit.codePointAt(0) - 1632));
+      if (number.startsWith("09")) number = `+98${number.slice(1)}`;
+      if (!/^\+989\d{9}$/.test(number))
+        throw new FixtureError(400, "Invalid mobile.", {
+          mobile: "Enter a valid Iranian mobile number.",
+        });
+      const stamp = Date.now();
+      const keyDigest = digest(key.toLowerCase());
+      const signature = digest(
+        JSON.stringify({ name, mobile: number, description }),
+      );
+      for (const [key, value] of contactReceipts)
+        if (value.expires <= stamp) contactReceipts.delete(key);
+      for (const [key, value] of contactQuotas)
+        if (value.expires <= stamp) contactQuotas.delete(key);
+      const previous = contactReceipts.get(keyDigest);
+      if (previous) {
+        if (previous.signature !== signature)
+          throw new FixtureError(
+            409,
+            "This submission key belongs to different content.",
+          );
+        return send(response, 201, previous.receipt);
+      }
+      const mobileDigest = digest(number);
+      const existing = contactQuotas.get(mobileDigest);
+      const quota =
+        existing?.expires > stamp
+          ? existing
+          : { count: 0, expires: stamp + 600_000 };
+      if (contactPeer.expires <= stamp)
+        contactPeer = { count: 0, expires: stamp + 600_000 };
+      const limited =
+        quota.count >= 5
+          ? quota
+          : contactPeer.count >= 100
+            ? contactPeer
+            : undefined;
+      if (limited)
+        throw new FixtureError(
+          429,
+          "Too many contact messages.",
+          {},
+          {
+            "Retry-After": String(
+              Math.max(1, Math.ceil((limited.expires - stamp) / 1000)),
+            ),
+          },
+        );
+      const receipt = {
+        id: randomUUID(),
+        created_at: new Date(stamp).toISOString(),
+      };
+      contactMessages.push({
+        ...receipt,
+        name,
+        mobile: number,
+        description,
+        is_read: false,
+      });
+      quota.count++;
+      contactPeer.count++;
+      contactQuotas.set(mobileDigest, quota);
+      contactReceipts.set(keyDigest, {
+        signature,
+        receipt,
+        expires: stamp + 86_400_000,
+      });
+      return send(response, 201, receipt);
+    },
+  });
+  handlers.set("/contact-messages", {
+    GET: (request, response) => {
+      if (!accountFor(request).administrator)
+        throw new FixtureError(
+          403,
+          "The fixture inbox requires its administrator.",
+        );
+      return send(response, 200, {
+        items: [...contactMessages].reverse(),
+        total: contactMessages.length,
+      });
+    },
+  });
+  handlers.set("/public/faqs", {
+    GET: (request, response) => {
+      const query = new URL(request.url, "http://127.0.0.1").searchParams;
+      if (
+        [...query.keys()].some(
+          (key) =>
+            !["offset", "size"].includes(key) || query.getAll(key).length !== 1,
+        )
+      )
+        throw new FixtureError(400, "Unknown FAQ query.");
+      const rawOffset = query.get("offset") ?? "0";
+      const rawSize = query.get("size") ?? "20";
+      const offset = Number(rawOffset),
+        size = Number(rawSize);
+      if (
+        !/^\d+$/.test(rawOffset) ||
+        !/^\d+$/.test(rawSize) ||
+        !Number.isSafeInteger(offset) ||
+        offset > 10_000_000 ||
+        !Number.isSafeInteger(size) ||
+        size < 1 ||
+        size > 100
+      )
+        throw new FixtureError(400, "Invalid FAQ pagination.");
+      const active = [...faqs.values()]
+        .filter((item) => item.is_active)
+        .sort(
+          (left, right) =>
+            left.sort - right.sort ||
+            (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+        );
+      return send(response, 200, {
+        items: active
+          .slice(offset, offset + size)
+          .map(({ id, question, answer, sort }) => ({
+            id,
+            question,
+            answer,
+            sort,
+          })),
+        total: active.length,
+      });
+    },
+  });
   /** Dispatch only owned routes/methods and require the exact configured website origin for mutations. */
   const handle = async (request, response) => {
     const pathname = new URL(request.url, "http://127.0.0.1").pathname;
-    const methods = handlers.get(pathname) ?? blogHandler(pathname);
+    const methods =
+      handlers.get(pathname) ?? blogHandler(pathname) ?? faqHandler(pathname);
     if (!methods) throw new FixtureError(404, "Unknown website fixture route.");
     if (!Object.hasOwn(methods, request.method)) {
       send(
@@ -710,13 +944,18 @@ export function createWebsiteApiFixture(environment = process.env) {
   };
   const server = createServer((request, response) => {
     handle(request, response).catch((error) => {
-      send(response, error instanceof FixtureError ? error.status : 500, {
-        cause: error instanceof FixtureError ? error.fields : {},
-        message:
-          error instanceof FixtureError
-            ? error.message
-            : "The synthetic fixture request failed.",
-      });
+      send(
+        response,
+        error instanceof FixtureError ? error.status : 500,
+        {
+          cause: error instanceof FixtureError ? error.fields : {},
+          message:
+            error instanceof FixtureError
+              ? error.message
+              : "The synthetic fixture request failed.",
+        },
+        error instanceof FixtureError ? error.headers : {},
+      );
     });
   });
   server.headersTimeout = 5_000;
