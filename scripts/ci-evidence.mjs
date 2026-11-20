@@ -199,6 +199,15 @@ const readMeasuredReport = async (root, reportPath, label) => {
   return bytes;
 };
 
+const countCoverageSourceLines = (text, reportPath) => {
+  if (reportPath === "coverage/governance/lcov.info") {
+    // The Node test runner retains LF and CRLF at the end of each source line.
+    return text.split(/(?<=\n)/u).length;
+  }
+  const lines = text.split(/\r\n|[\n\r\u2028\u2029]/u);
+  return lines.length - (lines.at(-1) === "" ? 1 : 0);
+};
+
 export const readCoverage = async (
   root,
   reportPath = "coverage/unit/lcov.info",
@@ -209,8 +218,7 @@ export const readCoverage = async (
     assertAttestedSource(sourcePaths, source);
     const { filename } = await regularFile(root, source);
     const text = await readFile(filename, "utf8");
-    const lines = text.split(/\r\n|[\n\r\u2028\u2029]/u);
-    const lineCount = lines.length - (lines.at(-1) === "" ? 1 : 0);
+    const lineCount = countCoverageSourceLines(text, reportPath);
     if (lastMeasuredLine > lineCount)
       throw new Error(`LCOV contains a line outside its source: ${source}`);
   }

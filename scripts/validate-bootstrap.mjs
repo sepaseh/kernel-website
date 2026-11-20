@@ -402,11 +402,13 @@ const reviewedAdditions = {
     "src/shared/settings/server.ts",
   ],
   operations: [
+    ".gitea/workflows/ci.yaml",
     ".github/workflows/dast.yml",
     ".github/workflows/deployment-smoke.yml",
     ".github/workflows/package-release.yml",
     ".github/workflows/release.yml",
     ".github/workflows/staging.yml",
+    ".gitlab-ci.yml",
     ".release-please-manifest.json",
     "CHANGELOG.md",
     "docs/release-operations.md",
