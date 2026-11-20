@@ -7,7 +7,10 @@ import {
 import { artifactFile } from "./release-files.mjs";
 import { readyRunnerRoot } from "./runner-inputs.mjs";
 import { runOwnedProcess, runVerificationCli } from "./runner-process.mjs";
-import { verifyVerificationBuild } from "./verification-build.mjs";
+import {
+  recheckVerificationBuild,
+  verifyVerificationBuild,
+} from "./verification-build.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 
@@ -32,7 +35,8 @@ export async function runCspReportOnly(root = repository, options = {}) {
     throw new Error("The CSP report-only runner accepts no extra arguments.");
   const inherited = options.environment ?? process.env;
   const inputs = await syntheticBrowserInputs(directory, inherited);
-  await verifyVerificationBuild(directory, { environment: inherited });
+  const buildOptions = { environment: inputs.websiteEnvironment };
+  const verifiedBuild = await verifyVerificationBuild(directory, buildOptions);
   signal?.throwIfAborted();
   const cli = await resolvePlaywrightCli(directory);
   const config = await artifactFile(
@@ -40,19 +44,21 @@ export async function runCspReportOnly(root = repository, options = {}) {
   );
   await artifactFile(`${directory}/e2e/website/csp.spec.ts`);
   signal?.throwIfAborted();
-  return runOwnedProcess({
-    args: [cli, "test", `--config=${config}`, "e2e/website/csp.spec.ts"],
-    cwd: directory,
-    env: {
-      ...inputs.websiteEnvironment,
-      WEBSITE_CSP_MODE: "report-only",
-      WEBSITE_TEST_CSP_MODE: "report-only",
-      WEBSITE_SKIP_BUILD: "1",
-      PLAYWRIGHT_BROWSERS_PATH: "0",
-    },
-    signal,
-    stdio: options.stdio ?? "inherit",
-  });
+  return recheckVerificationBuild(directory, buildOptions, verifiedBuild, () =>
+    runOwnedProcess({
+      args: [cli, "test", `--config=${config}`, "e2e/website/csp.spec.ts"],
+      cwd: directory,
+      env: {
+        ...inputs.websiteEnvironment,
+        WEBSITE_CSP_MODE: "report-only",
+        WEBSITE_TEST_CSP_MODE: "report-only",
+        WEBSITE_SKIP_BUILD: "1",
+        PLAYWRIGHT_BROWSERS_PATH: "0",
+      },
+      signal,
+      stdio: options.stdio ?? "inherit",
+    }),
+  );
 }
 
 await runVerificationCli(import.meta.main, repository, ({ signal }) =>

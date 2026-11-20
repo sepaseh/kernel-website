@@ -126,6 +126,49 @@ test("verified prepared output reuses across reviewed CSP modes and ignores only
   assert.ok(!record.files.some(({ path }) => path.includes("/cache/")));
 });
 
+test("materialized PostCSS bytes stay hashed and a reintroduced alias link is never accepted or repaired", async (context) => {
+  const { root, put, options } = await fixture(context);
+  const lock = JSON.parse(await readFile(path.join(root, "package-lock.json")));
+  lock.packages["node_modules/postcss"] = { version: "8.5.32" };
+  await put("package-lock.json", lock);
+  const aliases = [];
+  for (const tree of ["", ".next/standalone/"]) {
+    await put(`${tree}node_modules/postcss/package.json`, {
+      name: "postcss",
+      version: "8.5.32",
+    });
+    await put(`${tree}node_modules/postcss/index.js`, `owned ${tree}module`);
+    const alias = `${tree}.next/node_modules/postcss-0123456789abcdef`;
+    await mkdir(path.dirname(path.join(root, alias)), { recursive: true });
+    await symlink(
+      path.join(root, tree, "node_modules/postcss"),
+      path.join(root, alias),
+      "junction",
+    );
+    aliases.push(alias);
+  }
+  await prepareStandalone(root);
+  const record = await recordVerificationBuild(root, options);
+  for (const alias of aliases)
+    assert.ok(record.files.some(({ path }) => path === `${alias}/index.js`));
+  await verifyVerificationBuild(root, options);
+  await put(`${aliases[0]}/index.js`, "changed module");
+  await assert.rejects(verifyVerificationBuild(root, options), /output bytes/);
+  await put(`${aliases[0]}/index.js`, "owned module");
+  await verifyVerificationBuild(root, options);
+  await rm(path.join(root, aliases[0]), { recursive: true });
+  await symlink(
+    path.join(root, "node_modules/postcss"),
+    path.join(root, aliases[0]),
+    "junction",
+  );
+  await assert.rejects(verifyVerificationBuild(root, options), /links/);
+  assert.equal(
+    (await lstat(path.join(root, aliases[0]))).isSymbolicLink(),
+    true,
+  );
+});
+
 test("standalone route-cache writes reuse the proof while neighboring code, static bytes and cache links stay guarded", async (context) => {
   const { root, put, options } = await fixture(context);
   const cache = ".next/standalone/.next/server/route-cache";

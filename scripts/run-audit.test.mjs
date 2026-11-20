@@ -45,10 +45,16 @@ describe("audit result classification", () => {
     expect(isCompletedAuditResult({ status: 1, stdout })).toBe(true);
   });
 
-  it("rejects terminated audit processes", () => {
+  it.each([
+    { status: null },
+    { status: -1 },
+    { status: 0.5 },
+    { status: 0, signal: "SIGTERM" },
+    { status: 0, error: new Error("Audit output was truncated") },
+  ])("rejects an unsuccessful process result with audit metadata", (result) => {
     const stdout = JSON.stringify({ metadata: { vulnerabilities: {} } });
 
-    expect(isCompletedAuditResult({ status: null, stdout })).toBe(false);
+    expect(isCompletedAuditResult({ ...result, stdout })).toBe(false);
   });
 });
 

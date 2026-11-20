@@ -15,6 +15,7 @@ import { isDeepStrictEqual } from "node:util";
 import {
   artifactDirectory,
   artifactFile,
+  completeArtifactWork,
   ensureArtifactDirectory,
 } from "./release-files.mjs";
 import { readyRunnerRoot, syntheticRunnerInputs } from "./runner-inputs.mjs";
@@ -595,4 +596,21 @@ export async function verifyVerificationBuild(root = repository, options = {}) {
     "Verification build does not match the current source, environment, toolchain or output bytes.",
   );
   return record;
+}
+
+/** Recheck the same build after the consumer finishes, even when it fails. */
+export async function recheckVerificationBuild(root, options, record, run) {
+  const operation = Promise.resolve().then(run);
+  const recheck = async () => {
+    const current = await verifyVerificationBuild(root, options);
+    insist(
+      isDeepStrictEqual(record, current),
+      "Verification build changed during browser execution.",
+    );
+  };
+  const [result] = await completeArtifactWork([
+    operation,
+    operation.then(recheck, recheck),
+  ]);
+  return result;
 }

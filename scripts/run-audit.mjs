@@ -13,7 +13,11 @@ export const hasAuditMetadata = (output) => {
 };
 
 export const isCompletedAuditResult = (result) =>
-  result.status !== null && hasAuditMetadata(result.stdout);
+  Number.isInteger(result.status) &&
+  result.status >= 0 &&
+  !result.error &&
+  !result.signal &&
+  hasAuditMetadata(result.stdout);
 
 const printResult = (result) => {
   if (result.stdout) process.stdout.write(result.stdout);

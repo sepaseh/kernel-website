@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
-import {
+import fsPromises, {
   lstat,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
+  readlink,
   realpath,
   rm,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -37,6 +41,126 @@ async function fixture(t, ready = true) {
   ]);
   return { root, put };
 }
+
+async function postcssFixture(t) {
+  const data = await fixture(t);
+  await data.put(
+    "package-lock.json",
+    JSON.stringify({
+      packages: { "node_modules/postcss": { version: "8.5.32" } },
+    }),
+  );
+  const aliases = [];
+  for (const [tree, text] of [
+    ["", "full producer package"],
+    [".next/standalone/", "smaller traced package"],
+  ]) {
+    const target = path.join(data.root, tree, "node_modules/postcss");
+    const alias = path.join(
+      data.root,
+      tree,
+      ".next/node_modules/postcss-0123456789abcdef",
+    );
+    await data.put(
+      `${tree}node_modules/postcss/package.json`,
+      JSON.stringify({ name: "postcss", version: "8.5.32" }),
+    );
+    await data.put(`${tree}node_modules/postcss/index.js`, text);
+    await mkdir(path.dirname(alias), { recursive: true });
+    await symlink(target, alias, "junction");
+    aliases.push({ alias, target, text });
+  }
+  return { ...data, aliases };
+}
+
+test("preparation materializes each exact PostCSS alias from its own locked ordinary package", async (t) => {
+  const { root, aliases } = await postcssFixture(t);
+  await prepareStandalone(root);
+  for (const { alias, target, text } of aliases) {
+    assert.equal((await lstat(alias)).isSymbolicLink(), false);
+    assert.equal(await readFile(path.join(alias, "index.js"), "utf8"), text);
+    assert.equal(await readFile(path.join(target, "index.js"), "utf8"), text);
+  }
+  await prepareStandalone(root);
+  for (const { alias } of aliases)
+    assert.equal((await lstat(alias)).isDirectory(), true);
+});
+
+for (const invalid of ["target", "name", "version", "nested link", "size"])
+  test(`PostCSS ${invalid} preflight rejects before replacing either alias or existing assets`, async (t) => {
+    const { root, put, aliases } = await postcssFixture(t);
+    const { alias, target } = aliases[1];
+    await put(".next/standalone/public/previous.txt", "preserve old assets");
+    if (invalid === "target") {
+      await mkdir(path.join(root, "unrelated"));
+      await unlink(alias);
+      await symlink(path.join(root, "unrelated"), alias, "junction");
+    } else if (invalid === "nested link") {
+      await symlink(aliases[0].target, path.join(target, "nested"), "junction");
+    } else if (invalid === "size") {
+      await writeFile(
+        path.join(target, "oversized.bin"),
+        Buffer.alloc(16 * 1024 * 1024 + 1),
+      );
+    } else {
+      await writeFile(
+        path.join(target, "package.json"),
+        JSON.stringify({
+          name: invalid === "name" ? "other-package" : "postcss",
+          version: invalid === "version" ? "8.5.31" : "8.5.32",
+        }),
+      );
+    }
+    await assert.rejects(
+      prepareStandalone(root),
+      /exact package|contain links|root lock|byte budget/,
+    );
+    for (const entry of aliases) {
+      assert.equal((await lstat(entry.alias)).isSymbolicLink(), true);
+      assert.equal(
+        await readFile(path.join(entry.target, "index.js"), "utf8"),
+        entry.text,
+      );
+    }
+    assert.equal(
+      await readFile(
+        path.join(root, ".next/standalone/public/previous.txt"),
+        "utf8",
+      ),
+      "preserve old assets",
+    );
+  });
+
+test("a failed staged PostCSS copy preserves the junction and target and removes only its own stage", async (t) => {
+  const { root, aliases } = await postcssFixture(t);
+  const failure = new Error("synthetic copy failure");
+  const original = fsPromises.copyFile;
+  const copying = t.mock.method(
+    fsPromises,
+    "copyFile",
+    (source, destination, flags) =>
+      destination.includes(".kernel-postcss-")
+        ? Promise.reject(failure)
+        : original(source, destination, flags),
+  );
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(prepareStandalone(root), (error) => error === failure);
+  } finally {
+    copying.mock.restore();
+    syncBuiltinESMExports();
+  }
+  for (const { alias, target, text } of aliases) {
+    assert.equal((await lstat(alias)).isSymbolicLink(), true);
+    assert.equal(path.relative(target, await readlink(alias)), "");
+    assert.equal(await readFile(path.join(target, "index.js"), "utf8"), text);
+    assert.ok(
+      !(await readdir(path.dirname(alias))).some((name) =>
+        name.startsWith(".kernel-postcss-"),
+      ),
+    );
+  }
+});
 
 test("standalone preparation copies current assets without executing server code or bundling private state", async (t) => {
   const { root, put } = await fixture(t);
