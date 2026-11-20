@@ -1,32 +1,30 @@
-# API collection
+# HTTP contracts
 
-Read the current [source scope](../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+## Verify before changing a consumer
 
-- This website owns its HTTP adapters, feature DTOs, settings contracts and
-  consumer tests. Its local HTTP fixture supplies synthetic test responses.
-  Do not require another repository's collection, source or instructions.
-- Treat explicit user decisions and the local sample HTTP contract as
-  authoritative for this starter. Inspect affected request/response fields, examples, paths,
-  defaults, validation, permissions and statuses before changing a consumer.
-  Separate verified facts, assumptions and unresolved compatibility decisions.
-- Keep local types, API helpers, consumer tests and mapped documentation aligned.
-  Preserve the sample's existing paths, payloads, statuses and error semantics
-  unless an explicit requirement changes them. Downstream applications choose
-  backend integration and rollout; do not import backend runtime implementation.
-- Review both request and response examples when changing creation defaults.
-  Defaults owned by the backend must not be sent by frontend forms, and must be
-  present in successful responses whenever the resulting domain model requires
-  them.
-- External JSON and query fields use `snake_case`; TypeScript may use
-  `camelCase` after conversion at the transport boundary.
-- Keep path constants with their actual feature/settings or multi-feature wire
-  owner. Reuse the existing local API helpers without inventing another route
-  registry or importing a backend SDK.
-- Prefer omission for absent optional fields unless `null` has explicit domain
-  meaning.
-- Do not invent fields, envelopes, permissions, errors, or status codes without
-  authoritative evidence.
-- Follow the endpoint's actual date, query-default, status and deletion semantics;
-  do not apply a different product's lifecycle or error policy to this consumer.
-- Keep tokens and examples synthetic. Never commit credentials, private
-  endpoints, signed URLs, or personal data.
+Treat explicit user decisions and this repository's sample HTTP contract as
+authoritative. Inspect request and response examples, paths, fields, defaults,
+dates, validation, permissions, statuses, error envelopes and deletion behavior.
+Distinguish verified behavior, assumptions and unresolved compatibility decisions.
+Keep existing wire behavior unless a requirement changes it. Claim support for
+new fields, permissions, status codes and lifecycle rules only with verified
+evidence. The [synthetic HTTP fixture](../../docs/api-fixture.md#feature-data-and-test-operations)
+supplies evidence about the local sample contract.
+
+## Maintain payloads and examples
+
+- Review request and response behavior together. Omit backend-owned creation
+  defaults from frontend requests. Include them in successful responses when
+  the resulting domain model requires them.
+- Use `snake_case` in wire JSON and query fields. Convert to `camelCase` at the
+  transport boundary when the consumer needs it.
+- Omit absent optional fields in payloads and examples unless `null` has
+  explicit protocol meaning.
+- Base changes to fields, envelopes, permissions, errors and status codes on
+  verified contract evidence.
+- Update local types, API helpers, consumer tests and the owning guide together.
+  Reuse the existing HTTP helpers. Keep endpoint constants with their
+  [source owner](imports.md#source-owners) and avoid a second route registry.
+- Keep tokens and payloads synthetic. Keep credentials, private endpoints, real
+  signed URLs and personal data out of committed fixtures and examples.
+  [Sensitive data handling](safety.md#secrets-and-local-state)

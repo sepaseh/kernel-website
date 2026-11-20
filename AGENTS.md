@@ -1,88 +1,92 @@
-# Kernel Website assistant instructions
+# Assistant entry point
 
-The publication phase is **operations** and `applicationReady` is **true**.
-This stage delivers framework routes, providers and website composition together
-with the existing contracts, forms, policies and guarded tooling. The marker
-describes admitted source; actual build, browser/CSP and visual acceptance require
-the complete canonical gate and establish no external backend or deployment readiness.
+Read the [assistant guidance index](.agents/README.md) and
+[Contributing](CONTRIBUTING.md) before making changes. Use the
+[publication policy](.github/bootstrap-policy.json) to confirm the current phase
+and admitted files. Read the applicable rules, source owners and tests. Verify
+behavior against the current source and actual checks.
 
-Read [guidance](.agents/README.md), [settings](.agents/settings.json),
-[task navigation](docs/source-navigation.md), [source policy](.github/bootstrap-policy.json),
-[validation](.agents/validation.json), [Contributing](CONTRIBUTING.md) and matching rules.
+## Scope and safety
 
-Use the existing checkout. Another worktree, clone or copied implementation
-checkout requires explicit authorization, including when delegating.
-Preserve unrelated work and private state. Never read real dotenv, keys,
-credentials or operator data, or contact production as a test fixture.
+Use the existing checkout and preserve unrelated tracked, staged and untracked
+work. Get explicit user authorization for any additional worktree, clone or
+copied implementation checkout, including when delegating.
+[Working-checkout rules](.agents/rules/branches.md#working-checkout)
 
-Do not commit without the user's approval. Commits, pushes, remote comments,
-reviews, PR changes, merges and protection changes each require authorization
-for their actual effect. Existing session authorization persists.
-Use `codex/` branches and Conventional Commit titles.
+Use disposable synthetic fixtures. Keep real environments, credentials, keys,
+databases, uploads and browser state out of fixtures. Follow the
+[safety rules](.agents/rules/safety.md#secrets-and-local-state) for public examples,
+private state and authorized access.
 
-Review each PR's complete scope and aim for at most 80 changed-file entries
-initially. Split independent changes when useful and explain larger cohesive
-changes. File count is advisory: exceeding 100 alone must not fail CI or require
-recreating a PR. Count additions, deletions, renames and binaries.
-Use a verified feature branch and PR for every change to main; never push directly.
-A stacked PR targets its verified predecessor and states the dependency.
-Before every authorized commit, push or PR handoff, validate the exact proposed
-tree in a fresh disposable export using [the full procedure](docs/validation.md).
+Do not read real dotenv files, keys, credentials or operator data. Keep
+production out of local tests. Use [settings](.agents/settings.json) and
+[source navigation](docs/source-navigation.md) to find the matching rules,
+source and tests.
 
-All required check kinds stay active for this phase. Keep executable
-tooling measured, unit coverage at 90% and governance coverage at 80%, without
-suppressions or source/rule/coverage exclusions.
-Synchronize tests through actual readiness, completion and failure events;
-do not add arbitrary sleeps, retry counts or test deadlines.
+## Published scope
 
-Preserve [branch protection](docs/branch-protection.md): strict checks, one
-approval, stale-approval dismissal, resolved conversations, administrator
-enforcement, linear history and no force pushes or branch deletion.
-A passing provider check alone does not prove current-head CodeRabbit approval.
-Apply [review preflight](docs/reviews.md) before every manual CodeRabbit request.
+The current phase is `operations` and `applicationReady` is `true`. Use actual
+check results to establish acceptance.
 
-Write maintained Markdown and assistant instructions in English. Keep human
-guides flat and task-oriented. Report QA in the task or terminal; save a local
-report only when requested under ignored `test-results/`. Optional guidance
-indexes prove neither host loading nor model comprehension.
+## Git and review
 
-Keep authentication flows and session ownership in src/features/auth, account forms
-and requests in src/features/account, and shared controls in src/shared/ui. Preserve
-HTTP cancellation, cookie/no-store behavior, protected versus public-auth 401
-handling, stale session ownership, form reset identity and OTP destinations.
-See [architecture](docs/architecture.md), [forms](docs/forms.md),
-[session](docs/session.md) and [client UI](docs/client-ui.md).
+Use a verified feature branch and PR for changes to protected `main`.
+Honor existing authorization for the same action and scope. Follow the
+[Git workflow](.agents/rules/git.md) and
+[remote action boundaries](.agents/rules/safety.md#external-systems).
+Review the complete diff against the intended base before publication. Follow
+the [PR scope rules](.agents/rules/pull-requests.md#before-creation) and the
+[review workflow](.agents/skills/review-pr/SKILL.md).
 
-Preserve exact import boundaries and the delivered framework entry points. Use explicit SEO origins, opt-in indexing, escaped JSON-LD
-and pure CSP policy. Web Vitals has no default transport; optional consumers must
-not corrupt delivery. See [SEO](docs/seo.md), [CSP](docs/website-csp.md) and
-[performance](docs/website-performance.md). Optional hooks and comprehension
-evaluation prompts require actual host integration and execution evidence.
+Require explicit user authorization for each commit and each remote effect.
+[Action boundaries](.agents/rules/safety.md#authorization)
+Use a verified `codex/` branch, keep direct pushes to `main` prohibited and
+follow the [Conventional Commit rules](.agents/rules/commits.md).
+Preserve [branch protection](docs/branch-protection.md#required-policy).
+Apply the [CodeRabbit preflight](.agents/rules/pull-requests.md#coderabbit-request-preflight)
+before every manual request. Verify
+[current-head approval](docs/reviews.md#verify-approval-and-merge-readiness)
+separately from the provider check.
 
-Runner, browser and delivery imports stay inert. Preserve readiness checks before
-operation inputs, installed-tool resolution, output writes or child startup.
-Only owned synthetic test roots may declare readiness for isolated guard tests;
-never toggle the source marker to enter operations. Keep child environments
-explicit, website/API ports separate and cleanup limited to owned resources.
-The HTTP fixture holds disposable test accounts in memory; it is not a real
-backend. See [runners](docs/runner-foundation.md), [browser tooling](docs/browser-foundation.md),
-[the fixture](docs/api-fixture.md) and [deployment references](docs/deployment.md)
-for contracts and evidence limits.
+## Verification and documentation
 
-Browser tooling requires the reviewed installed SDK and an explicitly filtered
-parent environment. Preserve bounded names-only diagnostics, the literal `1`
-Playwright worker marker and launcher parent/child port ownership. Typed authored
-suites, Node owner tests and retained screenshots do not establish browser,
-visual or external backend compatibility. Runnable acceptance requires delivered
-application composition, this repository's HTTP fixture and a verified browser.
-Keep baseline bytes and review dates until an explicitly authorized update has
-actual visual review; updates are forbidden in CI. See [visual regression](docs/visual-regression.md).
+Start with a focused check from the [validation manifest](.agents/validation.json).
+Preserve required checks, assertions, type safety, lint and security controls.
+Report actual results, failures and unavailable evidence. Follow the
+[validation workflow](.agents/skills/validate-change/SKILL.md).
 
-Operational source adds manual package/smoke/staging wrappers, disposable Docker
-smoke and advisory Lighthouse sampling. Keep every required application check in
-the canonical full profile; manual operations and advisory measurements remain
-separate. Preserve installed SDK identities, filtered public environments, owned
-resources and cleanup. Source and injected tests do not establish an actual
-container, lab, release, hosted scan or remote-target result. Follow
-[operations](docs/release-operations.md), [releasing](docs/releasing.md) and
-[staging](docs/staging.md) with authorization for the actual effect.
+Keep maintained documentation and assistant instructions in English, current
+and organized by reader task. Use the [documentation index](docs/README.md)
+and the [documentation rules](.agents/rules/guidance.md).
+
+Before an authorized commit, push or PR handoff, run the canonical `full` profile
+on a fresh verification-only export of the exact proposed tree.
+[Exact-tree validation](.agents/skills/validate-change/SKILL.md#validate-the-exact-tree)
+
+Preserve [coverage and check integrity](.agents/rules/testing.md#coverage-and-check-integrity)
+and [synchronize tests with actual events](.agents/rules/testing.md#synchronize-with-actual-events).
+Application acceptance requires the production build, this repository's
+synthetic HTTP fixture and the reviewed browser for functional, CSP and visual
+checks. [Acceptance criteria](docs/application.md#exact-tree-acceptance)
+
+Report actual QA results in the task or terminal. Save a report only when
+requested. [Evidence and reports](.agents/rules/guidance.md#record-evidence)
+
+## Source boundaries
+
+- Preserve [feature and UI ownership](.agents/rules/website.md#ownership-and-boundaries),
+  [import boundaries and framework entry points](.agents/rules/imports.md#enforce-boundaries),
+  [HTTP behavior](docs/server-boundary.md#browser-http-client),
+  [session and form ownership](.agents/rules/website.md#request-and-form-ownership)
+  and [document policies](.agents/rules/website.md#language-and-document-support).
+- Keep runner, browser and delivery imports inert. Check readiness before
+  reading inputs, resolving tools, writing output or starting children. Only
+  owned synthetic roots may declare readiness for guard tests. Keep the real
+  marker unchanged when testing a guarded operation. [Runner readiness](docs/runner-foundation.md#readiness-and-imports) · [Process ownership](docs/runner-foundation.md#inputs-and-process-ownership)
+- Use the reviewed installed SDK and an explicitly filtered browser parent
+  environment. Preserve baseline bytes and review dates until an authorized
+  update has actual visual review. Baseline updates are forbidden in CI.
+  [Browser inputs](docs/browser-foundation.md#dependency-and-input-boundaries) · [Baseline procedure](docs/visual-regression.md#update-a-baseline-intentionally)
+- Keep [manual operations and advisory measurements](docs/release-operations.md#choose-the-operation)
+  separate from required checks. Obtain authorization for their actual effects
+  and report results from actual execution. [Operational safeguards](docs/release-operations.md#prepare-observe-and-clean-up)

@@ -1,27 +1,27 @@
 # Browser and server HTTP boundaries
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
 The browser calls the website's same-origin `/api` route. The website forwards
-only its listed auth/account operations to the configured HTTP backend, which owns
+its listed auth, account and anonymous contact operations to the configured HTTP backend, which owns
 authentication, authorization, settings, business validation, persistence and
 storage. This guide defines the transport and document-security boundaries.
 
 ## Browser HTTP client
 
 [`apiRequest`](../src/shared/api/client.ts) constructs `/api` URLs, copies caller
-headers, carries the selected locale and forces `credentials:"include"` and
-`cache:"no-store"`. Feature APIs own snake_case payloads and exact password
-values. They do not store a token or language choice locally.
+headers, sets `Accept-Language` to the selected locale and uses
+`cache: "no-store"`. Auth and account requests include credentials. Anonymous
+contact requests omit credentials and strip any caller-supplied Cookie or
+Authorization header. Feature APIs own snake_case payloads and exact password
+values.
 
 An empty successful response returns `undefined`; malformed successful JSON
 fails. Error envelopes retain localized text, string field errors and request
-IDs, with a safe fallback for malformed/non-object JSON. Fetch and body-stream
+IDs and Retry-After, with a safe fallback for malformed/non-object JSON. Fetch and body-stream
 failures, including cancellation after headers, preserve their original identity.
 
 After reading a protected mutation's 401 error body, the client emits one
 `kernel:session-expired` event. The anonymous `/account/me` read and public
-login/register/OTP/recovery errors are exempt; an aborted body emits no expiry
+login/register/OTP/recovery and contact errors are exempt. An aborted body emits no expiry
 event. [Session](session.md) owns the resulting refresh and generation changes.
 [Forms](forms.md) owns visible error/input state.
 
@@ -39,10 +39,11 @@ owns the upstream origin. An installed gateway must preserve the trusted target
 Host/protocol and reject unrecognized public hosts; verify that boundary during
 [deployment](deployment.md).
 
-Only Cookie, Content-Type, Origin and X-Request-Id are copied upstream, with JSON
-Accept, no-store, manual redirects, caller cancellation and a fifteen-second
-timeout. Authorization and visitor language preferences are not forwarded.
-API settings remain the language authority.
+The proxy forwards Content-Type, Origin and X-Request-Id with a JSON Accept
+header. Auth and account requests can also forward Cookie. Contact requires a
+valid UUID in Idempotency-Key and forwards that header without cookies. Upstream
+requests use no-store, manual redirects, caller cancellation and a fifteen-second
+timeout. The proxy omits Authorization and Accept-Language.
 
 Mutations accept application/json with optional media-type parameters. Streamed
 bodies are bounded to 32 KiB. Oversized streams are cancelled and acquired readers
@@ -50,13 +51,27 @@ are released. Mutation-body stream failures, transport failures and malformed
 successful auth JSON return a generic 503 without private diagnostics.
 
 Every response, including local rejection and upstream failure, has private,
-no-store caching. Only Content-Type, X-Request-Id, Retry-After and every
-Set-Cookie header cross back. Redirect targets and arbitrary upstream headers
-are not forwarded. Successful auth JSON recursively removes `token`,
+no-store caching. Content-Type, X-Request-Id and Retry-After can cross back.
+Set-Cookie is preserved for auth and account and omitted for contact.
+Successful auth JSON recursively removes `token`,
 `access_token`, `accessToken`, `refresh_token` and `refreshToken` from objects and
 arrays; this is not a general secret-content detector. Cookies remain intact. Bodyless 204/205
 responses preserve status and cookies. Cookie attributes and session revocation
 remain API-owned.
+
+## Published content and preview boundary
+
+The [blog reader](../src/features/blog/api.ts) and
+[FAQ reader](../src/features/faq/api.ts) fetch public projections on the server.
+They omit visitor credentials, reject redirects, bound response size and validate
+the API data.
+Only a short-lived, post-scoped preview capability enters its Authorization
+header. The exchange replaces the initial capability URL with a scoped HttpOnly
+cookie and clean preview URL; the API reauthorizes every read. [Blog](blog.md).
+
+The same-origin `/media/:id` adapter accepts only public API JPEG/PNG bytes and
+never follows an arbitrary HTML image source. The sanitizer rewrites validated
+file IDs to that route, preserving CSP and image crawlability outside `/api/`.
 
 ## Document security
 

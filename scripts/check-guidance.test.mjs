@@ -43,6 +43,10 @@ const navigation = () => ({
     },
   ],
 });
+const fixtureAnchors = new Map([
+  ["README.md", new Set(["section", "section?plain=1"])],
+  ["docs/validation.md", new Set(["checks"])],
+]);
 
 test("guidance indexes reference actual published owners, tests, rules and all canonical commands", async () => {
   validateGuidanceIndexes(settings(), navigation(), manifest);
@@ -110,7 +114,7 @@ test("guidance rejects private or unpublished owners, unsafe rule references and
 test("English guides accept published relative references and reject hidden, missing or malformed links", () => {
   validateGuideLinks(
     "docs/testing.md",
-    "Read [root](../README.md), [CI](../scripts/check-ci.mjs#checks), [guide](<validation.md>) and [external](https://example.test). [Mail](mailto:public@example.test) [Chat](codex://threads/example) [Anchor](#local).",
+    "Read [root](../README.md), [CI](../scripts/check-ci.mjs#checks), [guide](<validation.md>) and [external](https://example.test). [Mail](mailto:public@example.test) [Chat](codex://threads/example) [Anchor](#local).\n\n## Local",
   );
   validateGuideLinks("README.md", "```text\n[example](unpublished.md)\n```\n");
   for (const title of ['"Read me"', "'Read me'", "(Read me)"])
@@ -119,6 +123,8 @@ test("English guides accept published relative references and reject hidden, mis
   validateGuideLinks(
     "docs/testing.md",
     '[guide](validation.md#checks "Read (the) guide")',
+    undefined,
+    fixtureAnchors,
   );
   for (const content of [
     "[private](../.env.local)",
@@ -190,7 +196,12 @@ test("relative destinations exclude literal queries and fragments before decodin
       `Read [root][ref].\n\n[ref]: ${target}`,
       `<a href="${target}">Root</a>`,
     ])
-      validateGuideLinks("docs/testing.md", content);
+      validateGuideLinks(
+        "docs/testing.md",
+        `${content}\n\n## Section`,
+        undefined,
+        fixtureAnchors,
+      );
 
   for (const target of [
     "../.env.local?plain=1",
@@ -242,7 +253,12 @@ test("reference definitions use the same published relative destination checks a
     "[chat]: codex://threads/example",
     "[anchor]: #local",
   ])
-    validateGuideLinks("docs/testing.md", definition);
+    validateGuideLinks(
+      "docs/testing.md",
+      `${definition}\n\n## Local`,
+      undefined,
+      fixtureAnchors,
+    );
   for (const target of [
     "../.env.local",
     "missing.md",
@@ -277,7 +293,7 @@ test("Markdown structure distinguishes rendered references from literal code exa
     "`[private](../.env.local)`",
     "Read [root][ref].\n\n[ref]: ../README\\.md",
     "Read [root](../README\\.md)",
-    "Read [self]() and [anchor](#section).",
+    "Read [self]() and [anchor](#section).\n\n## Section",
     "> Read [root][ref].\n>\n> [ref]: <../README.md> 'Root guide'",
     "![published guide](../README.md)",
     "Read [reference].\n[reference]: missing.md",
@@ -311,13 +327,98 @@ test("raw HTML hrefs follow the published destination policy across quoting and 
     '<a href="HTTPS://example.test">External</a>',
     '<a href=" \t../README.md\n ">Root</a>',
     '<a href=" HTTPS://example.test ">External</a>',
-    '<a href="#section">Anchor</a> <a href="">Self</a>',
+    '<a href="#section">Anchor</a> <a href="">Self</a>\n\n## Section',
     '<a title="href=../.env.local">No destination</a>',
     "\\<a href=../.env.local>Literal escaped tag",
     "&lt;a href=../.env.local>Literal escaped angle",
     "<a *href=../.env.local*>Literal incomplete tag with Markdown emphasis",
   ])
     validateGuideLinks("docs/testing.md", content);
+});
+
+test("local fragments resolve to rendered Markdown headings and explicit HTML anchors", () => {
+  const guide = [
+    "## **Build** with `npm ci` &amp; `start`!",
+    "## Build-1",
+    "## Build",
+    "## Build",
+    "## Build",
+    "## État  privé",
+    "Setext title\n------------",
+    '<a NAME="CaseSensitive"></a>',
+    '<h3 id="custom&#45;heading">Custom heading</h3>',
+    '<a href="#CaseSensitive">Named anchor</a>',
+    "[Section]: #setext-title",
+  ].join("\n\n");
+  for (const target of [
+    "#build-with-npm-ci--start",
+    "#build",
+    "#build-1",
+    "#build-2",
+    "#build-3",
+    "#setext-title",
+    "#CaseSensitive",
+    "#custom-heading",
+    "#%C3%A9tat--priv%C3%A9",
+    "testing.md#build-2",
+    "../README.md?plain=1#section",
+    "#top",
+    "../README.md#TOP",
+    "../scripts/check-ci.mjs#missing",
+  ])
+    validateGuideLinks(
+      "docs/testing.md",
+      `${guide}\n\n[Section](${target})`,
+      undefined,
+      fixtureAnchors,
+    );
+
+  for (const target of [
+    "#casesensitive",
+    "#build-4",
+    "?plain=1#missing",
+    "testing.md#missing",
+    "../README.md?plain=1#missing",
+  ])
+    assert.throws(
+      () =>
+        validateGuideLinks(
+          "docs/testing.md",
+          `${guide}\n\n[Section](${target})`,
+          undefined,
+          fixtureAnchors,
+        ),
+      /Missing Markdown section/,
+    );
+  assert.throws(
+    () => validateGuideLinks("docs/testing.md", "[Top](missing.md#top)"),
+    /Missing or unpublished guide link/,
+  );
+});
+
+test("literal headings and anchors do not satisfy rendered Markdown fragments", () => {
+  const examples = [
+    '```markdown\n## Example\n<a name="example"></a>\n```',
+    '    ## Example\n    <a id="example"></a>',
+    '<!-- <a name="example"></a>\n## Example -->',
+    '<script><a name="example"></a></script>',
+    '\\<a name="example"></a>',
+    '`<a name="example"></a>`',
+  ];
+  for (const example of examples) {
+    assert.throws(
+      () =>
+        validateGuideLinks(
+          "docs/testing.md",
+          `${example}\n\n[Example](#example)`,
+        ),
+      /Missing Markdown section/,
+    );
+  }
+  validateGuideLinks(
+    "docs/testing.md",
+    '```markdown\n[Example](#missing)\n<a href="#missing">Example</a>\n```',
+  );
 });
 
 test("HTML comments, raw text and Markdown code examples do not create guide links", () => {

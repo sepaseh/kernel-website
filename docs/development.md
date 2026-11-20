@@ -1,20 +1,15 @@
-# Run the website locally
+# Develop Kernel Website
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use this guide to open the website locally, make a feature change and verify its
-visible behavior. It starts the website against this repository's test-only HTTP
-fixture. Each fixture process owns fresh in-memory state that is discarded when
-that process stops.
-Use a clean website source directory without runtime dotenv files. Do not point
-these commands at an existing API or a developer database.
+Run the website against its synthetic HTTP API, then follow a profile-form
+change from implementation to verification. Use a source directory without
+runtime dotenv files and choose two free loopback ports. The fixture discards
+its in-memory data on shutdown.
 
 ## Install the toolchain
 
 Use the exact Node version in [.nvmrc](../.nvmrc) and its bundled npm.
 
-From the website root, include the development tools required for validation and
-browser acceptance:
+Install the locked packages with their development tools from the website root.
 
 ```sh
 npm ci --include=dev
@@ -52,35 +47,33 @@ export WEBSITE_URL=http://127.0.0.1:3010 API_BASE_URL=http://127.0.0.1:3100
 export WEBSITE_INDEXING_ENABLED=false PLAYWRIGHT_BROWSERS_PATH=0
 ```
 
-The website's public [.env.example](../.env.example) documents application fields;
-the synthetic runner takes values from the shell and refuses runtime dotenv
-files. Supply no authentication secret, database URL or storage setting; the
-fixture uses only its owned in-memory state.
+The synthetic runner reads these values from the shell. The public
+[environment example](../.env.example) documents application fields. The
+fixture uses the separate API port and its own in-memory state.
 
 ## Build and open
 
-In the first terminal, start the synthetic API and leave it running:
+1. Start the synthetic API in the first terminal.
 
-```sh
-node scripts/test-website-api.mjs
-```
+   ```sh
+   node scripts/test-website-api.mjs
+   ```
 
-The launcher selects `scripts/website-api-fixture.mjs` in this repository and
-starts it in test mode. It derives API port 3100 from `API_BASE_URL`; keep the
-parent `PORT` set to the website's 3010.
+   Wait for `Owned website HTTP test fixture is listening.` The launcher
+   derives port 3100 from `API_BASE_URL`. Keep the parent `PORT` set to 3010.
 
-In a second terminal at the website root, with the same local inputs:
+2. Build and start the website in the second terminal at the website root.
 
-```sh
-npm run build
-npm start
-```
+   ```sh
+   npm run build
+   npm start
+   ```
 
-Open `http://127.0.0.1:3010`. The home page should render, `/login` should show the
-sign-in form and `/account` should require a session. The synthetic API uses the
-test-only OTP `123456`; this value does not describe production OTP delivery.
-The website language comes from API settings; changing browser language or a
-cookie does not select it. Theme preference is independent.
+3. Open <http://127.0.0.1:3010>. Visit `/blog` for seeded articles, `/faq` for
+   active questions and `/contact` for a form that writes to the fixture.
+   `/login` shows the sign-in form and `/account` requires a session. The
+   synthetic sign-in and registration flows use the test OTP `123456` when a
+   code is requested. The API supplies the website language and calendar.
 
 This project currently supplies a production build/start loop. After an edit,
 stop the website with Ctrl+C, rebuild and start again. Stop each owned launcher
@@ -113,7 +106,7 @@ submission/error/stale-account assertions; preserve password whitespace, OTP
 destinations and reset identity. UI changes also need browser and visual review
 under [Design](../DESIGN.md).
 
-### Worked example: profile feedback
+### Change profile feedback
 
 For a small profile-feedback change, follow the existing update path instead of
 adding logic to the account route. The example keeps the HTTP contract unchanged.
@@ -132,9 +125,8 @@ adding logic to the account route. The example keeps the HTTP contract unchanged
    fields. Adding a field or changing wire vocabulary needs API compatibility work
    before a frontend DTO edit.
 3. When changing visible success wording, update the existing
-   `accountProfileUpdated` key in all ten
-   catalog files. Preserve the flat 107-key
-   contract, complete genuine translations and any ICU placeholders. The existing
+   `accountProfileUpdated` key in all ten catalog files. Preserve the flat
+   contract, complete translations and any ICU placeholders. The existing
    account client-message selection already includes this key. An intentional new
    key also needs explicit selection and scope tests; follow
    [localization](localization.md).
@@ -155,8 +147,8 @@ npm run typecheck
 npm run lint
 ```
 
-Expected result: the targeted suites and source checks pass. Rebuild/restart the
-owned website, register/sign in using a synthetic account and open `/account`.
+When the targeted suites and source checks pass, rebuild and restart the local
+website, sign in with a synthetic account and open `/account`.
 Enter `  Grace  ` and `  Hopper  `, then choose **Save profile**. The form should
 display the API's normalized names and announce the intended success text. A
 failed write keeps the entered values; it must not show success. The API-selected
@@ -169,8 +161,9 @@ without a requirement.
 
 ## Browser acceptance and handoff
 
-For browser acceptance, install project-local Chromium and let the test runner
-own its API and website processes. Stop manually started launchers first:
+Keep `PLAYWRIGHT_BROWSERS_PATH=0` and the local test inputs set in your terminal.
+Stop the manually started launchers so the browser runner can own both ports.
+Install the reviewed project-local Chromium before running the checks.
 
 ```sh
 node node_modules/@playwright/test/cli.js install chromium
@@ -189,14 +182,7 @@ change requires a new build. This verifies frontend behavior against synthetic
 responses, not compatibility with a deployed backend.
 
 Before handing off a change, follow [exact-tree validation](validation.md) in a
-fresh disposable export and run every required check:
-
-```sh
-npm run validate -- full
-```
-
-The procedure covers the complete gate beyond the browser checks above, including
-fresh dependencies and source verification. Record the exact tree, actual results
-and remaining limits.
+fresh disposable export for the complete required gate. Record the exact tree,
+actual results and remaining limits.
 
 See [troubleshooting](troubleshooting.md) for failed setup checks.

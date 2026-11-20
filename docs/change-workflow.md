@@ -1,11 +1,9 @@
 # Change handoff and implementation plan
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use this handoff for a feature, defect or tooling change. It is a portable planning
-record, not an AI runtime or a requirement to use one assistant. Keep the filled
-record with local task evidence or an authorized issue/PR. Creating remote metadata,
-sending messages, committing and publishing need authorization for their actual effect.
+Use this handoff for a feature, defect or tooling change. Keep the filled record
+with local task evidence or an authorized issue or PR. Creating remote metadata,
+sending messages, committing and publishing each require authorization for their
+actual effect.
 
 ## Establish the change contract
 
@@ -16,13 +14,12 @@ sending messages, committing and publishing need authorization for their actual 
 - Read [navigation](source-navigation.md), full owner source, contracts, rules and
   tests. Record current behavior and the failure, including relevant dirty or
   untracked source without reading real environments, private state or secrets.
-- Write observable acceptance scenarios: trigger, result, failure/authorization
-  boundary and verification. Include applicable session races, language/cache
-  privacy and recovery behavior.
-- Read the publication marker and exact source inventory. Distinguish a
-  false-marker prerequisite from application activation under the
-  [application contract](application.md). Source, authored suites and historical
-  results do not establish current build, browser or deployment execution.
+- Write observable acceptance scenarios with the trigger, expected result,
+  failure or authorization boundary and verification. Include relevant session
+  races, language and cache privacy, and recovery behavior.
+- Verify the [admitted source](../.github/bootstrap-policy.json) and the
+  [application acceptance requirements](application.md). Use actual execution
+  evidence for the exact tree when recording build, browser or deployment results.
 
 ## Reusable task record
 
@@ -50,9 +47,7 @@ presentation in the website. Product/provider integrations need an actual
 requirement. Explain durable architectural changes in the relevant current guide, including their consequences.
 
 Select commands from the [canonical manifest](../.agents/validation.json) and
-[contribution policy](../CONTRIBUTING.md), rather than maintaining another complete
-gate. Record source changes, configured workflows and actually executed checks
-separately. Preserve first-failure evidence, reproduce with synthetic inputs and
-explain any correction; never hide a failure through retries, skipped tests,
-suppression or weakened thresholds. Do not infer a manual screen-reader review,
-hosted result, production recovery or assistant benchmark from source inspection.
+follow the [validation procedure](validation.md). Record the proposed tree, tests
+run, first failure and any skipped or unavailable evidence. Reproduce failures
+with synthetic inputs and explain corrections. Preserve required checks, tests
+and thresholds.

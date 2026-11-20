@@ -1,7 +1,8 @@
 # Code review
 
-Review the pull-request description, complete diff, and relevant tests before
-judging a change. Passing automation is evidence, not proof.
+Read the pull-request description, complete diff, owning source and relevant
+tests. Gather current-head evidence using the
+[review workflow](../skills/review-pr/SKILL.md).
 
 ## Priorities
 
@@ -26,8 +27,23 @@ Check affected behavior, security, local HTTP-contract alignment, state lifecycl
 failure-path tests, accessibility, localization, visible UI evidence, and the
 documentation map. If no finding remains, say so and disclose checks not run.
 
-Local tests, hosted checks, provider analysis and substantive current-head approval
-are separate evidence. Follow [review preflight](pull-requests.md#coderabbit-request-preflight);
-skipped or conversational provider replies do not establish a completed review.
-Submit remote comments or reviews, resolve conversations and merge only with
-authorization for the corresponding action.
+## Evidence
+
+Report local tests, hosted checks, provider analysis and substantive current-head
+approval as distinct results. Follow the
+[provider requirements](pull-requests.md#provider-evidence-and-required-checks)
+and the [CodeRabbit request preflight](pull-requests.md#coderabbit-request-preflight).
+
+See the [review guide](../../docs/reviews.md) and the
+[remote action rules](safety.md#external-systems).
+
+## Address review feedback
+
+1. Read the review thread and its current status. Verify the finding against the
+   latest published PR head, the owning source and the relevant tests.
+2. Record the disposition. State what changed and which check verified it, or
+   explain why the finding is already addressed or does not apply. Identify the
+   published revision when it helps the reviewer verify the result.
+3. When authorized to reply, respond in the original review thread. Follow the
+   [remote action rules](safety.md#external-systems) for replies, conversation
+   resolution and re-review requests. Leave unresolved findings visible.

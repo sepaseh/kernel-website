@@ -1,69 +1,55 @@
-# Test the published source
+# Write and maintain tests
 
-Read [source scope](bootstrap.md) and [the manifest](../.agents/validation.json).
-Run affected owner tests
-while editing and the complete [exact-tree procedure](validation.md) before an
-authorized commit, push or PR handoff.
+Run the smallest test that exercises the changed behavior. Use the
+[validation manifest](../.agents/validation.json) to select related checks.
+Before an authorized commit or PR, run the full profile as described in
+[validation](validation.md).
+Before an authorized push, follow the same complete exact-tree procedure.
 
-The audit wrapper has a focused Vitest unit suite with its subprocess boundary
-mocked; it does not contact the registry. Required online audit is separate.
-Unit coverage remains 90% for all metrics. Node owner tests measure executable
-governance helpers with 80% thresholds. Add no suppressions or source/rule/coverage
-exclusions, fabricated coverage or metric-only wrappers.
+## Select the evidence
 
-CI displays unit, governance, application E2E, accessibility, SEO, CSP and visual
-suites independently. Their manifest profiles partition the required checks.
-The `check` job aggregates their outcomes; Sonar consumes only the measured unit
-and governance coverage artifacts without repeating tests. Dependency audit and
-static checks run independently of those suites.
+| Change                                | Run and inspect                                                                                                                                                                |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Feature, component or HTTP adapter    | Colocated Vitest suites. Assert visible results, preserved input, cancellation and session ownership where relevant.                                                           |
+| Runner, artifact or repository policy | Colocated Node owner tests or a named integration suite. Check original errors, cleanup, exact input identity and child completion.                                            |
+| Full route or visitor journey         | [Functional browser tests](../e2e/website/website.spec.ts) with the delivered app and synthetic API. The suite includes account flows, blog, contact and FAQ across its specs. |
+| Accessibility, indexing or CSP        | Dedicated browser profiles. CSP runs in enforce and report-only modes.                                                                                                         |
+| Appearance                            | The visual profile with the reviewed Chromium and Windows baseline images. Inspect the captured diffs before changing a baseline. [Visual regression](visual-regression.md)    |
+| Fonts                                 | The font integrity check with the hash-locked Python dependencies. [Fonts](fonts.md)                                                                                           |
+| Dependency change                     | Fresh locked install, separate online audit and affected suites. The audit wrapper's unit tests mock the subprocess and exercise result handling.                              |
 
-Use colocated `*.test.mjs` owner suites and explicitly named integration cases
-for agreement across owners. Fixtures use synthetic public data and disposable
-resources owned by the test. Verify observable failures, original errors,
-cancellation, coverage artifact identity and cleanup.
-Follow [test reliability](test-reliability.md).
+Unit coverage uses 90% thresholds. Node governance tests measure the executable
+tooling at 80% or higher. Keep the measured scopes and assertions intact. The
+tooling TypeScript project checks the authored browser suites against the
+installed SDK types. Actual browser results come from the executed profiles.
 
-Runner, browser and delivery owner tests exercise direct-child lifecycle, cancellation,
-drain, explicit environments, artifact paths and failure cleanup. Only owned
-synthetic roots may declare readiness to test these contracts. Separate cases
-verify that the actual false-readiness boundary prevents operation input reads
-and side effects. Imports must remain inert. See [runner contracts](runner-foundation.md),
-[browser tooling](browser-foundation.md) and [deployment references](deployment.md).
+## Add a regression
 
-The [HTTP fixture](api-fixture.md) tests use disposable in-memory accounts and
-local requests. Stub Next executables and synthetic standalone outputs verify
-runner ownership and sequencing, not compatibility with a real framework build.
-Authored browser and visual suites are published with a required tooling
-TypeScript project. Compilation checks compatibility with installed SDK types;
-it does not execute the suites. Node browser-owner cases use synthetic SDK files
-and disposable programs, not a real browser. These tests establish neither a
-completed browser/visual comparison nor Docker or installed-service acceptance.
-Retained baseline images describe historical captures.
-
-Application acceptance must exercise the delivered website with this
-repository's HTTP fixture and a verified browser. A single Windows build checks
-unused source and bundle budgets, prepares standalone output and records its
-admitted source inputs, synthetic environment, exact toolchain and output hashes.
-Hosted browser jobs consume the immutable artifact from that successful build
-attempt and verify it before running their disjoint profiles: 21 functional E2E,
-8 accessibility, 17 SEO, 12 CSP and 4 visual scenarios. CSP retains six scenarios
-in each of enforce and report-only mode. Font integrity remains in governance.
-Local `full` runs the same checks sequentially under one writer and reuses that
-verified build. False-marker guard tests
-reject operations before configuration, dependencies or child startup; they do
-not turn authored scenarios into passing or skipped browser results.
-See [visual regression](visual-regression.md) for baseline review and update rules.
+1. Find the responsible source and nearby test. [Source navigation](source-navigation.md)
+2. Use synthetic data and disposable resources. For runner readiness checks,
+   use dedicated roots owned by the test and keep imports inert. Exercise the
+   guard before reading inputs, resolving tools or starting children.
+3. Assert the observable outcome and relevant failure, cancellation or cleanup.
+   Synchronize on actual readiness and completion. [Test reliability](test-reliability.md)
+4. Run the focused test and related checks. Report commands, first failures,
+   skips and limits in the task or terminal.
 
 The [boundary check](../scripts/check-boundaries.mjs) traces literal imports,
-local bindings, literal container selections and explicit function return/yield
-expressions. It also traces values from dynamic imports through the first
-parameter and explicit returns of locally traceable `.then` callbacks. Review
-argument flow through arbitrary calls and other callbacks manually. Keep module
-namespaces and builtin loaders in explicit bindings inside their owning file.
-A passing check supplies evidence for these supported syntax paths.
+local bindings, literal container selections and explicit return or yield
+expressions. It traces dynamic import values through the first parameter and
+explicit returns of locally traceable `.then` callbacks. Review argument flow
+through arbitrary calls and other callbacks manually. Keep module namespaces
+and builtin loaders in explicit bindings inside their owning file.
 
-A passed local suite proves only the exercised source. It does not establish
-hosted CI, Sonar binding or CodeRabbit approval. This phase verifies the font binaries with the pinned Python environment.
-The full application gate also requires a verified browser and disposable local
-servers; no external backend is used as a test fixture.
-Report actual commands, first failures/skips and limits in the task or terminal.
+## Run application acceptance
+
+Use the [synthetic API](api-fixture.md) with the production website build and
+verified Chromium. Browser profiles reuse the prepared standalone output, so
+source or output changes require a new build. Hosted CI reuses the exact
+successful build artifact, while the local full profile runs the required
+checks sequentially within one export. [Validation](validation.md)
+
+The fixture exercises the website's local HTTP contracts. Runner owner tests
+use synthetic SDK files and child processes to exercise tooling. External API
+compatibility, hosted checks, visual approval and deployed behavior each need
+results from their own execution.

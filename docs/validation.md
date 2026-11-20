@@ -1,8 +1,78 @@
-# Validate the exact proposed tree
+# Validate a source change
 
-Use this procedure before every authorized commit, push or PR handoff, including
-documentation-only work. The [manifest](../.agents/validation.json) owns all
-required check commands and their full-profile order.
+The [validation manifest](../.agents/validation.json) defines check commands,
+profiles and execution order.
+Follow this procedure before every authorized commit, push or PR handoff,
+including documentation changes. Work on a platform with reviewed visual
+baselines. The current baseline set is for Windows.
+
+## Prepare an owned export
+
+1. Review the proposed public files against the
+   [source inventory](../.github/bootstrap-policy.json). Include admitted
+   untracked files that belong to the proposed tree.
+2. Export those reviewed files to a fresh, owned subdirectory under ignored
+   `coverage/`. Reject links, unsafe paths, Git metadata, runtime dotenv files,
+   credentials, dependencies and generated output. Use the export for verification.
+3. Compare the source and export bytes. Record the reviewed tree or content
+   fingerprint and recreate the export if a proposed file changes.
+
+A verified Git tree object may be exported with `git archive`; do not export
+HEAD when it differs from the proposed bytes. Do not stage the real index merely
+to obtain an export. A temporary index/tree object grants no commit permission.
+Keep source/export under one writer and restart if any proposed byte changes.
+
+## Install and run all checks
+
+1. Select the exact Node version in [.nvmrc](../.nvmrc) and its npm. Activate a
+   disposable CPython 3.14.4 environment for the font tools. Create separate
+   empty npm configuration files in the export's owned parent and set
+   `NPM_CONFIG_USERCONFIG` and `NPM_CONFIG_GLOBALCONFIG` to their absolute paths.
+2. In the export, set the [public loopback environment](development.md#set-explicit-local-inputs).
+   Keep the site and API ports distinct and free, and leave `PLAYWRIGHT_BROWSERS_PATH=0`
+   set for installation and checks. The browser runner starts the local fixture.
+3. Install the locked dependencies and project-local Chromium from the export root.
+
+   ```sh
+   npm ci --strict-peer-deps
+   python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt
+   node node_modules/@playwright/test/cli.js install chromium
+   ```
+
+4. Run the full profile in the same environment after all installations succeed.
+
+   ```sh
+   npm run validate -- full
+   ```
+
+   The profile should exit successfully after the production build, browser
+   journeys, both CSP modes and visual comparison pass. The browser profiles
+   reuse the single verified build sequentially.
+
+Stop at the first failed command and preserve its error. Use fresh locked
+installs and keep the readiness marker, required checks and reviewed baselines
+intact. [Troubleshoot setup and checks](troubleshooting.md)
+
+The [Python wheel lock](../font-source/requirements.txt) covers x64 Windows and
+x64 and Arm64 on glibc Linux and macOS. Browser comparison also requires reviewed
+baseline metadata for the current platform. [Visual regression](visual-regression.md)
+
+## Record the result and clean up
+
+Record the exact tree/fingerprint, runtime versions, fresh install, all required
+check outcomes, first failures/skips and source/export comparison.
+Keep unit coverage at 90% and governance coverage at 80%, with all executable
+tooling measured and no suppressions or exclusions.
+
+Before recursive cleanup, verify the resolved absolute export/environment paths
+belong to this run and remain inside its owned ignored `coverage/` parent.
+Delete only owned resources and preserve original failure logs in the task.
+A saved report requires an explicit request and belongs under ignored
+`test-results/`.
+
+Do not stage or commit if any required check fails or cannot run.
+Passing local validation grants no commit, push, remote review or merge authority.
+Hosted CI, Sonar and CodeRabbit results remain separate [review evidence](reviews.md).
 
 ## Local and hosted execution
 
@@ -29,77 +99,26 @@ separate shell or Python analysis.
 
 The separate jobs appear beside the required `check` aggregate. That aggregate
 accepts only success from every producer and never executes the gate again.
-Unit and governance jobs each record and upload their measured coverage once;
-Sonar verifies both suite artifacts directly before analysis. CodeQL remains its
-own hosted security workflow. A single Windows build owns dead-code analysis,
-the production build and bundle budgets. Its immutable artifact contains the
-prepared `.next` output, excluding the known build caches and standalone runtime
-route cache, and source/environment/toolchain/output
-proofs. Every browser job verifies the original build producer's attempt and
-exact output before its own acceptance profile; no browser job builds again.
+Unit and governance jobs each record and upload their measured coverage once.
+Before analysis, Sonar verifies both suite artifacts and checks that measured
+source files belong to the attested Git tree. LCOV lines must fall within their
+source files.
+CodeQL remains its own hosted security workflow. A single Windows build owns
+dead-code analysis, the production build and bundle budgets. Its immutable
+artifact contains the prepared `.next` output and records the source,
+environment, toolchain and output. It excludes the known build caches and
+standalone runtime route cache. Each browser job verifies the build producer's
+attempt and output before its acceptance profile and reuses the prepared build.
 Immutable server code and static assets remain fully hashed; the route cache
 may be populated by requests after verification.
+Before hashing, build preparation materializes Next's exact generated PostCSS
+aliases from each tree's own locked package into bounded ordinary copies. Other
+links, nested package links and unexpected targets remain errors; verification
+never repairs or follows a link introduced after the build was recorded.
 Artifact names include run and producer attempt, digest mismatches fail, and
 changed source, semantic environment, toolchain or output bytes reject reuse.
+Each browser check verifies the same build again after its owned run finishes.
+A changed build fails the check even if the browser passes. CSP rechecks between
+enforce and report-only runs. Visual reuse rechecks before reporting a pass.
 Typechecking includes the authored suites through the
 [tooling project](../tsconfig.tooling.json); compilation alone supplies no browser execution evidence.
-
-## Prepare an owned export
-
-Identify the exact proposed public bytes, including admitted untracked changes,
-and review them against the [inventory](../.github/bootstrap-policy.json).
-Create a fresh disposable source export under an owned ignored `coverage/`
-subdirectory. Keep it verification-only; never use it for implementation.
-Include only those reviewed inventory files; reject links, unsafe paths, Git
-metadata, dotenv, credentials, dependencies and generated output.
-Compare source/export bytes and record the reviewed tree or content fingerprint.
-
-A verified Git tree object may be exported with `git archive`; do not export
-HEAD when it differs from the proposed bytes. Do not stage the real index merely
-to obtain an export. A temporary index/tree object grants no commit permission.
-The export is a verification fixture, not another implementation checkout.
-Keep source/export under one writer and restart if any proposed byte changes.
-
-## Install and run all checks
-
-Use the exact Node version from [.nvmrc](../.nvmrc) and its npm.
-In the export, create separate empty npm user/global configuration files in the
-owned temporary parent and select them with `NPM_CONFIG_USERCONFIG` and
-`NPM_CONFIG_GLOBALCONFIG`. Use a disposable CPython 3.14.4 environment for the
-font tools. Install both sets of dependencies before running the full profile:
-
-```text
-npm ci
-python -m pip install --require-hashes --only-binary :all: --requirement font-source/requirements.txt
-npm run validate -- full
-```
-
-Stop on any failed command. Do not reuse installed dependencies, read private
-npm configuration, alter the lockfile or skip checks to obtain a pass.
-The [wheel lock](../font-source/requirements.txt) covers x64 Windows and x64
-and Arm64 on glibc Linux and macOS. The installed Playwright SDK must also provision its reviewed bundled Chromium
-with `PLAYWRIGHT_BROWSERS_PATH=0` inside the disposable export.
-
-The full profile executes the real production build, browser/CSP journeys and
-current visual comparison sequentially under one writer, using one verified
-production build across the browser profiles. Supply explicit public
-loopback origins on distinct website/API ports, use this repository's synthetic
-HTTP fixture, and preserve reviewed baseline bytes and dates. Never toggle the
-source marker to bypass missing composition or use a real backend as a fixture.
-
-## Record the result and clean up
-
-Record the exact tree/fingerprint, runtime versions, fresh install, all required
-check outcomes, first failures/skips and source/export comparison.
-Keep unit coverage at 90% and governance coverage at 80%, with all executable
-tooling measured and no suppressions or exclusions.
-
-Before recursive cleanup, verify the resolved absolute export/environment paths
-belong to this run and remain inside its owned ignored `coverage/` parent.
-Delete only owned resources and preserve original failure logs in the task.
-A saved report requires an explicit request and belongs under ignored
-`test-results/`.
-
-Do not stage or commit if any required check fails or cannot run.
-Passing local validation grants no commit, push, remote review or merge authority.
-Hosted CI, Sonar and CodeRabbit results remain separate [review evidence](reviews.md).

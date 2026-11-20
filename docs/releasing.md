@@ -1,11 +1,7 @@
-# Prepare version metadata and publish a release
+# Publish release metadata
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-This guide covers the release PR/tag workflow. To build a local artifact, use
-[deployment](deployment.md); to choose a manual check or package workflow, use
-[operations](release-operations.md). A local package and a published version are
-separate results.
+Use this guide to prepare a version PR and publish its tag and GitHub release.
+For an immutable website package, see [deployment](deployment.md).
 
 ## Version sources
 
@@ -13,8 +9,9 @@ The root [package](../package.json), [version manifest](../.release-please-manif
 and [changelog](../CHANGELOG.md) are maintained source. The
 [release configuration](../release-please-config.json) selects the Node release
 strategy for this one package and configures a `v` tag prefix. Conventional
-Commit titles supply versioning input. Existing metadata or a changelog entry
-alone does not prove a release/tag was published.
+Commit titles supply versioning input.
+Verify the tag and GitHub release in the repository. A changelog entry or
+version setting alone does not establish a published release.
 
 ## Prepare the release workflow
 
@@ -32,13 +29,13 @@ alone does not prove a release/tag was published.
 4. Obtain authorization for the actual main-only remote workflow action and any
    later merge/publication. Local preparation does not grant those effects.
 
-The [Release workflow](../.github/workflows/release.yml) has manual dispatch and a
-`main` guard. It invokes the pinned release-please action with the local config
-and manifest. An authorized operator can select **Release** in the repository's
-Actions UI, choose `main` and dispatch it. The expected result depends on the
-current commit/release state: inspect the actual action result and resulting
-release PR or published release/tag. Do not infer publication from dispatch or a
-successful configuration check.
+In GitHub Actions, select **Release**, choose `main` and dispatch the
+[workflow](../.github/workflows/release.yml) after authorization. It runs the
+pinned release-please action with the local config and manifest. Inspect the job
+output and follow the URL for any created or updated release PR. After the
+release PR is merged, verify the release and tag produced by an authorized
+dispatch. If nothing was created, check the job output against the selected
+`main` revision and existing release metadata.
 
 ## Review and verify publication
 

@@ -1,16 +1,12 @@
-# Authentication boundary review
+# Review authentication and sessions
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+Use this checklist when changing authentication, sessions or related operations.
 
-The [publication marker](../.github/bootstrap-policy.json) distinguishes
-false-marker helper evidence from runnable application acceptance. The
-[API forwarding helper](../src/shared/api/proxy.ts) and
-[owner tests](../src/shared/api/proxy.test.ts) use synthetic Web requests,
-responses and streams. They do not establish a mounted route, real API session
-or browser cookie isolation. The [application contract](application.md)
-requires separate exact-tree execution. Read the complete
-[server boundary](server-boundary.md), [session](session.md) and
-[forms](forms.md) contracts before changing authentication behavior.
+Review the [HTTP forwarding contract](server-boundary.md),
+[session ownership](session.md) and [form behavior](forms.md) before changing an
+authentication flow.
+
+## Inspect the proxy and cookies
 
 Review the route/method allowlist, exact mutation Origin check, bounded JSON input,
 timeout/cancellation, manual upstream redirects and generic failure responses.
@@ -20,7 +16,10 @@ bearer/refresh fields recursively; this is not a general detector for arbitrary
 credentials. Forwarded Set-Cookie values are preserved, while authentication,
 authorization, cookie attributes, password handling, OTP and session revocation
 remain owned by the configured HTTP backend. Opaque sessions alone do not establish refresh
-rotation or reuse detection.
+rotation or reuse detection. Exercise the forwarding rules with synthetic
+requests, responses and streams. [API proxy tests](../src/shared/api/proxy.test.ts)
+
+## Exercise session and form ownership
 
 Local session and operation-scope tests cover account/locale/generation ownership,
 cleanup and invalidation of stale reads, accepted mutations and mount captures.
@@ -32,13 +31,14 @@ one already accepted by the API. Preserve exact password whitespace from form
 values through the HTTP operations. Local tests do not establish live backend
 authentication, browser navigation or deployed cookie behavior.
 
+## Verify the running application and gateway
+
 Local application acceptance exercises auth/account journeys, errors, unavailable
 settings, browser cookie isolation, actual CSP headers, cache behavior and
 credential-safe output against this repository's
-[synthetic HTTP fixture](api-fixture.md). The [pure CSP helper](website-csp.md)
-does not wire those responses. Disposable Docker smoke can additionally exercise
-its owned gateway with the fixture; neither result establishes an external
-backend's authentication or persistence.
+[synthetic HTTP fixture](api-fixture.md). Use
+[application acceptance](application.md) for the exact-tree checks and
+[Docker smoke](../deploy/docker/README.md) for the disposable gateway procedure.
 
 Deployment acceptance separately verifies the selected authorized target and HTTP
 backend, including trusted Host/protocol and gateway forwarding, browser cookie

@@ -1,48 +1,39 @@
 # Understand this publication
 
-The current publication phase is **operations** and application readiness is **true**. The marker describes admitted source, not a successful local run, hosted check or deployment.
-
-The [source policy](../.github/bootstrap-policy.json) is the exact admitted inventory of 382 files. Read the actual owners and marker before claiming delivery. Keep one independently installable website package and use its own setup, contracts and fixtures.
+The publication phase is **operations** and application readiness is **true**.
+The [source policy](../.github/bootstrap-policy.json) lists the admitted files.
+Keep one independently installable website package with its own setup,
+contracts and fixtures.
 
 ## Published source
 
-- Authentication flows, HTTP consumers and session ownership.
-- Account forms, contracts and requests.
-- Home reveal behavior and shared frontend controls.
-- SEO, CSP and optional Web Vitals delivery helpers.
-- Pure local catalogs: ten JSON message resources and three TypeScript catalog contracts/tests.
-- Licensed font source and real font verification.
-- Guarded Node runners and their lifecycle/input owner tests.
-- A local synthetic HTTP fixture with disposable in-memory accounts and sessions.
-- Standalone preparation, release-file, rendering and health-check helpers, plus
-  Docker, Compose, Nginx and systemd reference templates.
-- Guarded browser inputs, Playwright configuration, visual/CSP runners and
-  deterministic bundle-measurement helpers with Node owner tests.
-- Authored typed website, visual, smoke and staging suites, with retained
-  Windows baseline images and historical capture metadata.
-- Manual package/smoke/staging wrappers, disposable Docker smoke and advisory
-  Lighthouse sampling with owned-resource and cleanup tests.
-- Main-only manual release, package, staging, deployment-smoke and DAST workflows,
-  plus maintained version metadata and operational procedures.
+- Routes, shell, providers and HTTP adapters for Home, authentication and
+  accounts. [Application composition](application.md)
+- Public articles, archives and private preview, native FAQ disclosures and
+  anonymous contact submissions. [Blog](blog.md), [FAQ](faq.md) and [contact](contact.md)
+- Ten local catalogs, API-selected language, direction and calendar, and
+  licensed self-hosted fonts. [Localization](localization.md) and [font integrity](fonts.md)
+- SEO, CSP and optional Web Vitals delivery. [SEO](seo.md), [CSP](website-csp.md)
+  and [website performance](website-performance.md)
+- Guarded Node and browser runners, a disposable in-memory HTTP fixture,
+  typed browser suites and reviewed Windows visual baselines.
+  [Runner contracts](runner-foundation.md), [fixture](api-fixture.md) and
+  [visual regression](visual-regression.md)
+- Standalone build preparation, packaging, deployment templates and manual
+  release, package, staging, deployment-smoke and DAST workflows on `main`.
+  [Deployment](deployment.md) and [release operations](release-operations.md)
 
-Application routes, shell, providers and HTTP adapters are delivered with the
-existing guarded tooling. The [application guide](application.md) describes the
-composition. The marker does not prove a successful build, browser execution,
-visual comparison, container deployment or external backend compatibility.
-The canonical gate must actually exercise the local HTTP fixture and verified
-browser; no existing service may substitute for those disposable resources.
+## Verify the proposed source
 
-The [manifest](../.agents/validation.json) registers only the actual check scope. [Testing](testing.md) defines evidence limits and [validation](validation.md) owns fresh exact-tree acceptance.
+Run the canonical `full` profile on a fresh verification-only export of the
+proposed source. It exercises the local HTTP fixture and verified browser and
+uses the pinned Python tooling to regenerate font subsets in memory and measure
+coverage. Use the [check manifest](../.agents/validation.json) and
+[validation procedure](validation.md).
 
-Manual operations and advisory measurements stay outside the required full profile.
-They require their own inputs, authorization and observed acceptance under
-[operations](release-operations.md); publication proves no executed deployment,
-container, release, external scan or performance lab.
+Manual package, smoke, staging and Docker checks and advisory Lighthouse
+sampling have separate inputs, authorization and execution evidence. See
+[release operations](release-operations.md).
 
-Real font verification requires Python 3.14.4 and the pinned dependencies in an owned disposable validation environment; actual binary regeneration and measured Python coverage remain required.
-
-Application composition is delivered with its exact import boundaries and tests.
-Readiness does not replace execution: run the complete gate against this source,
-the disposable HTTP fixture and the reviewed browser before claiming acceptance.
-
-Keep [ordinary review protection](branch-protection.md) throughout an explicitly authorized stack. Missing trusted default-branch checks remain blockers; there is no automatic bootstrap waiver.
+Apply [branch protection](branch-protection.md) throughout an authorized PR
+stack. Missing trusted default-branch checks still block merge.

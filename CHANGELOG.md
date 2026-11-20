@@ -1,14 +1,18 @@
 # Changelog
 
-Read the current [source scope](docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
+Release Please generates versioned entries from the commit history.
+Verify the existence and source revision of a tag or release using the
+[publication procedure](docs/releasing.md#review-and-verify-publication).
 
-This file records proposed or released website changes. Release Please owns
-versioned entries according to [release configuration](docs/releasing.md).
+## Unreleased
 
-A versioned entry, even after merging into main, does not prove that its tag or
-GitHub release exists. Verify the actual publication using the
-[release procedure](docs/releasing.md#review-and-verify-publication).
+### Added
 
-The package's `1.0.0` metadata does not establish that a website tag, package or
-deployment was published. Add release entries through the authorized release
-workflow; keep QA outcomes in the task or explicitly requested local reports.
+- Published articles, category archives, media and private article preview. [Blog](docs/blog.md)
+- A public contact form with duplicate-safe retries and a paginated FAQ with native disclosures. [Contact](docs/contact.md) · [FAQs](docs/faq.md)
+
+### Changed
+
+- Aligned the account permission type with Kernel Admin's content, category and file permissions.
+- Updated Node to `24.22.2` and refreshed compatible npm packages, including Next.js `16.4.6`, next-intl `4.15.3`, Vitest `5.1.1` and ESLint `10.15.0`. [Package manifest](package.json) · [Lockfile](package-lock.json)
+- Browser checks verify the same build after execution. Coverage evidence checks measured paths against the Git tree, and smoke and staging checks require successful same-origin asset delivery. [Validation](docs/validation.md) · [Staging](docs/staging.md)

@@ -402,6 +402,8 @@ const reviewedAdditions = {
     "src/shared/settings/server.ts",
   ],
   operations: [
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
     "src/app/faq/[[...path]]/page.tsx",
     "src/features/faq/Faq.tsx",
     "src/features/faq/api.ts",
