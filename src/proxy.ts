@@ -49,6 +49,7 @@ export function proxy(request: NextRequest) {
     "/register",
     "/forgot-password",
     "/account",
+    "/preview",
   ].some((route) => path === route || path.startsWith(`${route}/`));
   if (utility || !readSeoConfig().indexable)
     response.headers.set(

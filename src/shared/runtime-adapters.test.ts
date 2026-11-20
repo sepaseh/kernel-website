@@ -92,12 +92,15 @@ describe("server request adapters", () => {
   it("reads uncached API language settings after the framework connection boundary", async () => {
     const fetch = vi.fn(async () => {
       expect(framework.connection).toHaveBeenCalled();
-      return Response.json({ language: { code: "en", direction: "rtl" } });
+      return Response.json({
+        language: { code: "en", direction: "rtl", calendar: "gregorian" },
+      });
     });
     vi.stubGlobal("fetch", fetch);
     expect(await getWebsiteLanguage()).toEqual({
       code: "en",
       direction: "rtl",
+      calendar: "gregorian",
     });
     expect(fetch).toHaveBeenCalledWith(
       new URL("http://127.0.0.1:3100/settings"),
@@ -122,7 +125,9 @@ describe("server request adapters", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        Response.json({ language: { code: "fa", direction: "ltr" } }),
+        Response.json({
+          language: { code: "fa", direction: "ltr", calendar: "jalali" },
+        }),
       ),
     );
     const configuration = await requestConfiguration({
@@ -137,6 +142,10 @@ describe("server request adapters", () => {
 
 describe("framework metadata routes", () => {
   it("publishes only the explicit public origin and no fabricated modification time", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ items: [], total: 0 })),
+    );
     expect(await robots()).toEqual({
       rules: { userAgent: "*", allow: "/", disallow: "/api/" },
       sitemap: "https://website.example.test/sitemap.xml",

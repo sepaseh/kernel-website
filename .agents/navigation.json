@@ -2,6 +2,55 @@
   "schemaVersion": 1,
   "tasks": [
     {
+      "id": "public-blog",
+      "when": "Change published article/archive routes, canonical IDs, safe HTML/media, sitemap or scoped working-copy preview.",
+      "owners": [
+        "src/features/blog/api.ts",
+        "src/features/blog/Article.tsx",
+        "src/features/blog/Archive.tsx",
+        "src/features/blog/content.ts",
+        "src/features/blog/media.ts",
+        "src/features/blog/preview.ts",
+        "src/features/blog/seo.ts",
+        "src/features/blog/server.ts",
+        "src/app/sitemap.ts"
+      ],
+      "contracts": [
+        "src/features/blog/types.ts",
+        "src/features/blog/paths.ts",
+        "docs/blog.md"
+      ],
+      "tests": [
+        "src/features/blog/api.test.ts",
+        "src/features/blog/blog.test.tsx",
+        "src/features/blog/media.test.ts",
+        "src/features/blog/preview.test.ts",
+        "e2e/website/blog.spec.ts",
+        "scripts/website-api-fixture.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "guidance",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "format",
+        "unit-coverage",
+        "governance-coverage",
+        "dead-code",
+        "build",
+        "e2e",
+        "visual"
+      ],
+      "rules": [
+        ".agents/rules/api-collection.md",
+        ".agents/rules/imports.md",
+        ".agents/rules/localization.md",
+        ".agents/rules/testing.md",
+        ".agents/rules/website.md"
+      ]
+    },
+    {
       "id": "governance-validation",
       "when": "Change the declared governance snapshot, boundaries, check agreement or assistant guidance.",
       "owners": [
