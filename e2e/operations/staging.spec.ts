@@ -13,14 +13,13 @@ test("authorized staging serves canonical routes, local assets, noindex and nonc
   expect(targets?.mode).toBe("staging");
   const origin = new URL(targets.baseUrl).origin;
   const failed: string[] = [];
+  let sawSuccessfulLocalAsset = false;
   page.on("response", (response) => {
-    if (
-      ["font", "script", "stylesheet"].includes(
-        response.request().resourceType(),
-      ) &&
-      (!response.ok() || new URL(response.url()).origin !== origin)
-    )
+    const type = response.request().resourceType();
+    if (!["font", "script", "stylesheet"].includes(type)) return;
+    if (!response.ok() || new URL(response.url()).origin !== origin)
       failed.push(response.url());
+    else sawSuccessfulLocalAsset = true;
   });
   page.on("requestfailed", (request) => {
     if (["font", "script", "stylesheet"].includes(request.resourceType()))
@@ -40,6 +39,10 @@ test("authorized staging serves canonical routes, local assets, noindex and nonc
     expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   }
   expect(failed).toEqual([]);
+  expect(
+    sawSuccessfulLocalAsset,
+    "Expected a successful same-origin asset response",
+  ).toBe(true);
   const health = await request.get(targets.apiHealthUrl, {
     maxRedirects: 0,
   });

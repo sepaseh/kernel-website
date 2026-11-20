@@ -13,14 +13,13 @@ test("authorized release serves its expected marker, standalone assets and API h
   expect(targets?.mode).toBe("smoke");
   const origin = new URL(targets.baseUrl).origin;
   const failed: string[] = [];
+  let sawSuccessfulLocalAsset = false;
   page.on("response", (response) => {
-    if (
-      ["font", "script", "stylesheet"].includes(
-        response.request().resourceType(),
-      ) &&
-      !response.ok()
-    )
-      failed.push(response.url());
+    const type = response.request().resourceType();
+    if (!["font", "script", "stylesheet"].includes(type)) return;
+    if (!response.ok()) failed.push(response.url());
+    else if (new URL(response.url()).origin === origin)
+      sawSuccessfulLocalAsset = true;
   });
   page.on("requestfailed", (request) => {
     if (["font", "script", "stylesheet"].includes(request.resourceType()))
@@ -32,6 +31,10 @@ test("authorized release serves its expected marker, standalone assets and API h
     await expect(page.locator("form")).toBeVisible();
   }
   expect(failed).toEqual([]);
+  expect(
+    sawSuccessfulLocalAsset,
+    "Expected a successful same-origin asset response",
+  ).toBe(true);
   const release = await request.get("/_kernel/release", { maxRedirects: 0 });
   expect(release.status()).toBe(200);
   expect((await release.json()).release).toBe(targets.deploymentId);

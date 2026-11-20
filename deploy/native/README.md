@@ -1,26 +1,20 @@
-# Native Linux installation reference
+# Native Linux deployment
 
-Read the current [source scope](../../docs/bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use this reference to review a Linux systemd/Nginx installation of a verified
-[standalone package](../../docs/deployment.md). The supplied files are templates;
-this page records no installed service, successful Linux runtime, ACME issuance
-or renewal. Actual host changes require explicit operator authorization and
-verification on the intended OS/architecture/Node version.
-
-The current `runners-foundation` phase has `applicationReady: false`. Packaging,
-template-rendering and health-check CLIs reject it, and the service preflight
-blocks startup. The sequence below applies only after runnable composition and
-application acceptance are delivered. Do not alter the marker to activate these
-templates; isolated owner tests establish helper contracts only.
+Use this guide to install an immutable release on an authorized Linux host.
+See [deployment](../../docs/deployment.md) for the release and verification
+procedure.
+Complete application acceptance on the intended platform and install the verified
+standalone package. The current operations phase delivers the application. The
+service checks the packaged readiness marker and public production settings
+before startup.
 
 ## Prepare the artifact and public configuration
 
-Build/package on the intended platform and complete
-[exact-tree validation](../../docs/validation.md) plus the delivered application's
-runtime acceptance. Review the package's `release.json`,
-source/build identity and API compatibility. Keep immutable releases separate
-from installed configuration, TLS keys and API-owned data.
+Build and package on the intended OS and architecture. Complete
+[exact-tree validation](../../docs/validation.md), then compare `release.json`
+with the selected release ID, build ID, platform and Node version from
+[.nvmrc](../../.nvmrc). Keep immutable releases separate from installed
+configuration, TLS keys and API-owned data.
 
 The [service](systemd/kernel-website.service) expects:
 
@@ -42,8 +36,9 @@ or immutable releases.
 
 [nginx.env.example](nginx.env.example) contains public rendering fields:
 `WEBSITE_HOST`, `TLS_CERTIFICATE`, `TLS_CERTIFICATE_KEY`, `RELEASE_ID` and
-`HTTPS_PORT`. The native Nginx templates listen on `80/443`; `HTTPS_PORT` supplies
-the public redirect/forwarding port, not a replacement listen directive.
+`HTTPS_PORT`. The native TLS template listens on ports 80 and 443. Set
+`HTTPS_PORT` to the client-facing HTTPS port used in redirects and forwarded
+requests. A different public port needs a corresponding listener or edge mapping.
 
 ## Render and review the edge
 
@@ -73,8 +68,8 @@ An operator must resolve and verify these host-specific steps before activation:
    mapping/ownership. The unit restricts writes to its service cache; do not
    loosen `ProtectSystem=strict` merely to conceal a permission failure.
 4. Install the reviewed systemd/Nginx configuration through the host's normal
-   managed process. Validate Nginx syntax and resolve shared-listener conflicts
-   before reloading it. Provision/verify the real TLS certificate separately.
+   managed process. Run `nginx -t` and resolve syntax or shared-listener failures
+   before reloading. Provision and verify the TLS certificate separately.
 5. Start the selected service, inspect its startup outcome and run the explicit
    readiness check below. Confirm assets/fonts, cookies, private/no-store and CSP
    through the actual edge before accepting the installation.
@@ -86,16 +81,17 @@ Template inspection and local copy tests do not verify these host steps.
 
 ## Verify and roll back
 
-After the authorized service is listening at the template's loopback port:
+Check the active systemd unit and the selected release at the loopback port.
 
 ```sh
-node /srv/kernel-website/current/scripts/healthcheck.mjs website http://127.0.0.1:3001/login
+systemctl is-active kernel-website.service
+/usr/bin/node /srv/kernel-website/current/scripts/healthcheck.mjs website http://127.0.0.1:3001/login
 ```
 
-Expected success is exit zero for a 200 HTML response. Check the actual running
-build as well as `/_kernel/release`; the marker alone does not identify all
-website bytes. Inspect the service's journal for the selected release without
-exposing private values.
+Expect `active` from systemd and a successful health-check exit for a 200 HTML
+response. If either fails, inspect the unit's startup result and journal without
+sharing private values. Check the running build against the package and confirm
+that the public `/_kernel/release` response matches the selected release ID.
 
 For authorized rollback, atomically reselect the previous verified artifact,
 restore its matching public edge/configuration and cache ownership, restart via

@@ -1,10 +1,7 @@
 # Choose and run an operational check
 
-Read the current [source scope](bootstrap.md) before using this reference. Published source and constraints do not themselves establish execution, compatibility or deployment.
-
-Use this index after [application validation](validation.md). Manual operations
-and advisory measurements have separate inputs and authorization; none belongs
-to the canonical `full` profile.
+Complete [application validation](validation.md) before preparing a release.
+Choose the manual operation or advisory measurement for the outcome you need.
 
 ## Choose the operation
 
@@ -23,20 +20,19 @@ name or ready source marker does not establish its successful execution.
 
 ## Distinguish the workflows
 
-| Workflow source                                               | Trigger and effect                                                                                                      |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| [Release](../.github/workflows/release.yml)                   | Authorized main-only manual release-please run; creates/updates release metadata and PR/tag lifecycle                   |
-| [Package](../.github/workflows/package-release.yml)           | Authorized main-only manual run with `release_id`; builds with the local HTTP fixture, packages and uploads an artifact |
-| [Staging](../.github/workflows/staging.yml)                   | Authorized main-only manual external browser check                                                                      |
-| [Deployment smoke](../.github/workflows/deployment-smoke.yml) | Authorized main-only manual check of a selected deployed release                                                        |
-| [DAST](../.github/workflows/dast.yml)                         | Authorized main-only manual scan after target preflight                                                                 |
-| [CodeQL](../.github/workflows/codeql.yml)                     | Configured main/PR/scheduled analysis, plus manual dispatch                                                             |
+| Workflow source                                               | Trigger and effect                                                                                                           |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [Release](../.github/workflows/release.yml)                   | Authorized main-only manual release-please run; creates/updates release metadata and PR/tag lifecycle                        |
+| [Package](../.github/workflows/package-release.yml)           | Authorized main-only manual run with `release_id`; builds with synthetic loopback settings, packages and uploads an artifact |
+| [Staging](../.github/workflows/staging.yml)                   | Authorized main-only manual external browser check                                                                           |
+| [Deployment smoke](../.github/workflows/deployment-smoke.yml) | Authorized main-only manual check of a selected deployed release                                                             |
+| [DAST](../.github/workflows/dast.yml)                         | Authorized main-only manual scan after target preflight                                                                      |
+| [CodeQL](../.github/workflows/codeql.yml)                     | Configured main/PR/scheduled analysis, plus manual dispatch                                                                  |
 
-[Versioning and tags](releasing.md) owns release-please preparation. The package
-workflow uploads a build artifact; it does not install it on a host. No workflow
-in this table is evidence that a container, scan, release or target passed.
-Native Sonar, CodeRabbit and protected checks retain their separate
-[review requirements](sonarqube.md).
+[Versioning and tags](releasing.md) owns release-please preparation. For a
+successful package run, inspect `website-release-<run-id>` under the run's
+artifacts and compare the included `release.json` with the requested ID and
+source run. For installation, use the selected [deployment procedure](deployment.md).
 
 ## Prepare, observe and clean up
 
@@ -56,8 +52,7 @@ resource names, checks ownership and attempts independent cleanup despite
 failures. Its injected tests establish that contract, not successful engine
 removal. Deployment images retained for rollback have a separate lifecycle.
 
-Target validators are pure lexical checks. They neither make allowlists trusted
-nor establish DNS/redirect safety or a non-production identity. Follow
-[staging](staging.md) before external requests and [deployment](deployment.md)
-before service activation. Record actual results in the task or terminal; keep
-command-generated artifacts ignored and create extra QA reports only on request.
+For external checks, verify DNS, redirects and target ownership under
+[staging](staging.md) before sending requests. Record actual results in the task
+or terminal. Keep command-generated artifacts ignored and create extra QA
+reports only on request.

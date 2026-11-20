@@ -11,11 +11,8 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 NEXT_TELEMETRY_DISABLED=1
 RUN npm ci --ignore-scripts
 
 FROM dependencies AS build
-COPY src ./src
-COPY public ./public
-COPY next-env.d.ts next.config.ts tsconfig.json postcss.config.mjs performance-budget.json ./
-# The build command owns readiness, environment and bundle checks through these helpers.
-COPY scripts ./scripts
+# .dockerignore admits only the exact public inventory, including proof inputs.
+COPY . .
 ENV NODE_ENV=production API_BASE_URL=http://127.0.0.1:3100 HOSTNAME=127.0.0.1 PORT=3010 \
     WEBSITE_URL=http://127.0.0.1:3010 WEBSITE_INDEXING_ENABLED=false \
     WEBSITE_CSP_MODE=enforce KERNEL_SYNTHETIC_ENV=1
