@@ -36,10 +36,12 @@ describe("administrator-configured website language", () => {
     expect(await loadWebsiteLanguage()).toEqual({
       code: "en",
       direction: "ltr",
+      calendar: "gregorian",
     });
     expect(await loadWebsiteLanguage()).toEqual({
       code: "fa",
       direction: "rtl",
+      calendar: "jalali",
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     for (const [, init] of fetch.mock.calls)
@@ -58,7 +60,11 @@ describe("administrator-configured website language", () => {
         .mockResolvedValue(Response.json(settings(code, direction)));
       vi.stubGlobal("fetch", fetch);
 
-      expect(await loadWebsiteLanguage()).toEqual({ code, direction });
+      expect(await loadWebsiteLanguage()).toEqual({
+        code,
+        direction,
+        calendar: settings(code, direction).language.calendar,
+      });
       const [url, init] = fetch.mock.calls[0];
       expect(String(url)).toBe("http://127.0.0.1:3100/settings");
       expect(init.cache).toBe("no-store");
@@ -72,6 +78,29 @@ describe("administrator-configured website language", () => {
     },
   );
 
+  it.each([
+    ["fa", "gregorian"],
+    ["en", "jalali"],
+  ])(
+    "honors locale %s with independent calendar %s",
+    async (code, calendar) => {
+      const value = settings(code, "ltr");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json({
+            ...value,
+            language: { ...value.language, calendar },
+          }),
+        ),
+      );
+      expect(await loadWebsiteLanguage()).toEqual({
+        code,
+        direction: "ltr",
+        calendar,
+      });
+    },
+  );
   it("rejects an unsupported persisted language instead of silently choosing English", async () => {
     vi.stubGlobal(
       "fetch",
@@ -98,6 +127,8 @@ describe("administrator-configured website language", () => {
     { language: { code: "ar", direction: "" } },
     { language: { code: "de", direction: null } },
     { language: { code: "en", direction: 1 } },
+    { language: { code: "en", direction: "ltr" } },
+    { language: { code: "en", direction: "ltr", calendar: "unknown" } },
   ])("rejects malformed settings: %j", async (value) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(value)));
     await expect(loadWebsiteLanguage()).rejects.toMatchObject({

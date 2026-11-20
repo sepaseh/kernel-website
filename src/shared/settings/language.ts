@@ -3,7 +3,10 @@ import { getApiBaseUrl } from "@/shared/api/origin";
 
 import { type PublicSettingsResponse, SettingsPaths } from "./contracts";
 
-type WebsiteLanguage = Pick<PublicSettingsResponse["language"], "direction"> & {
+type WebsiteLanguage = Pick<
+  PublicSettingsResponse["language"],
+  "calendar" | "direction"
+> & {
   code: LocaleCode;
 };
 
@@ -48,7 +51,16 @@ function readLanguage(value: unknown): WebsiteLanguage {
   ) {
     throw new WebsiteSettingsError("invalid-settings");
   }
-  return { code: locale, direction: language.direction };
+  if (
+    !("calendar" in language) ||
+    (language.calendar !== "gregorian" && language.calendar !== "jalali")
+  )
+    throw new WebsiteSettingsError("invalid-settings");
+  return {
+    code: locale,
+    direction: language.direction,
+    calendar: language.calendar,
+  };
 }
 
 export async function loadWebsiteLanguage(): Promise<WebsiteLanguage> {

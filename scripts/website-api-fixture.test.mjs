@@ -762,6 +762,122 @@ test("password changes and recovery preserve exact strings, reject invalid codes
   await login(request, number, recovered);
 });
 
+test("blog reads keep working copies private and paginate published projections", async (t) => {
+  const { request } = await fixture(t);
+  const categoryId = "11111111-1111-4111-8111-111111111111";
+  const listed = await (
+    await request("/public/posts?offset=12&size=12")
+  ).json();
+  assert.equal(listed.total, 13);
+  assert.equal(listed.items.length, 1);
+  assert.equal(listed.items[0].body, undefined);
+  assert.equal((await request("/public/posts?size=101")).status, 400);
+  assert.equal((await request("/public/posts?offset=-1")).status, 400);
+  assert.equal(
+    (await (await request("/public/posts?category_id=unknown")).json()).total,
+    0,
+  );
+  assert.equal(
+    (await (await request(`/public/posts?category_id=${categoryId}`)).json())
+      .total,
+    13,
+  );
+  const detail = await request("/public/posts/48629173");
+  assert.equal(detail.status, 200);
+  assert.match((await detail.json()).body, /server-rendered HTML/);
+  assert.equal((await request("/public/posts/87654321")).status, 404);
+  assert.equal((await request("/public/posts/99999999")).status, 404);
+  assert.equal(
+    (await (await request("/public/posts/sitemap?offset=0&size=1000")).json())
+      .items.length,
+    13,
+  );
+  assert.equal(
+    (await (await request("/public/categories")).json()).items[0].id,
+    categoryId,
+  );
+  assert.equal((await request(`/public/categories/${categoryId}`)).status, 200);
+  assert.equal((await request("/public/categories/missing")).status, 404);
+});
+
+test("blog capabilities require a live administrator session and do not publish a draft", async (t) => {
+  const { request } = await fixture(t);
+  assert.equal(
+    (
+      await request("/posts/87654321/preview-token", {
+        method: "POST",
+        body: {},
+      })
+    ).status,
+    401,
+  );
+  const ordinary = await register(request, "09120000321");
+  assert.equal(
+    (
+      await request("/posts/87654321/preview-token", {
+        method: "POST",
+        body: {},
+        token: ordinary.token,
+      })
+    ).status,
+    403,
+  );
+  const administrator = await login(request);
+  const write = (path) =>
+    request(path, { method: "POST", body: {}, token: administrator.token });
+  assert.equal((await write("/posts/99999999/preview-token")).status, 404);
+  const capability = await (
+    await write("/posts/87654321/preview-token")
+  ).json();
+  const preview = await request("/public/posts/87654321/preview", {
+    token: capability.token,
+  });
+  assert.equal(preview.status, 200);
+  assert.equal(preview.headers.get("Cache-Control"), "private, no-store");
+  assert.match((await preview.json()).body, /Private saved working content/);
+  assert.equal(
+    (
+      await request("/public/posts/48629173/preview", {
+        token: capability.token,
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (await request("/public/posts/87654321/preview", { token: "invalid" }))
+      .status,
+    401,
+  );
+  assert.equal((await request("/public/posts/87654321")).status, 404);
+  assert.equal((await write("/posts/87654321/publish")).status, 200);
+  assert.equal((await request("/public/posts/87654321")).status, 200);
+  assert.equal((await write("/posts/87654321/unpublish")).status, 200);
+  assert.equal((await request("/public/posts/87654321")).status, 404);
+  await write("/auth/logout");
+  assert.equal(
+    (
+      await request("/public/posts/87654321/preview", {
+        token: capability.token,
+      })
+    ).status,
+    401,
+  );
+  const next = await login(request);
+  const expired = await (
+    await request("/posts/87654321/preview-token", {
+      method: "POST",
+      body: {},
+      token: next.token,
+    })
+  ).json();
+  t.mock.method(Date, "now", () => Date.parse(expired.expires_at) + 1);
+  assert.equal(
+    (await request("/public/posts/87654321/preview", { token: expired.token }))
+      .status,
+    401,
+  );
+});
+
 test("start owns a loopback listener and reports an occupied port without disturbing its owner", async (t) => {
   const { origin, request, server } = await fixture(t);
   const port = new URL(origin).port;

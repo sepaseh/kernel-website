@@ -36,6 +36,7 @@ const browserSuites = {
   accessibility: ["accessibility.spec.ts"],
   csp: ["csp.spec.ts"],
   e2e: [
+    "blog.spec.ts",
     "client-boundaries.spec.ts",
     "font-performance.spec.ts",
     "performance.spec.ts",

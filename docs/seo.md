@@ -68,8 +68,10 @@ language/cache/metadata design change.
 [robots.ts](../src/app/robots.ts) allows page retrieval and disallows `/api/`.
 It advertises the sitemap only while indexing is enabled.
 [sitemap.ts](../src/app/sitemap.ts) returns an empty set while indexing is
-disabled and only the public home URL when enabled. Neither uses a request-time
-timestamp as `lastModified`.
+disabled. When enabled, it includes the public home URL and, when articles
+exist, the blog and current public article URLs. Article dates come from actual
+public updates. Two static slots leave 49,998 articles in the single sitemap.
+See the [blog route contract](blog.md).
 
 `createWebsiteJsonLd` builds a `WebSite` object from the actual name,
 description, language and configured origin. It returns no object without an

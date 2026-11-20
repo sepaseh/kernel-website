@@ -48,6 +48,14 @@ the child's environment to its required public/test values and approved runtime
 paths. Never use production accounts, an existing backend, secrets or operator
 state as fixture data.
 
+## Feature data and test operations
+
+The blog fixture seeds thirteen published articles and an unpublished working
+draft. It provides public offset pagination, category reads, sitemap projections,
+and administrator-only preview capabilities and publish/unpublish operations.
+Capabilities expire after five minutes and require the issuing session to remain
+live. See [Blog and preview](blog.md) for the website's expectations.
+
 ## Evidence boundaries
 
 The [application contract](application.md) requires exact-tree production

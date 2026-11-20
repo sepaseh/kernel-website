@@ -66,7 +66,9 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async () =>
-      Response.json({ language: { code: "en", direction: "rtl" } }),
+      Response.json({
+        language: { code: "en", direction: "rtl", calendar: "gregorian" },
+      }),
     ),
   );
 });
